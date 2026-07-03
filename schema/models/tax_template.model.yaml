@@ -1,0 +1,165 @@
+# =============================================================================
+# Domain: Tax
+# Entity: TaxTemplate + TaxTemplateRow
+# Description: A named set of charge rows the engine applies to a taxable base to produce tax lines.
+# Region-neutral (transcribed from the ERPNext taxes-and-charges template shape). Rates are
+# effective-dated so 11%→12% (or any change) coexist without editing history.
+# =============================================================================
+
+models:
+  - name: TaxTemplate
+    collection: tax_templates
+    description: "A named set of tax charge rows (sales or purchase)"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique template identifier"
+
+      code:
+        type: string
+        attributes: ["@required", "@max(40)"]
+        description: "Short unique code"
+
+      name:
+        type: string
+        attributes: ["@required", "@max(150)"]
+        description: "Template name"
+
+      template_type:
+        type: TemplateType
+        attributes: ["@default(sales)"]
+        description: "Applies to sales (output) or purchase (input)"
+
+      tax_category_id:
+        type: uuid?
+        attributes: ["@foreign_key(TaxCategory.id)"]
+        description: "Category this template belongs to"
+
+      is_inclusive:
+        type: bool
+        attributes: ["@default(false)"]
+        description: "Rates are tax-inclusive (base already contains the tax) vs exclusive"
+
+      status:
+        type: TaxStatus
+        attributes: ["@default(active)"]
+        description: "Lifecycle status"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    relations:
+      rows:
+        type: TaxTemplateRow[]
+        attributes: ["@one_to_many"]
+        description: "Charge rows of this template"
+        inverse: template
+
+    indexes:
+      - type: unique
+        fields: [code]
+        where: "deleted_at IS NULL"
+      - type: index
+        fields: [template_type, status]
+
+  - name: TaxTemplateRow
+    collection: tax_template_rows
+    description: "One charge row of a tax template (effective-dated rate)"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique row identifier"
+
+      template_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(TaxTemplate.id)"]
+        description: "Owning template"
+
+      charge_type:
+        type: ChargeType
+        attributes: ["@default(on_net_total)"]
+        description: "Base the rate applies to"
+
+      rate:
+        type: decimal
+        attributes: ["@required", "@precision(9,4)", "@non_negative"]
+        description: "Percentage rate (e.g. 11.0000 for 11%)"
+
+      account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Tax account # logical FK to accounting.Account.id (where the tax posts)"
+
+      is_withholding:
+        type: bool
+        attributes: ["@default(false)"]
+        description: "This row is a deduction (negative charge) at source"
+
+      # Effective-dating: the engine picks the row effective on the transaction date.
+      effective_from:
+        type: date
+        attributes: ["@required"]
+        description: "Rate effective from (inclusive)"
+
+      effective_to:
+        type: date?
+        description: "Rate effective to (inclusive); null = open-ended"
+
+      sort_order:
+        type: int
+        attributes: ["@default(0)"]
+        description: "Application order (for cumulative rows)"
+
+      description:
+        type: string?
+        attributes: ["@max(150)"]
+        description: "Line label (e.g. 'PPN Keluaran 11%')"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    relations:
+      template:
+        type: TaxTemplate
+        attributes: ["@one", "@foreign_key(template_id)"]
+        description: "Owning template"
+        inverse: rows
+
+    indexes:
+      - type: index
+        fields: [template_id, sort_order]
+      - type: index
+        fields: [template_id, effective_from]
+
+# =============================================================================
+# Enums
+# =============================================================================
+
+enums:
+  - name: TemplateType
+    description: "Sales (output) or purchase (input) template"
+    variants:
+      - name: sales
+        description: "Sales / output tax"
+        default: true
+      - name: purchase
+        description: "Purchase / input tax"
+
+  - name: ChargeType
+    description: "What base a charge row's rate applies to"
+    variants:
+      - name: on_net_total
+        description: "Rate applies to the net (pre-tax) total"
+        default: true
+      - name: on_previous_row_total
+        description: "Rate applies to (net + all prior charge rows) — cumulative"
+      - name: actual
+        description: "A fixed actual amount (rate field holds the amount, not a %)"

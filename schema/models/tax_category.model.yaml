@@ -1,0 +1,76 @@
+# =============================================================================
+# Domain: Tax
+# Entity: TaxCategory
+# Description: Classification a tax rule/template resolves against (e.g. Standard PPN, Exempt,
+# Zero-rated; PPh withholding categories). Region-neutral shape; Indonesia values seeded later.
+# =============================================================================
+
+models:
+  - name: TaxCategory
+    collection: tax_categories
+    description: "Tax classification (a rule/template resolves to a category)"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique category identifier"
+
+      code:
+        type: string
+        attributes: ["@required", "@max(40)"]
+        description: "Short unique code (e.g. PPN_STD, PPN_EXEMPT, PPH23)"
+
+      name:
+        type: string
+        attributes: ["@required", "@max(150)"]
+        description: "Category name"
+
+      tax_kind:
+        type: TaxKind
+        attributes: ["@default(vat)"]
+        description: "Which tax mechanism this category belongs to"
+
+      status:
+        type: TaxStatus
+        attributes: ["@default(active)"]
+        description: "Lifecycle status"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: unique
+        fields: [code]
+        where: "deleted_at IS NULL"
+      - type: index
+        fields: [tax_kind, status]
+
+# =============================================================================
+# Enums (shared across the tax module)
+# =============================================================================
+
+enums:
+  - name: TaxKind
+    description: "Tax mechanism"
+    variants:
+      - name: vat
+        description: "Value-added tax (Indonesia: PPN)"
+        default: true
+      - name: withholding
+        description: "Withholding tax at source (Indonesia: PPh 21/22/23/26/4(2))"
+      - name: sales
+        description: "Other sales/output charge"
+      - name: other
+        description: "Other"
+
+  - name: TaxStatus
+    description: "Lifecycle status for tax config"
+    variants:
+      - name: active
+        description: "Active"
+        default: true
+      - name: inactive
+        description: "Inactive"

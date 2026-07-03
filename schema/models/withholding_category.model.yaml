@@ -1,0 +1,67 @@
+# =============================================================================
+# Domain: Tax
+# Entity: WithholdingCategory
+# Description: A thresholded withholding-at-source category (Indonesia: PPh 21/22/23/26/4(2)).
+# Region-neutral shape; Indonesian categories + rates seeded later (deferred rules).
+# =============================================================================
+
+models:
+  - name: WithholdingCategory
+    collection: withholding_categories
+    description: "A withholding-tax category with an effective-dated rate + threshold"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique category identifier"
+
+      code:
+        type: string
+        attributes: ["@required", "@max(40)"]
+        description: "Short unique code (e.g. PPH23_SERVICES)"
+
+      name:
+        type: string
+        attributes: ["@required", "@max(150)"]
+        description: "Category name"
+
+      rate:
+        type: decimal
+        attributes: ["@required", "@precision(9,4)", "@non_negative"]
+        description: "Withholding percentage (e.g. 2.0000 for 2%)"
+
+      threshold_amount:
+        type: decimal
+        attributes: ["@default(0)", "@precision(18,2)", "@non_negative"]
+        description: "Minimum base before withholding applies (0 = always)"
+
+      account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Withholding payable account # logical FK to accounting.Account.id"
+
+      effective_from:
+        type: date
+        attributes: ["@required"]
+        description: "Effective from (inclusive)"
+
+      effective_to:
+        type: date?
+        description: "Effective to (inclusive); null = open-ended"
+
+      status:
+        type: TaxStatus
+        attributes: ["@default(active)"]
+        description: "Lifecycle status"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: index
+        fields: [code, effective_from]
+      - type: index
+        fields: [status]
