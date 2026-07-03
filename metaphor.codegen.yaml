@@ -1,0 +1,28 @@
+# Codegen policy for tax.
+#
+# `user_owned` globs are hand-written files that live inside generator-owned trees but are
+# NOT schema-derived. `metaphor schema generate [--force]` skips them wholesale (never reads,
+# merges, or deletes them). Everything else in src/ is regenerated from schema/models.
+#
+# Re-exports/declarations that must sit alongside generated code live inside
+# `// <<< CUSTOM ... // END CUSTOM` markers (service/mod.rs, presentation/http/mod.rs, lib.rs)
+# and are preserved by the marker mechanism, not listed here.
+#
+# Add your hand-authored services, handlers, tests, and docs below as you write them.
+
+user_owned:
+  # Tax engine (compute) + validated config write path.
+  - "src/application/service/tax_engine.rs"
+  - "src/application/service/tax_write_service.rs"
+  - "src/presentation/http/guarded_routes.rs"
+
+  # Behavior tests (the golden numeric oracle) + route probes + BDD features.
+  - "tests/tax_golden_cases.rs"
+  - "tests/integrity_probes.rs"
+  - "tests/features/**"
+
+  # Hand-authored DB constraint (effective-window overlap) — regen must not remove it.
+  - "migrations/20260426220020_tax_effective_overlap_exclude.*"
+
+  # Hand-authored module documentation.
+  - "docs/**"
