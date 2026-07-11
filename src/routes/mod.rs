@@ -12,9 +12,13 @@ use std::sync::Arc;
 // Import handlers
 use crate::presentation::http::{
     create_tax_category_routes,
+    create_tax_category_read_routes,
     create_tax_template_routes,
+    create_tax_template_read_routes,
     create_tax_template_row_routes,
-    create_withholding_category_routes
+    create_tax_template_row_read_routes,
+    create_withholding_category_routes,
+    create_withholding_category_read_routes
 };
 
 // Import AppState for stateful routes
@@ -42,6 +46,19 @@ pub fn create_stateless_routes(module: &crate::TaxModule) -> Router<()> {
         .merge(create_tax_template_routes(module.tax_template_service.clone()))
         .merge(create_tax_template_row_routes(module.tax_template_row_service.clone()))
         .merge(create_withholding_category_routes(module.withholding_category_service.clone()))
+}
+
+/// Read-only routes for the Tax module — every entity mounted READ-ONLY (the guarded base).
+///
+/// The generic `create_stateless_routes` exposes full mutable CRUD with no domain
+/// validation; this exposes only reads, so generic mutation can't bypass a write
+/// service's invariants. Extend it: `create_readonly_tax_routes(m).merge(my_validated_writes)`.
+pub fn create_readonly_tax_routes(module: &crate::TaxModule) -> Router<()> {
+    Router::new()
+        .merge(create_tax_category_read_routes(module.tax_category_service.clone()))
+        .merge(create_tax_template_read_routes(module.tax_template_service.clone()))
+        .merge(create_tax_template_row_read_routes(module.tax_template_row_service.clone()))
+        .merge(create_withholding_category_read_routes(module.withholding_category_service.clone()))
 }
 
 /// Get all routes (stateless) for the Tax module.
