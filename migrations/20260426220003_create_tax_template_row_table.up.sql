@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS tax.tax_template_rows (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     template_id UUID NOT NULL,
     charge_type charge_type NOT NULL DEFAULT 'on_net_total',
-    rate NUMERIC NOT NULL,
+    rate NUMERIC(9, 4) NOT NULL CHECK (rate >= 0),
     account_id UUID,
     is_withholding BOOLEAN NOT NULL DEFAULT FALSE,
     effective_from DATE NOT NULL,
