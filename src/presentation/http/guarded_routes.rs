@@ -39,9 +39,13 @@ fn err_response(e: TaxError) -> axum::response::Response {
 }
 
 // ── config writes ──────────────────────────────────────────────────────────────
+// Each create body carries the caller's `companyId` (ADR-0010 B1): the write service binds it
+// into the INSERT and wraps the call in `with_company_scope`. The compute endpoints below read
+// the company from the ambient request scope (set by the deployment's scope middleware).
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateCategoryBody {
+    company_id: Uuid,
     code: String,
     name: String,
     #[serde(default)]
@@ -51,7 +55,15 @@ async fn create_category(
     State(svc): State<Arc<TaxWriteService>>,
     Json(b): Json<CreateCategoryBody>,
 ) -> axum::response::Response {
-    match svc.create_category(NewCategory { code: b.code, name: b.name, tax_kind: b.tax_kind }).await {
+    match svc
+        .create_category(NewCategory {
+            company_id: b.company_id,
+            code: b.code,
+            name: b.name,
+            tax_kind: b.tax_kind,
+        })
+        .await
+    {
         Ok(id) => (StatusCode::CREATED, Json(IdResponse { id })).into_response(),
         Err(e) => err_response(e),
     }
@@ -60,6 +72,7 @@ async fn create_category(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateTemplateBody {
+    company_id: Uuid,
     code: String,
     name: String,
     #[serde(default)]
@@ -75,6 +88,7 @@ async fn create_template(
 ) -> axum::response::Response {
     match svc
         .create_template(NewTemplate {
+            company_id: b.company_id,
             code: b.code,
             name: b.name,
             template_type: b.template_type,
@@ -91,6 +105,7 @@ async fn create_template(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AddRowBody {
+    company_id: Uuid,
     template_id: Uuid,
     #[serde(default)]
     charge_type: Option<String>,
@@ -113,6 +128,7 @@ async fn add_row(
 ) -> axum::response::Response {
     match svc
         .add_row(NewTemplateRow {
+            company_id: b.company_id,
             template_id: b.template_id,
             charge_type: b.charge_type,
             rate: b.rate,
@@ -133,6 +149,7 @@ async fn add_row(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateWithholdingBody {
+    company_id: Uuid,
     code: String,
     name: String,
     rate: Decimal,
@@ -150,6 +167,7 @@ async fn create_withholding(
 ) -> axum::response::Response {
     match svc
         .create_withholding(NewWithholding {
+            company_id: b.company_id,
             code: b.code,
             name: b.name,
             rate: b.rate,

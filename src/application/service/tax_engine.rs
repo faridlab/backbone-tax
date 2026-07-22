@@ -2,7 +2,14 @@
 //! applied to a taxable base, and resolves withholding. It never posts to the GL — the caller
 //! attaches the returned lines to an `AccountingPost`. Indonesia rates/rules are seeded data
 //! (deferred); this is the transcribed engine that consumes them. See docs/erp/tax-compliance.md.
+//!
+//! Tenant-scoped read path (ADR-0010 Decision B1): every SELECT runs through
+//! `company_scope::{fetch_all_scoped, fetch_optional_scoped, fetch_optional_scalar_scoped}` so the
+//! ADR-0008 RLS fence on `tax.tax_*` sees `app.company_id` and returns the caller's rows. A missed
+//! scope fails loud as `NoCompanyScope` (not a misleading `NoEffectiveRate`); a correct scope with
+//! no effective row still returns `NoEffectiveRate`/`CategoryNotFound` as before.
 
+use backbone_orm::company_scope;
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
@@ -21,6 +28,11 @@ pub enum TaxError {
     OverlappingWindow(String),
     /// An inclusive template contains a non-`on_net_total` row — the grossing-up basis is undefined.
     InclusiveUnsupported,
+    /// A read/compute path needed the caller's company but the request scope was unset
+    /// (missing `with_company_scope` / `with_request_scope` middleware). Distinct from
+    /// `NoEffectiveRate`/`CategoryNotFound` so operators can tell a missed scope from a genuine
+    /// "no row applies on this date" (ADR-0010 B1).
+    NoCompanyScope,
     Db(sqlx::Error),
 }
 impl TaxError {
@@ -34,12 +46,14 @@ impl TaxError {
             TaxError::DuplicateCode(_) => "duplicate_code",
             TaxError::OverlappingWindow(_) => "overlapping_effective_window",
             TaxError::InclusiveUnsupported => "inclusive_cumulative_unsupported",
+            TaxError::NoCompanyScope => "no_company_scope",
             TaxError::Db(_) => "internal_error",
         }
     }
     pub fn http_status(&self) -> u16 {
         match self {
             TaxError::Db(_) => 500,
+            TaxError::NoCompanyScope => 401,
             _ => 422,
         }
     }
@@ -95,6 +109,12 @@ impl TaxEngine {
     /// - `actual`: `rate` is a fixed amount, not a percentage.
     /// If the template `is_inclusive`, the base is treated as already containing the tax and the
     /// tax is extracted (base is the tax-inclusive gross). Withholding rows produce negative lines.
+    ///
+    /// **Tenant-scoped read path (ADR-0010 B1).** Both the template lookup and the row fetch run
+    /// through the scoped execute helpers so the RLS fence sees `app.company_id`. The caller's
+    /// company is read from the ambient request scope (`with_company_scope` /
+    /// `with_request_scope`); if no scope is set the engine fails loud as `NoCompanyScope`
+    /// instead of the misleading `NoEffectiveRate`.
     pub async fn calculate(
         &self,
         template_id: Uuid,
@@ -104,11 +124,20 @@ impl TaxEngine {
         if base_amount < Decimal::ZERO {
             return Err(TaxError::NegativeBase);
         }
-        let inclusive: Option<bool> = sqlx::query_scalar(
-            "SELECT is_inclusive FROM tax.tax_templates WHERE id=$1 AND (metadata->>'deleted_at') IS NULL",
+        if company_scope::current_company().is_none() {
+            // Fail loud on a missed scope rather than returning NoEffectiveRate from the fenced
+            // SELECT (which would be indistinguishable from a genuine "no row applies").
+            return Err(TaxError::NoCompanyScope);
+        }
+
+        let inclusive: Option<bool> = company_scope::fetch_optional_scalar_scoped(
+            &self.db_pool,
+            sqlx::query_scalar(
+                "SELECT is_inclusive FROM tax.tax_templates \
+                 WHERE id=$1 AND (metadata->>'deleted_at') IS NULL",
+            )
+            .bind(template_id),
         )
-        .bind(template_id)
-        .fetch_optional(&self.db_pool)
         .await?;
         let inclusive = inclusive.ok_or(TaxError::TemplateNotFound(template_id))?;
 
@@ -116,20 +145,23 @@ impl TaxEngine {
         // `DISTINCT ON (sort_order)` makes overlapping effective windows deterministic (never a
         // double-charge on the read path); `add_row` also rejects overlaps at write time and an
         // EXCLUDE constraint forbids them in the DB (council 2026-07-03).
-        let rows: Vec<(i32, String, Decimal, Option<Uuid>, bool, Option<String>)> = sqlx::query_as(
-            r#"SELECT DISTINCT ON (sort_order)
-                   sort_order, charge_type::text, rate, account_id, is_withholding, description
-               FROM tax.tax_template_rows
-               WHERE template_id=$1
-                 AND (metadata->>'deleted_at') IS NULL
-                 AND effective_from <= $2
-                 AND (effective_to IS NULL OR effective_to >= $2)
-               ORDER BY sort_order, effective_from DESC"#,
-        )
-        .bind(template_id)
-        .bind(on_date)
-        .fetch_all(&self.db_pool)
-        .await?;
+        let rows: Vec<(i32, String, Decimal, Option<Uuid>, bool, Option<String>)> =
+            company_scope::fetch_all_scoped(
+                &self.db_pool,
+                sqlx::query_as(
+                    r#"SELECT DISTINCT ON (sort_order)
+                           sort_order, charge_type::text, rate, account_id, is_withholding, description
+                       FROM tax.tax_template_rows
+                       WHERE template_id=$1
+                         AND (metadata->>'deleted_at') IS NULL
+                         AND effective_from <= $2
+                         AND (effective_to IS NULL OR effective_to >= $2)
+                       ORDER BY sort_order, effective_from DESC"#,
+                )
+                .bind(template_id)
+                .bind(on_date),
+            )
+            .await?;
         if rows.is_empty() {
             return Err(TaxError::NoEffectiveRate(template_id));
         }
@@ -206,6 +238,8 @@ impl TaxEngine {
     }
 
     /// Resolve a withholding line for `category_id` on `base_amount` — `None` if under threshold.
+    ///
+    /// **Tenant-scoped read path (ADR-0010 B1).** Same fence/scope rules as `calculate`.
     pub async fn resolve_withholding(
         &self,
         category_id: Uuid,
@@ -215,17 +249,23 @@ impl TaxEngine {
         if base_amount < Decimal::ZERO {
             return Err(TaxError::NegativeBase);
         }
-        let row: Option<(Decimal, Decimal, Option<Uuid>, Option<String>)> = sqlx::query_as(
-            r#"SELECT rate, threshold_amount, account_id, name
-               FROM tax.withholding_categories
-               WHERE id=$1 AND (metadata->>'deleted_at') IS NULL
-                 AND effective_from <= $2 AND (effective_to IS NULL OR effective_to >= $2)
-               ORDER BY effective_from DESC LIMIT 1"#,
-        )
-        .bind(category_id)
-        .bind(on_date)
-        .fetch_optional(&self.db_pool)
-        .await?;
+        if company_scope::current_company().is_none() {
+            return Err(TaxError::NoCompanyScope);
+        }
+        let row: Option<(Decimal, Decimal, Option<Uuid>, Option<String>)> =
+            company_scope::fetch_optional_scoped(
+                &self.db_pool,
+                sqlx::query_as(
+                    r#"SELECT rate, threshold_amount, account_id, name
+                       FROM tax.withholding_categories
+                       WHERE id=$1 AND (metadata->>'deleted_at') IS NULL
+                         AND effective_from <= $2 AND (effective_to IS NULL OR effective_to >= $2)
+                       ORDER BY effective_from DESC LIMIT 1"#,
+                )
+                .bind(category_id)
+                .bind(on_date),
+            )
+            .await?;
         let (rate, threshold, account_id, name) =
             row.ok_or(TaxError::CategoryNotFound(category_id))?;
         if base_amount < threshold {

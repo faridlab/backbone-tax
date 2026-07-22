@@ -16,6 +16,11 @@ models:
         attributes: ["@id", "@default(uuid)"]
         description: "Unique category identifier"
 
+      company_id:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "Tenant that owns this category # logical FK to organization.Company.id (no hard SQL FK — RLS is the fence, ADR-0010 B1)"
+
       code:
         type: string
         attributes: ["@required", "@max(40)"]
@@ -43,7 +48,7 @@ models:
 
     indexes:
       - type: unique
-        fields: [code]
+        fields: [company_id, code]
         where: "deleted_at IS NULL"
       - type: index
         fields: [tax_kind, status]
