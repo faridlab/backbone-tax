@@ -24,6 +24,7 @@ impl TestDataGenerator for TaxTemplateRowTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": Uuid::new_v4().to_string(),
+            "company_id": Uuid::new_v4().to_string(),
             "template_id": Uuid::new_v4().to_string(),
             "charge_type": "on_net_total",
             "rate": 0,
@@ -41,6 +42,7 @@ impl TestDataGenerator for TaxTemplateRowTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": id,
+            "company_id": Uuid::new_v4().to_string(),
             "template_id": Uuid::new_v4().to_string(),
             "charge_type": "on_net_total",
             "rate": 0,

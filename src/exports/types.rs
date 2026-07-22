@@ -49,6 +49,7 @@ impl From<TaxCategoryId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxCategoryDto {
     pub id: TaxCategoryId,
+    pub company_id: Uuid,
     pub code: String,
     pub name: String,
     pub tax_kind: TaxKind,
@@ -108,6 +109,7 @@ impl From<TaxTemplateId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxTemplateDto {
     pub id: TaxTemplateId,
+    pub company_id: Uuid,
     pub code: String,
     pub name: String,
     pub template_type: TemplateType,
@@ -169,6 +171,7 @@ impl From<TaxTemplateRowId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxTemplateRowDto {
     pub id: TaxTemplateRowId,
+    pub company_id: Uuid,
     pub template_id: Uuid,
     pub charge_type: ChargeType,
     pub rate: Decimal,
@@ -231,6 +234,7 @@ impl From<WithholdingCategoryId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WithholdingCategoryDto {
     pub id: WithholdingCategoryId,
+    pub company_id: Uuid,
     pub code: String,
     pub name: String,
     pub rate: Decimal,

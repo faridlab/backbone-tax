@@ -51,6 +51,7 @@ impl std::ops::Deref for TaxTemplateRowId {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TaxTemplateRow {
     pub id: Uuid,
+    pub company_id: Uuid,
     pub template_id: Uuid,
     pub charge_type: ChargeType,
     pub rate: Decimal,
@@ -72,9 +73,10 @@ impl TaxTemplateRow {
     }
 
     /// Create a new TaxTemplateRow with required fields
-    pub fn new(template_id: Uuid, charge_type: ChargeType, rate: Decimal, is_withholding: bool, effective_from: NaiveDate, sort_order: i32) -> Self {
+    pub fn new(company_id: Uuid, template_id: Uuid, charge_type: ChargeType, rate: Decimal, is_withholding: bool, effective_from: NaiveDate, sort_order: i32) -> Self {
         Self {
             id: Uuid::new_v4(),
+            company_id,
             template_id,
             charge_type,
             rate,
@@ -169,6 +171,9 @@ impl TaxTemplateRow {
     pub fn apply_patch(&mut self, fields: std::collections::HashMap<String, serde_json::Value>) {
         for (key, value) in fields {
             match key.as_str() {
+                "company_id" => {
+                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                }
                 "template_id" => {
                     if let Ok(v) = serde_json::from_value(value) { self.template_id = v; }
                 }
@@ -250,6 +255,7 @@ impl backbone_orm::EntityRepoMeta for TaxTemplateRow {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
+        m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("template_id".to_string(), "uuid".to_string());
         m.insert("account_id".to_string(), "uuid".to_string());
         m.insert("charge_type".to_string(), "charge_type".to_string());
@@ -257,6 +263,9 @@ impl backbone_orm::EntityRepoMeta for TaxTemplateRow {
     }
     fn search_fields() -> &'static [&'static str] {
         &[]
+    }
+    fn company_field() -> Option<&'static str> {
+        Some("company_id")
     }
     fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
         &[("template", "tax_templates", "templateId")]
@@ -269,6 +278,7 @@ impl backbone_orm::EntityRepoMeta for TaxTemplateRow {
 /// System fields (id, metadata, timestamps) are auto-initialized.
 #[derive(Debug, Clone, Default)]
 pub struct TaxTemplateRowBuilder {
+    company_id: Option<Uuid>,
     template_id: Option<Uuid>,
     charge_type: Option<ChargeType>,
     rate: Option<Decimal>,
@@ -281,6 +291,12 @@ pub struct TaxTemplateRowBuilder {
 }
 
 impl TaxTemplateRowBuilder {
+    /// Set the company_id field (required)
+    pub fn company_id(mut self, value: Uuid) -> Self {
+        self.company_id = Some(value);
+        self
+    }
+
     /// Set the template_id field (required)
     pub fn template_id(mut self, value: Uuid) -> Self {
         self.template_id = Some(value);
@@ -339,12 +355,14 @@ impl TaxTemplateRowBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<TaxTemplateRow, String> {
+        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
         let template_id = self.template_id.ok_or_else(|| "template_id is required".to_string())?;
         let rate = self.rate.ok_or_else(|| "rate is required".to_string())?;
         let effective_from = self.effective_from.ok_or_else(|| "effective_from is required".to_string())?;
 
         Ok(TaxTemplateRow {
             id: Uuid::new_v4(),
+            company_id,
             template_id,
             charge_type: self.charge_type.unwrap_or(ChargeType::default()),
             rate,

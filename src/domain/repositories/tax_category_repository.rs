@@ -7,6 +7,7 @@
 
 use async_trait::async_trait;
 use anyhow::Result;
+use uuid::Uuid;
 
 use crate::domain::entity::{TaxCategory, TaxKind, TaxStatus};
 
@@ -43,6 +44,7 @@ pub struct TaxCategoryPaginatedResult {
 /// Filter parameters for list queries
 #[derive(Debug, Clone, Default)]
 pub struct TaxCategoryFilter {
+    pub company_id: Option<Uuid>,
     pub code: Option<String>,
     pub name: Option<String>,
     pub tax_kind: Option<TaxKind>,
@@ -52,7 +54,7 @@ pub struct TaxCategoryFilter {
 impl TaxCategoryFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.code.is_some() || self.name.is_some() || self.tax_kind.is_some() || self.status.is_some()
+        self.company_id.is_some() || self.code.is_some() || self.name.is_some() || self.tax_kind.is_some() || self.status.is_some()
     }
 }
 
