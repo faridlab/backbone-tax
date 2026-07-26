@@ -10,11 +10,17 @@ use async_trait::async_trait;
 use sqlx::PgPool;
 
 mod tax_category_seeder;
+mod tax_transaction_seeder;
+mod e_faktur_document_seeder;
+mod tax_filing_period_seeder;
 mod tax_template_seeder;
 mod tax_template_row_seeder;
 mod withholding_category_seeder;
 
 pub use tax_category_seeder::SeedTaxCategorySeeder;
+pub use tax_transaction_seeder::SeedTaxTransactionSeeder;
+pub use e_faktur_document_seeder::SeedEFakturDocumentSeeder;
+pub use tax_filing_period_seeder::SeedTaxFilingPeriodSeeder;
 pub use tax_template_seeder::SeedTaxTemplateSeeder;
 pub use tax_template_row_seeder::SeedTaxTemplateRowSeeder;
 pub use withholding_category_seeder::SeedWithholdingCategorySeeder;

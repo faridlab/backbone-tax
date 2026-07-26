@@ -6,6 +6,7 @@
 
 -- INSERT INTO tax.tax_categories (
 --     id,
+--     company_id,
 --     code,
 --     name,
 --     tax_kind,

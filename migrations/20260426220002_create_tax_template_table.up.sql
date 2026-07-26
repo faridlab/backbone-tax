@@ -23,6 +23,7 @@ CREATE SCHEMA IF NOT EXISTS tax;
 
 CREATE TABLE IF NOT EXISTS tax.tax_templates (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL,
     code TEXT NOT NULL,
     name TEXT NOT NULL,
     template_type template_type NOT NULL DEFAULT 'sales',
@@ -33,7 +34,7 @@ CREATE TABLE IF NOT EXISTS tax.tax_templates (
     PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_tax_templates_code ON tax.tax_templates (code) WHERE (metadata->>'deleted_at') IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tax_templates_company_id_code ON tax.tax_templates (company_id, code) WHERE (metadata->>'deleted_at') IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_tax_templates_template_type_status ON tax.tax_templates (template_type, status);
 

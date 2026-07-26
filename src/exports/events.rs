@@ -38,6 +38,87 @@ pub struct TaxCategoryDeletedEvent {
 }
 
 // ============================================================================
+// TAXTRANSACTION EVENTS
+// ============================================================================
+
+/// Event published when a TaxTransaction is created
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTransactionCreatedEvent {
+    pub id: TaxTransactionId,
+    pub data: TaxTransactionDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a TaxTransaction is updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTransactionUpdatedEvent {
+    pub id: TaxTransactionId,
+    pub data: TaxTransactionDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a TaxTransaction is deleted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTransactionDeletedEvent {
+    pub id: TaxTransactionId,
+    pub occurred_at: DateTime<Utc>,
+}
+
+// ============================================================================
+// EFAKTURDOCUMENT EVENTS
+// ============================================================================
+
+/// Event published when a EFakturDocument is created
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EFakturDocumentCreatedEvent {
+    pub id: EFakturDocumentId,
+    pub data: EFakturDocumentDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a EFakturDocument is updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EFakturDocumentUpdatedEvent {
+    pub id: EFakturDocumentId,
+    pub data: EFakturDocumentDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a EFakturDocument is deleted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EFakturDocumentDeletedEvent {
+    pub id: EFakturDocumentId,
+    pub occurred_at: DateTime<Utc>,
+}
+
+// ============================================================================
+// TAXFILINGPERIOD EVENTS
+// ============================================================================
+
+/// Event published when a TaxFilingPeriod is created
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxFilingPeriodCreatedEvent {
+    pub id: TaxFilingPeriodId,
+    pub data: TaxFilingPeriodDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a TaxFilingPeriod is updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxFilingPeriodUpdatedEvent {
+    pub id: TaxFilingPeriodId,
+    pub data: TaxFilingPeriodDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a TaxFilingPeriod is deleted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxFilingPeriodDeletedEvent {
+    pub id: TaxFilingPeriodId,
+    pub occurred_at: DateTime<Utc>,
+}
+
+// ============================================================================
 // TAXTEMPLATE EVENTS
 // ============================================================================
 
@@ -129,6 +210,15 @@ pub enum TaxEvent {
     TaxCategoryCreated(TaxCategoryCreatedEvent),
     TaxCategoryUpdated(TaxCategoryUpdatedEvent),
     TaxCategoryDeleted(TaxCategoryDeletedEvent),
+    TaxTransactionCreated(TaxTransactionCreatedEvent),
+    TaxTransactionUpdated(TaxTransactionUpdatedEvent),
+    TaxTransactionDeleted(TaxTransactionDeletedEvent),
+    EFakturDocumentCreated(EFakturDocumentCreatedEvent),
+    EFakturDocumentUpdated(EFakturDocumentUpdatedEvent),
+    EFakturDocumentDeleted(EFakturDocumentDeletedEvent),
+    TaxFilingPeriodCreated(TaxFilingPeriodCreatedEvent),
+    TaxFilingPeriodUpdated(TaxFilingPeriodUpdatedEvent),
+    TaxFilingPeriodDeleted(TaxFilingPeriodDeletedEvent),
     TaxTemplateCreated(TaxTemplateCreatedEvent),
     TaxTemplateUpdated(TaxTemplateUpdatedEvent),
     TaxTemplateDeleted(TaxTemplateDeletedEvent),

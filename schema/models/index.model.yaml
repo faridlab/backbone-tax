@@ -66,3 +66,4 @@ imports:
   - tax_category.model.yaml
   - tax_template.model.yaml
   - withholding_category.model.yaml
+  - tax_compliance.model.yaml

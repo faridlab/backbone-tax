@@ -19,6 +19,51 @@ BEGIN
 END
 $$;
 
+-- Create invoice_kind enum type
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'invoice_kind') THEN
+        CREATE TYPE invoice_kind AS ENUM ('sales', 'purchase');
+    END IF;
+END
+$$;
+
+-- Create tax_transaction_status enum type
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tax_transaction_status') THEN
+        CREATE TYPE tax_transaction_status AS ENUM ('recorded', 'confirmed', 'voided');
+    END IF;
+END
+$$;
+
+-- Create tax_transaction_source enum type
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tax_transaction_source') THEN
+        CREATE TYPE tax_transaction_source AS ENUM ('seam', 'computed_live');
+    END IF;
+END
+$$;
+
+-- Create e_faktur_status enum type
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'e_faktur_status') THEN
+        CREATE TYPE e_faktur_status AS ENUM ('assigned', 'confirmed', 'voided');
+    END IF;
+END
+$$;
+
+-- Create tax_filing_status enum type
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tax_filing_status') THEN
+        CREATE TYPE tax_filing_status AS ENUM ('open', 'finalized', 'filed');
+    END IF;
+END
+$$;
+
 -- Create template_type enum type
 DO $$
 BEGIN

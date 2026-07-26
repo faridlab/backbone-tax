@@ -8,6 +8,9 @@ pub mod error;
 pub use error::{ServiceError, ServiceResult};
 
 pub mod tax_category_service;
+pub mod tax_transaction_service;
+pub mod e_faktur_document_service;
+pub mod tax_filing_period_service;
 pub mod tax_template_service;
 pub mod tax_template_row_service;
 pub mod withholding_category_service;
@@ -15,9 +18,14 @@ pub mod withholding_category_service;
 // <<< CUSTOM
 pub mod tax_engine;
 pub mod tax_write_service;
+pub mod efaktur_service;
+pub use efaktur_service::{EFakturService, PostedForTax, TaxComplianceError};
 // END CUSTOM
 
 pub use tax_category_service::TaxCategoryService;
+pub use tax_transaction_service::TaxTransactionService;
+pub use e_faktur_document_service::EFakturDocumentService;
+pub use tax_filing_period_service::TaxFilingPeriodService;
 pub use tax_template_service::TaxTemplateService;
 pub use tax_template_row_service::TaxTemplateRowService;
 pub use withholding_category_service::WithholdingCategoryService;

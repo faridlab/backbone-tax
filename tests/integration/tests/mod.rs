@@ -7,6 +7,9 @@
 pub mod crud_test_base;
 
 pub mod tax_category_api_test;
+pub mod tax_transaction_api_test;
+pub mod e_faktur_document_api_test;
+pub mod tax_filing_period_api_test;
 pub mod tax_template_api_test;
 pub mod tax_template_row_api_test;
 pub mod withholding_category_api_test;
@@ -14,6 +17,9 @@ pub mod withholding_category_api_test;
 // Re-exports for convenience
 pub use crud_test_base::*;
 pub use tax_category_api_test::*;
+pub use tax_transaction_api_test::*;
+pub use e_faktur_document_api_test::*;
+pub use tax_filing_period_api_test::*;
 pub use tax_template_api_test::*;
 pub use tax_template_row_api_test::*;
 pub use withholding_category_api_test::*;

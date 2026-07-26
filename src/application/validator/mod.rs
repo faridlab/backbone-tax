@@ -6,11 +6,17 @@ pub mod shared_types;
 pub use shared_types::{ValidationError, ValidationErrors, ValidationResult, EntityValidator};
 
 pub mod tax_category_validator;
+pub mod tax_transaction_validator;
+pub mod e_faktur_document_validator;
+pub mod tax_filing_period_validator;
 pub mod tax_template_validator;
 pub mod tax_template_row_validator;
 pub mod withholding_category_validator;
 
 pub use tax_category_validator::{TaxCategoryValidator, tax_category_validator};
+pub use tax_transaction_validator::{TaxTransactionValidator, tax_transaction_validator};
+pub use e_faktur_document_validator::{EFakturDocumentValidator, e_faktur_document_validator};
+pub use tax_filing_period_validator::{TaxFilingPeriodValidator, tax_filing_period_validator};
 pub use tax_template_validator::{TaxTemplateValidator, tax_template_validator};
 pub use tax_template_row_validator::{TaxTemplateRowValidator, tax_template_row_validator};
 pub use withholding_category_validator::{WithholdingCategoryValidator, withholding_category_validator};

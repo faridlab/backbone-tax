@@ -48,6 +48,27 @@ entities:
     pagination:
       default_limit: 20
       max_limit: 100
+  tax_transaction:
+    collection: tax_transactions
+    enabled: true
+    cache_ttl: 300
+    pagination:
+      default_limit: 20
+      max_limit: 100
+  e_faktur_document:
+    collection: efaktur_documents
+    enabled: true
+    cache_ttl: 300
+    pagination:
+      default_limit: 20
+      max_limit: 100
+  tax_filing_period:
+    collection: tax_filing_periods
+    enabled: true
+    cache_ttl: 300
+    pagination:
+      default_limit: 20
+      max_limit: 100
 tracing:
   enabled: true
   exporter: otlp

@@ -23,6 +23,7 @@ CREATE SCHEMA IF NOT EXISTS tax;
 
 CREATE TABLE IF NOT EXISTS tax.tax_categories (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL,
     code TEXT NOT NULL,
     name TEXT NOT NULL,
     tax_kind tax_kind NOT NULL DEFAULT 'vat',
@@ -31,7 +32,7 @@ CREATE TABLE IF NOT EXISTS tax.tax_categories (
     PRIMARY KEY (id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_tax_categories_code ON tax.tax_categories (code) WHERE (metadata->>'deleted_at') IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tax_categories_company_id_code ON tax.tax_categories (company_id, code) WHERE (metadata->>'deleted_at') IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_tax_categories_tax_kind_status ON tax.tax_categories (tax_kind, status);
 

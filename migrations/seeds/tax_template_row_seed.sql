@@ -6,6 +6,7 @@
 
 -- INSERT INTO tax.tax_template_rows (
 --     id,
+--     company_id,
 --     template_id,
 --     charge_type,
 --     rate,

@@ -12,6 +12,9 @@ pub use handlers::*;
 pub use registry::SubscriptionRegistry;
 
 pub use handlers::TaxCategoryEventSubscriber;
+pub use handlers::TaxTransactionEventSubscriber;
+pub use handlers::EFakturDocumentEventSubscriber;
+pub use handlers::TaxFilingPeriodEventSubscriber;
 pub use handlers::TaxTemplateEventSubscriber;
 pub use handlers::TaxTemplateRowEventSubscriber;
 pub use handlers::WithholdingCategoryEventSubscriber;

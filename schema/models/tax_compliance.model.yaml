@@ -1,0 +1,116 @@
+# =============================================================================
+# Domain: Tax — Computation Results & e-Faktur Compliance
+# Entities: TaxTransaction, EFakturDocument, TaxFilingPeriod
+# Description: The tax-side audit mirror (TaxTransaction records each posted
+#   invoice's tax result), Indonesian e-Faktur numbering (EFakturDocument with
+#   gapless DJP-format sequence), and the masa pajak period allocator
+#   (TaxFilingPeriod). Tax owns these; billing owns the invoice + InvoiceTaxLine
+#   overlay. Zero cargo edges (tax reads billing via events, not direct deps).
+# =============================================================================
+
+models:
+  - name: TaxTransaction
+    collection: tax_transactions
+    description: "An immutable tax-result record for one posted invoice (tax-side audit)"
+    fields:
+      id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
+      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"], description: "Tenant # logical FK organization.Company.id" }
+      invoice_ref: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"], description: "The billing invoice this covers # logical FK" }
+      invoice_kind: { type: InvoiceKind, attributes: ["@required"] }
+      posting_date: { type: date, attributes: ["@required"] }
+      taxable_base: { type: decimal, attributes: ["@required", "@precision(18,2)", "@non_negative"] }
+      output_total: { type: decimal, attributes: ["@default(0)", "@precision(18,2)"] }
+      input_total: { type: decimal, attributes: ["@default(0)", "@precision(18,2)"] }
+      withholding_total: { type: decimal, attributes: ["@default(0)", "@precision(18,2)"] }
+      currency: { type: string, attributes: ["@default(IDR)", "@max(3)"] }
+      source: { type: TaxTransactionSource, attributes: ["@default(seam)"] }
+      efaktur_document_id: { type: uuid?, attributes: ["@exclude_from_foreign_key_check"], description: "Set when e-Faktur assigned (sales only)" }
+      status: { type: TaxTransactionStatus, attributes: ["@default(recorded)"] }
+      metadata: { type: Metadata, attributes: ["@audit_metadata"] }
+    indexes:
+      - type: unique
+        fields: [company_id, invoice_ref, invoice_kind]
+        where: "deleted_at IS NULL"
+        description: "one tax transaction per invoice per tenant (idempotent)"
+      - type: index
+        fields: [company_id, posting_date]
+
+  - name: EFakturDocument
+    collection: efaktur_documents
+    description: "An Indonesian e-Faktur numbering record assigned to a sales transaction"
+    fields:
+      id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
+      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"] }
+      tax_transaction_id: { type: uuid, attributes: ["@required", "@foreign_key(TaxTransaction.id)"] }
+      number: { type: string, attributes: ["@required", "@max(20)"], description: "Full e-Faktur: FFF.NNN-NN.YYYYYYYY (DJP PM-24/PMK.03/2012)" }
+      transaction_code: { type: string, attributes: ["@required", "@max(3)"], description: "FFF — jenis transaksi (010 standard, 011 replacement)" }
+      taxpayer_segment: { type: string, attributes: ["@required", "@max(3)"], description: "NNN — perusahaan/cabang (derived from NPWP)" }
+      period: { type: date, attributes: ["@required"], description: "Masa pajak (tax period — stored as period-start date)" }
+      sequence: { type: int, attributes: ["@required", "@non_negative"], description: "YYYYYYYY — gapless within (company, period)" }
+      assignment_date: { type: date, attributes: ["@required"] }
+      status: { type: EFakturStatus, attributes: ["@default(assigned)"] }
+      replaces_id: { type: uuid?, attributes: ["@exclude_from_foreign_key_check"], description: "Prior EFakturDocument if this replaces (code 011)" }
+      metadata: { type: Metadata, attributes: ["@audit_metadata"] }
+    indexes:
+      - type: unique
+        fields: [company_id, period, sequence]
+        where: "deleted_at IS NULL"
+        description: "sequence is dense + unique within (company, period) — DJP no-gaps rule"
+      - type: unique
+        fields: [company_id, number]
+        where: "deleted_at IS NULL"
+
+  - name: TaxFilingPeriod
+    collection: tax_filing_periods
+    description: "A monthly masa pajak period: sequence allocator + SPT rollup container"
+    fields:
+      id: { type: uuid, attributes: ["@id", "@default(uuid)"] }
+      company_id: { type: uuid, attributes: ["@required", "@exclude_from_foreign_key_check"] }
+      period: { type: date, attributes: ["@required"], description: "First day of the masa pajak" }
+      npwp: { type: string?, attributes: ["@max(16)"], description: "Taxpayer ID (drives taxpayer_segment)" }
+      taxpayer_segment: { type: string?, attributes: ["@max(3)"] }
+      next_sequence: { type: int, attributes: ["@default(1)", "@non_negative"], description: "Next sequence to assign — gapless allocator" }
+      output_total: { type: decimal, attributes: ["@default(0)", "@precision(18,2)"] }
+      input_total: { type: decimal, attributes: ["@default(0)", "@precision(18,2)"] }
+      withholding_total: { type: decimal, attributes: ["@default(0)", "@precision(18,2)"] }
+      status: { type: TaxFilingStatus, attributes: ["@default(open)"] }
+      metadata: { type: Metadata, attributes: ["@audit_metadata"] }
+    indexes:
+      - type: unique
+        fields: [company_id, period]
+        where: "deleted_at IS NULL"
+        description: "exactly one period per company per month"
+
+enums:
+  - name: InvoiceKind
+    description: "Invoice kind (mirrors billing.InvoiceKind)"
+    variants:
+      - { name: sales, description: "Sales invoice (AR)", default: true }
+      - { name: purchase, description: "Purchase invoice (AP)" }
+
+  - name: TaxTransactionStatus
+    description: "State of a tax transaction"
+    variants:
+      - { name: recorded, description: "Tax heard the posted event; recorded", default: true }
+      - { name: confirmed, description: "e-Faktur assigned / faktur matched" }
+      - { name: voided, description: "The billing invoice was cancelled" }
+
+  - name: TaxTransactionSource
+    description: "How the tax result was obtained"
+    variants:
+      - { name: seam, description: "Recorded from a billing posted event", default: true }
+      - { name: computed_live, description: "Computed live (pre-post preview)" }
+
+  - name: EFakturStatus
+    description: "e-Faktur lifecycle"
+    variants:
+      - { name: assigned, description: "Number allocated", default: true }
+      - { name: confirmed, description: "Operator / Coretax confirmed" }
+      - { name: voided, description: "Cancelled (sequence preserved for gaplessness)" }
+
+  - name: TaxFilingStatus
+    description: "Masa pajak period lifecycle"
+    variants:
+      - { name: open, description: "Active, accepting transactions", default: true }
+      - { name: finalized, description: "Closed for the period" }
+      - { name: filed, description: "SPT submitted to DJP" }

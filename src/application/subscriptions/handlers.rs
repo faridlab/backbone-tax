@@ -5,6 +5,9 @@
 use backbone_messaging::GenericEventSubscriber;
 
 use crate::domain::event::TaxCategoryEvent;
+use crate::domain::event::TaxTransactionEvent;
+use crate::domain::event::EFakturDocumentEvent;
+use crate::domain::event::TaxFilingPeriodEvent;
 use crate::domain::event::TaxTemplateEvent;
 use crate::domain::event::TaxTemplateRowEvent;
 use crate::domain::event::WithholdingCategoryEvent;
@@ -13,6 +16,21 @@ use crate::domain::event::WithholdingCategoryEvent;
 ///
 /// Register handlers via `GenericEventSubscriber::new(topics, handlers)`.
 pub type TaxCategoryEventSubscriber = GenericEventSubscriber<TaxCategoryEvent>;
+
+/// Subscriber for TaxTransaction events.
+///
+/// Register handlers via `GenericEventSubscriber::new(topics, handlers)`.
+pub type TaxTransactionEventSubscriber = GenericEventSubscriber<TaxTransactionEvent>;
+
+/// Subscriber for EFakturDocument events.
+///
+/// Register handlers via `GenericEventSubscriber::new(topics, handlers)`.
+pub type EFakturDocumentEventSubscriber = GenericEventSubscriber<EFakturDocumentEvent>;
+
+/// Subscriber for TaxFilingPeriod events.
+///
+/// Register handlers via `GenericEventSubscriber::new(topics, handlers)`.
+pub type TaxFilingPeriodEventSubscriber = GenericEventSubscriber<TaxFilingPeriodEvent>;
 
 /// Subscriber for TaxTemplate events.
 ///

@@ -14,6 +14,7 @@ CREATE SCHEMA IF NOT EXISTS tax;
 
 CREATE TABLE IF NOT EXISTS tax.withholding_categories (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL,
     code TEXT NOT NULL,
     name TEXT NOT NULL,
     rate NUMERIC(9, 4) NOT NULL CHECK (rate >= 0),

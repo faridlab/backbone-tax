@@ -13,6 +13,12 @@ use std::sync::Arc;
 use crate::presentation::http::{
     create_tax_category_routes,
     create_tax_category_read_routes,
+    create_tax_transaction_routes,
+    create_tax_transaction_read_routes,
+    create_e_faktur_document_routes,
+    create_e_faktur_document_read_routes,
+    create_tax_filing_period_routes,
+    create_tax_filing_period_read_routes,
     create_tax_template_routes,
     create_tax_template_read_routes,
     create_tax_template_row_routes,
@@ -43,6 +49,9 @@ use crate::handlers::AppState;
 pub fn create_stateless_routes(module: &crate::TaxModule) -> Router<()> {
     Router::new()
         .merge(create_tax_category_routes(module.tax_category_service.clone()))
+        .merge(create_tax_transaction_routes(module.tax_transaction_service.clone()))
+        .merge(create_e_faktur_document_routes(module.e_faktur_document_service.clone()))
+        .merge(create_tax_filing_period_routes(module.tax_filing_period_service.clone()))
         .merge(create_tax_template_routes(module.tax_template_service.clone()))
         .merge(create_tax_template_row_routes(module.tax_template_row_service.clone()))
         .merge(create_withholding_category_routes(module.withholding_category_service.clone()))
@@ -56,6 +65,9 @@ pub fn create_stateless_routes(module: &crate::TaxModule) -> Router<()> {
 pub fn create_readonly_tax_routes(module: &crate::TaxModule) -> Router<()> {
     Router::new()
         .merge(create_tax_category_read_routes(module.tax_category_service.clone()))
+        .merge(create_tax_transaction_read_routes(module.tax_transaction_service.clone()))
+        .merge(create_e_faktur_document_read_routes(module.e_faktur_document_service.clone()))
+        .merge(create_tax_filing_period_read_routes(module.tax_filing_period_service.clone()))
         .merge(create_tax_template_read_routes(module.tax_template_service.clone()))
         .merge(create_tax_template_row_read_routes(module.tax_template_row_service.clone()))
         .merge(create_withholding_category_read_routes(module.withholding_category_service.clone()))

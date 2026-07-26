@@ -6,6 +6,7 @@
 
 -- INSERT INTO tax.withholding_categories (
 --     id,
+--     company_id,
 --     code,
 --     name,
 --     rate,

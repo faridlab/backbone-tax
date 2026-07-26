@@ -32,6 +32,33 @@ pub trait TaxQueryService: Send + Sync {
     /// Check if TaxCategory exists
     async fn tax_category_exists(&self, id: TaxCategoryId) -> Result<bool>;
 
+    /// Get TaxTransaction by ID
+    async fn get_tax_transaction(&self, id: TaxTransactionId) -> Result<Option<TaxTransactionDto>>;
+
+    /// Get TaxTransaction summary by ID
+    async fn get_tax_transaction_summary(&self, id: TaxTransactionId) -> Result<Option<TaxTransactionSummary>>;
+
+    /// Check if TaxTransaction exists
+    async fn tax_transaction_exists(&self, id: TaxTransactionId) -> Result<bool>;
+
+    /// Get EFakturDocument by ID
+    async fn get_e_faktur_document(&self, id: EFakturDocumentId) -> Result<Option<EFakturDocumentDto>>;
+
+    /// Get EFakturDocument summary by ID
+    async fn get_e_faktur_document_summary(&self, id: EFakturDocumentId) -> Result<Option<EFakturDocumentSummary>>;
+
+    /// Check if EFakturDocument exists
+    async fn e_faktur_document_exists(&self, id: EFakturDocumentId) -> Result<bool>;
+
+    /// Get TaxFilingPeriod by ID
+    async fn get_tax_filing_period(&self, id: TaxFilingPeriodId) -> Result<Option<TaxFilingPeriodDto>>;
+
+    /// Get TaxFilingPeriod summary by ID
+    async fn get_tax_filing_period_summary(&self, id: TaxFilingPeriodId) -> Result<Option<TaxFilingPeriodSummary>>;
+
+    /// Check if TaxFilingPeriod exists
+    async fn tax_filing_period_exists(&self, id: TaxFilingPeriodId) -> Result<bool>;
+
     /// Get TaxTemplate by ID
     async fn get_tax_template(&self, id: TaxTemplateId) -> Result<Option<TaxTemplateDto>>;
 

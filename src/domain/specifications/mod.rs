@@ -7,6 +7,9 @@
 pub use backbone_core::{Specification, AndSpecification, OrSpecification, NotSpecification};
 
 pub mod tax_category_specification;
+pub mod tax_transaction_specification;
+pub mod e_faktur_document_specification;
+pub mod tax_filing_period_specification;
 pub mod tax_template_specification;
 pub mod tax_template_row_specification;
 pub mod withholding_category_specification;

@@ -14,6 +14,7 @@ CREATE SCHEMA IF NOT EXISTS tax;
 
 CREATE TABLE IF NOT EXISTS tax.tax_template_rows (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
+    company_id UUID NOT NULL,
     template_id UUID NOT NULL,
     charge_type charge_type NOT NULL DEFAULT 'on_net_total',
     rate NUMERIC(9, 4) NOT NULL CHECK (rate >= 0),

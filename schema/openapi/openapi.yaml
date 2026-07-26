@@ -13,6 +13,12 @@ servers:
 tags:
   - name: TaxCategories
     description: TaxCategory management endpoints
+  - name: TaxTransactions
+    description: TaxTransaction management endpoints
+  - name: EFakturDocuments
+    description: EFakturDocument management endpoints
+  - name: TaxFilingPeriods
+    description: TaxFilingPeriod management endpoints
   - name: TaxTemplates
     description: TaxTemplate management endpoints
   - name: TaxTemplateRows
@@ -373,6 +379,1104 @@ paths:
         - TaxCategories
       summary: Bulk permanently-delete TaxCategories from trash by ids (atomic)
       operationId: bulkPermanentDeleteTaxCategories
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_transactions:
+    get:
+      tags:
+        - TaxTransactions
+      summary: List TaxTransactions
+      description: Get a paginated list of TaxTransactions with optional filtering and sorting
+      operationId: listTaxTransactions
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransactionList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - TaxTransactions
+      summary: Create TaxTransaction
+      description: Create a new TaxTransaction
+      operationId: createTaxTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaxTransactionRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransaction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/tax_transactions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags:
+        - TaxTransactions
+      summary: Get TaxTransaction by ID
+      operationId: getTaxTransaction
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransaction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - TaxTransactions
+      summary: Update TaxTransaction (full)
+      operationId: updateTaxTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaxTransactionRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransaction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - TaxTransactions
+      summary: Update TaxTransaction (partial)
+      operationId: patchTaxTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaxTransactionRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransaction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - TaxTransactions
+      summary: Delete TaxTransaction (soft)
+      operationId: deleteTaxTransaction
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tax_transactions/bulk:
+    post:
+      tags:
+        - TaxTransactions
+      summary: Bulk create TaxTransactions
+      operationId: bulkCreateTaxTransactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateTaxTransactionRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaxTransaction'
+    put:
+      tags:
+        - TaxTransactions
+      summary: Bulk update TaxTransactions (full, atomic)
+      operationId: bulkUpdateTaxTransactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateTaxTransactionRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransactionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - TaxTransactions
+      summary: Bulk partial-update TaxTransactions (atomic)
+      operationId: bulkPatchTaxTransactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransactionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_transactions/upsert:
+    post:
+      tags:
+        - TaxTransactions
+      summary: Upsert TaxTransaction
+      operationId: upsertTaxTransaction
+      parameters:
+        - name: key_field
+          in: query
+          schema:
+            type: string
+        - name: key_value
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaxTransactionRequest'
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransaction'
+
+  /api/v1/tax_transactions/trash:
+    get:
+      tags:
+        - TaxTransactions
+      summary: List deleted TaxTransactions
+      operationId: listDeletedTaxTransactions
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransactionList'
+
+  /api/v1/tax_transactions/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags:
+        - TaxTransactions
+      summary: Restore deleted TaxTransaction
+      operationId: restoreTaxTransaction
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransaction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tax_transactions/empty:
+    delete:
+      tags:
+        - TaxTransactions
+      summary: Empty trash for TaxTransactions
+      operationId: emptyTrashTaxTransactions
+      responses:
+        '200':
+          description: Trash emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /api/v1/tax_transactions/delete/bulk:
+    post:
+      tags:
+        - TaxTransactions
+      summary: Bulk soft-delete TaxTransactions by ids (atomic)
+      operationId: bulkDeleteTaxTransactions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_transactions/restore/bulk:
+    post:
+      tags:
+        - TaxTransactions
+      summary: Bulk restore TaxTransactions by ids (atomic)
+      operationId: bulkRestoreTaxTransactions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTransactionBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_transactions/restore/all:
+    post:
+      tags:
+        - TaxTransactions
+      summary: Restore all soft-deleted TaxTransactions
+      operationId: restoreAllTaxTransactions
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/tax_transactions/trash/bulk:
+    delete:
+      tags:
+        - TaxTransactions
+      summary: Bulk permanently-delete TaxTransactions from trash by ids (atomic)
+      operationId: bulkPermanentDeleteTaxTransactions
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/e_faktur_documents:
+    get:
+      tags:
+        - EFakturDocuments
+      summary: List EFakturDocuments
+      description: Get a paginated list of EFakturDocuments with optional filtering and sorting
+      operationId: listEFakturDocuments
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocumentList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - EFakturDocuments
+      summary: Create EFakturDocument
+      description: Create a new EFakturDocument
+      operationId: createEFakturDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEFakturDocumentRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocument'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/e_faktur_documents/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags:
+        - EFakturDocuments
+      summary: Get EFakturDocument by ID
+      operationId: getEFakturDocument
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - EFakturDocuments
+      summary: Update EFakturDocument (full)
+      operationId: updateEFakturDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEFakturDocumentRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - EFakturDocuments
+      summary: Update EFakturDocument (partial)
+      operationId: patchEFakturDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchEFakturDocumentRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - EFakturDocuments
+      summary: Delete EFakturDocument (soft)
+      operationId: deleteEFakturDocument
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/e_faktur_documents/bulk:
+    post:
+      tags:
+        - EFakturDocuments
+      summary: Bulk create EFakturDocuments
+      operationId: bulkCreateEFakturDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateEFakturDocumentRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EFakturDocument'
+    put:
+      tags:
+        - EFakturDocuments
+      summary: Bulk update EFakturDocuments (full, atomic)
+      operationId: bulkUpdateEFakturDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateEFakturDocumentRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocumentBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - EFakturDocuments
+      summary: Bulk partial-update EFakturDocuments (atomic)
+      operationId: bulkPatchEFakturDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocumentBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/e_faktur_documents/upsert:
+    post:
+      tags:
+        - EFakturDocuments
+      summary: Upsert EFakturDocument
+      operationId: upsertEFakturDocument
+      parameters:
+        - name: key_field
+          in: query
+          schema:
+            type: string
+        - name: key_value
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEFakturDocumentRequest'
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocument'
+
+  /api/v1/e_faktur_documents/trash:
+    get:
+      tags:
+        - EFakturDocuments
+      summary: List deleted EFakturDocuments
+      operationId: listDeletedEFakturDocuments
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocumentList'
+
+  /api/v1/e_faktur_documents/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags:
+        - EFakturDocuments
+      summary: Restore deleted EFakturDocument
+      operationId: restoreEFakturDocument
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/e_faktur_documents/empty:
+    delete:
+      tags:
+        - EFakturDocuments
+      summary: Empty trash for EFakturDocuments
+      operationId: emptyTrashEFakturDocuments
+      responses:
+        '200':
+          description: Trash emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /api/v1/e_faktur_documents/delete/bulk:
+    post:
+      tags:
+        - EFakturDocuments
+      summary: Bulk soft-delete EFakturDocuments by ids (atomic)
+      operationId: bulkDeleteEFakturDocuments
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/e_faktur_documents/restore/bulk:
+    post:
+      tags:
+        - EFakturDocuments
+      summary: Bulk restore EFakturDocuments by ids (atomic)
+      operationId: bulkRestoreEFakturDocuments
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EFakturDocumentBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/e_faktur_documents/restore/all:
+    post:
+      tags:
+        - EFakturDocuments
+      summary: Restore all soft-deleted EFakturDocuments
+      operationId: restoreAllEFakturDocuments
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/e_faktur_documents/trash/bulk:
+    delete:
+      tags:
+        - EFakturDocuments
+      summary: Bulk permanently-delete EFakturDocuments from trash by ids (atomic)
+      operationId: bulkPermanentDeleteEFakturDocuments
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_filing_periods:
+    get:
+      tags:
+        - TaxFilingPeriods
+      summary: List TaxFilingPeriods
+      description: Get a paginated list of TaxFilingPeriods with optional filtering and sorting
+      operationId: listTaxFilingPeriods
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriodList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - TaxFilingPeriods
+      summary: Create TaxFilingPeriod
+      description: Create a new TaxFilingPeriod
+      operationId: createTaxFilingPeriod
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaxFilingPeriodRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriod'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/tax_filing_periods/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags:
+        - TaxFilingPeriods
+      summary: Get TaxFilingPeriod by ID
+      operationId: getTaxFilingPeriod
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriod'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - TaxFilingPeriods
+      summary: Update TaxFilingPeriod (full)
+      operationId: updateTaxFilingPeriod
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaxFilingPeriodRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriod'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - TaxFilingPeriods
+      summary: Update TaxFilingPeriod (partial)
+      operationId: patchTaxFilingPeriod
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaxFilingPeriodRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriod'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - TaxFilingPeriods
+      summary: Delete TaxFilingPeriod (soft)
+      operationId: deleteTaxFilingPeriod
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tax_filing_periods/bulk:
+    post:
+      tags:
+        - TaxFilingPeriods
+      summary: Bulk create TaxFilingPeriods
+      operationId: bulkCreateTaxFilingPeriods
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateTaxFilingPeriodRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaxFilingPeriod'
+    put:
+      tags:
+        - TaxFilingPeriods
+      summary: Bulk update TaxFilingPeriods (full, atomic)
+      operationId: bulkUpdateTaxFilingPeriods
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateTaxFilingPeriodRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriodBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - TaxFilingPeriods
+      summary: Bulk partial-update TaxFilingPeriods (atomic)
+      operationId: bulkPatchTaxFilingPeriods
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriodBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_filing_periods/upsert:
+    post:
+      tags:
+        - TaxFilingPeriods
+      summary: Upsert TaxFilingPeriod
+      operationId: upsertTaxFilingPeriod
+      parameters:
+        - name: key_field
+          in: query
+          schema:
+            type: string
+        - name: key_value
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaxFilingPeriodRequest'
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriod'
+
+  /api/v1/tax_filing_periods/trash:
+    get:
+      tags:
+        - TaxFilingPeriods
+      summary: List deleted TaxFilingPeriods
+      operationId: listDeletedTaxFilingPeriods
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriodList'
+
+  /api/v1/tax_filing_periods/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags:
+        - TaxFilingPeriods
+      summary: Restore deleted TaxFilingPeriod
+      operationId: restoreTaxFilingPeriod
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriod'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tax_filing_periods/empty:
+    delete:
+      tags:
+        - TaxFilingPeriods
+      summary: Empty trash for TaxFilingPeriods
+      operationId: emptyTrashTaxFilingPeriods
+      responses:
+        '200':
+          description: Trash emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /api/v1/tax_filing_periods/delete/bulk:
+    post:
+      tags:
+        - TaxFilingPeriods
+      summary: Bulk soft-delete TaxFilingPeriods by ids (atomic)
+      operationId: bulkDeleteTaxFilingPeriods
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_filing_periods/restore/bulk:
+    post:
+      tags:
+        - TaxFilingPeriods
+      summary: Bulk restore TaxFilingPeriods by ids (atomic)
+      operationId: bulkRestoreTaxFilingPeriods
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxFilingPeriodBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_filing_periods/restore/all:
+    post:
+      tags:
+        - TaxFilingPeriods
+      summary: Restore all soft-deleted TaxFilingPeriods
+      operationId: restoreAllTaxFilingPeriods
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/tax_filing_periods/trash/bulk:
+    delete:
+      tags:
+        - TaxFilingPeriods
+      summary: Bulk permanently-delete TaxFilingPeriods from trash by ids (atomic)
+      operationId: bulkPermanentDeleteTaxFilingPeriods
       requestBody:
         $ref: '#/components/requestBodies/BatchIds'
       responses:
@@ -1608,6 +2712,598 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TaxCategory'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    TaxTransaction:
+      type: object
+      required:
+        - id
+        - company_id
+        - invoice_ref
+        - invoice_kind
+        - posting_date
+        - taxable_base
+        - output_total
+        - input_total
+        - withholding_total
+        - currency
+        - source
+        - status
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+        posting_date:
+          type: string
+          format: date
+        taxable_base:
+          type: string
+        output_total:
+          type: string
+        input_total:
+          type: string
+        withholding_total:
+          type: string
+        currency:
+          type: string
+          maxLength: 3
+        source:
+          type: string
+        efaktur_document_id:
+          nullable: true
+          type: string
+          format: uuid
+        status:
+          type: string
+        metadata:
+          type: object
+
+    TaxTransactionBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxTransaction'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    CreateTaxTransactionRequest:
+      type: object
+      required:
+        - company_id
+        - invoice_ref
+        - invoice_kind
+        - posting_date
+        - taxable_base
+        - output_total
+        - input_total
+        - withholding_total
+        - currency
+        - source
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+        posting_date:
+          type: string
+          format: date
+        taxable_base:
+          type: string
+        output_total:
+          type: string
+        input_total:
+          type: string
+        withholding_total:
+          type: string
+        currency:
+          type: string
+          maxLength: 3
+        source:
+          type: string
+        efaktur_document_id:
+          nullable: true
+          type: string
+          format: uuid
+        status:
+          type: string
+        metadata:
+          type: object
+
+    UpdateTaxTransactionRequest:
+      type: object
+      required:
+        - company_id
+        - invoice_ref
+        - invoice_kind
+        - posting_date
+        - taxable_base
+        - output_total
+        - input_total
+        - withholding_total
+        - currency
+        - source
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+        posting_date:
+          type: string
+          format: date
+        taxable_base:
+          type: string
+        output_total:
+          type: string
+        input_total:
+          type: string
+        withholding_total:
+          type: string
+        currency:
+          type: string
+          maxLength: 3
+        source:
+          type: string
+        efaktur_document_id:
+          nullable: true
+          type: string
+          format: uuid
+        status:
+          type: string
+        metadata:
+          type: object
+
+    PatchTaxTransactionRequest:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        invoice_ref:
+          type: string
+          format: uuid
+        invoice_kind:
+          type: string
+        posting_date:
+          type: string
+          format: date
+        taxable_base:
+          type: string
+        output_total:
+          type: string
+        input_total:
+          type: string
+        withholding_total:
+          type: string
+        currency:
+          type: string
+          maxLength: 3
+        source:
+          type: string
+        efaktur_document_id:
+          nullable: true
+          type: string
+          format: uuid
+        status:
+          type: string
+        metadata:
+          type: object
+
+    TaxTransactionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxTransaction'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    EFakturDocument:
+      type: object
+      required:
+        - id
+        - company_id
+        - tax_transaction_id
+        - number
+        - transaction_code
+        - taxpayer_segment
+        - period
+        - sequence
+        - assignment_date
+        - status
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        tax_transaction_id:
+          type: string
+          format: uuid
+        number:
+          type: string
+          maxLength: 20
+        transaction_code:
+          type: string
+          maxLength: 3
+        taxpayer_segment:
+          type: string
+          maxLength: 3
+        period:
+          type: string
+          format: date
+        sequence:
+          type: integer
+          format: int32
+        assignment_date:
+          type: string
+          format: date
+        status:
+          type: string
+        replaces_id:
+          nullable: true
+          type: string
+          format: uuid
+        metadata:
+          type: object
+
+    EFakturDocumentBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EFakturDocument'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    CreateEFakturDocumentRequest:
+      type: object
+      required:
+        - company_id
+        - tax_transaction_id
+        - number
+        - transaction_code
+        - taxpayer_segment
+        - period
+        - sequence
+        - assignment_date
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        tax_transaction_id:
+          type: string
+          format: uuid
+        number:
+          type: string
+          maxLength: 20
+        transaction_code:
+          type: string
+          maxLength: 3
+        taxpayer_segment:
+          type: string
+          maxLength: 3
+        period:
+          type: string
+          format: date
+        sequence:
+          type: integer
+          format: int32
+        assignment_date:
+          type: string
+          format: date
+        status:
+          type: string
+        replaces_id:
+          nullable: true
+          type: string
+          format: uuid
+        metadata:
+          type: object
+
+    UpdateEFakturDocumentRequest:
+      type: object
+      required:
+        - company_id
+        - tax_transaction_id
+        - number
+        - transaction_code
+        - taxpayer_segment
+        - period
+        - sequence
+        - assignment_date
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        tax_transaction_id:
+          type: string
+          format: uuid
+        number:
+          type: string
+          maxLength: 20
+        transaction_code:
+          type: string
+          maxLength: 3
+        taxpayer_segment:
+          type: string
+          maxLength: 3
+        period:
+          type: string
+          format: date
+        sequence:
+          type: integer
+          format: int32
+        assignment_date:
+          type: string
+          format: date
+        status:
+          type: string
+        replaces_id:
+          nullable: true
+          type: string
+          format: uuid
+        metadata:
+          type: object
+
+    PatchEFakturDocumentRequest:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        tax_transaction_id:
+          type: string
+          format: uuid
+        number:
+          type: string
+          maxLength: 20
+        transaction_code:
+          type: string
+          maxLength: 3
+        taxpayer_segment:
+          type: string
+          maxLength: 3
+        period:
+          type: string
+          format: date
+        sequence:
+          type: integer
+          format: int32
+        assignment_date:
+          type: string
+          format: date
+        status:
+          type: string
+        replaces_id:
+          nullable: true
+          type: string
+          format: uuid
+        metadata:
+          type: object
+
+    EFakturDocumentList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EFakturDocument'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    TaxFilingPeriod:
+      type: object
+      required:
+        - id
+        - company_id
+        - period
+        - next_sequence
+        - output_total
+        - input_total
+        - withholding_total
+        - status
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        period:
+          type: string
+          format: date
+        npwp:
+          nullable: true
+          type: string
+          maxLength: 16
+        taxpayer_segment:
+          nullable: true
+          type: string
+          maxLength: 3
+        next_sequence:
+          type: integer
+          format: int32
+        output_total:
+          type: string
+        input_total:
+          type: string
+        withholding_total:
+          type: string
+        status:
+          type: string
+        metadata:
+          type: object
+
+    TaxFilingPeriodBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxFilingPeriod'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    CreateTaxFilingPeriodRequest:
+      type: object
+      required:
+        - company_id
+        - period
+        - next_sequence
+        - output_total
+        - input_total
+        - withholding_total
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        period:
+          type: string
+          format: date
+        npwp:
+          nullable: true
+          type: string
+          maxLength: 16
+        taxpayer_segment:
+          nullable: true
+          type: string
+          maxLength: 3
+        next_sequence:
+          type: integer
+          format: int32
+        output_total:
+          type: string
+        input_total:
+          type: string
+        withholding_total:
+          type: string
+        status:
+          type: string
+        metadata:
+          type: object
+
+    UpdateTaxFilingPeriodRequest:
+      type: object
+      required:
+        - company_id
+        - period
+        - next_sequence
+        - output_total
+        - input_total
+        - withholding_total
+        - status
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        period:
+          type: string
+          format: date
+        npwp:
+          nullable: true
+          type: string
+          maxLength: 16
+        taxpayer_segment:
+          nullable: true
+          type: string
+          maxLength: 3
+        next_sequence:
+          type: integer
+          format: int32
+        output_total:
+          type: string
+        input_total:
+          type: string
+        withholding_total:
+          type: string
+        status:
+          type: string
+        metadata:
+          type: object
+
+    PatchTaxFilingPeriodRequest:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        period:
+          type: string
+          format: date
+        npwp:
+          nullable: true
+          type: string
+          maxLength: 16
+        taxpayer_segment:
+          nullable: true
+          type: string
+          maxLength: 3
+        next_sequence:
+          type: integer
+          format: int32
+        output_total:
+          type: string
+        input_total:
+          type: string
+        withholding_total:
+          type: string
+        status:
+          type: string
+        metadata:
+          type: object
+
+    TaxFilingPeriodList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxFilingPeriod'
         meta:
           $ref: '#/components/schemas/PaginationMeta'
 

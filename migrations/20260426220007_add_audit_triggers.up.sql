@@ -36,6 +36,87 @@ CREATE TRIGGER tax_categories_update_audit BEFORE UPDATE ON tax.tax_categories
     FOR EACH ROW EXECUTE FUNCTION tax.tax_categories_audit_timestamp();
 
 -- ==============================================================================
+-- Table: TaxTransaction (tax.tax_transactions)
+-- ==============================================================================
+
+-- Function to set metadata timestamps
+CREATE OR REPLACE FUNCTION tax.tax_transactions_audit_timestamp() RETURNS trigger AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
+        NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{updated_at}', to_jsonb(NOW()));
+    ELSIF TG_OP = 'UPDATE' THEN
+        NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{updated_at}', to_jsonb(NOW()));
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to set timestamps on INSERT
+DROP TRIGGER IF EXISTS tax_transactions_insert_audit ON tax.tax_transactions;
+CREATE TRIGGER tax_transactions_insert_audit BEFORE INSERT ON tax.tax_transactions
+    FOR EACH ROW EXECUTE FUNCTION tax.tax_transactions_audit_timestamp();
+
+-- Trigger to set updated_at on UPDATE
+DROP TRIGGER IF EXISTS tax_transactions_update_audit ON tax.tax_transactions;
+CREATE TRIGGER tax_transactions_update_audit BEFORE UPDATE ON tax.tax_transactions
+    FOR EACH ROW EXECUTE FUNCTION tax.tax_transactions_audit_timestamp();
+
+-- ==============================================================================
+-- Table: EFakturDocument (tax.efaktur_documents)
+-- ==============================================================================
+
+-- Function to set metadata timestamps
+CREATE OR REPLACE FUNCTION tax.efaktur_documents_audit_timestamp() RETURNS trigger AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
+        NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{updated_at}', to_jsonb(NOW()));
+    ELSIF TG_OP = 'UPDATE' THEN
+        NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{updated_at}', to_jsonb(NOW()));
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to set timestamps on INSERT
+DROP TRIGGER IF EXISTS efaktur_documents_insert_audit ON tax.efaktur_documents;
+CREATE TRIGGER efaktur_documents_insert_audit BEFORE INSERT ON tax.efaktur_documents
+    FOR EACH ROW EXECUTE FUNCTION tax.efaktur_documents_audit_timestamp();
+
+-- Trigger to set updated_at on UPDATE
+DROP TRIGGER IF EXISTS efaktur_documents_update_audit ON tax.efaktur_documents;
+CREATE TRIGGER efaktur_documents_update_audit BEFORE UPDATE ON tax.efaktur_documents
+    FOR EACH ROW EXECUTE FUNCTION tax.efaktur_documents_audit_timestamp();
+
+-- ==============================================================================
+-- Table: TaxFilingPeriod (tax.tax_filing_periods)
+-- ==============================================================================
+
+-- Function to set metadata timestamps
+CREATE OR REPLACE FUNCTION tax.tax_filing_periods_audit_timestamp() RETURNS trigger AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{created_at}', to_jsonb(NOW()));
+        NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{updated_at}', to_jsonb(NOW()));
+    ELSIF TG_OP = 'UPDATE' THEN
+        NEW.metadata = jsonb_set(NEW.metadata::jsonb, '{updated_at}', to_jsonb(NOW()));
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to set timestamps on INSERT
+DROP TRIGGER IF EXISTS tax_filing_periods_insert_audit ON tax.tax_filing_periods;
+CREATE TRIGGER tax_filing_periods_insert_audit BEFORE INSERT ON tax.tax_filing_periods
+    FOR EACH ROW EXECUTE FUNCTION tax.tax_filing_periods_audit_timestamp();
+
+-- Trigger to set updated_at on UPDATE
+DROP TRIGGER IF EXISTS tax_filing_periods_update_audit ON tax.tax_filing_periods;
+CREATE TRIGGER tax_filing_periods_update_audit BEFORE UPDATE ON tax.tax_filing_periods
+    FOR EACH ROW EXECUTE FUNCTION tax.tax_filing_periods_audit_timestamp();
+
+-- ==============================================================================
 -- Table: TaxTemplate (tax.tax_templates)
 -- ==============================================================================
 

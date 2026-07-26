@@ -13,6 +13,9 @@ use std::env;
 
 // Import seeders
 use backbone_tax::seeders::SeedTaxCategorySeeder;
+use backbone_tax::seeders::SeedTaxTransactionSeeder;
+use backbone_tax::seeders::SeedEFakturDocumentSeeder;
+use backbone_tax::seeders::SeedTaxFilingPeriodSeeder;
 use backbone_tax::seeders::SeedTaxTemplateSeeder;
 use backbone_tax::seeders::SeedTaxTemplateRowSeeder;
 use backbone_tax::seeders::SeedWithholdingCategorySeeder;
@@ -45,6 +48,9 @@ async fn main() -> Result<()> {
     // Register seeders in order
     let mut seeders: Vec<Box<dyn Seeder + Send + Sync>> = Vec::new();
     seeders.push(Box::new(SeedTaxCategorySeeder::new()));
+    seeders.push(Box::new(SeedTaxTransactionSeeder::new()));
+    seeders.push(Box::new(SeedEFakturDocumentSeeder::new()));
+    seeders.push(Box::new(SeedTaxFilingPeriodSeeder::new()));
     seeders.push(Box::new(SeedTaxTemplateSeeder::new()));
     seeders.push(Box::new(SeedTaxTemplateRowSeeder::new()));
     seeders.push(Box::new(SeedWithholdingCategorySeeder::new()));

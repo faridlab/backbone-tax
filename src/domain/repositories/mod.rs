@@ -7,6 +7,9 @@
 
 
 pub mod tax_category_repository;
+pub mod tax_transaction_repository;
+pub mod e_faktur_document_repository;
+pub mod tax_filing_period_repository;
 pub mod tax_template_repository;
 pub mod tax_template_row_repository;
 pub mod withholding_category_repository;
@@ -17,6 +20,24 @@ pub use tax_category_repository::{
     TaxCategoryPaginationParams,
     TaxCategoryPaginatedResult,
     TaxCategoryFilter,
+};
+pub use tax_transaction_repository::{
+    TaxTransactionRepository,
+    TaxTransactionPaginationParams,
+    TaxTransactionPaginatedResult,
+    TaxTransactionFilter,
+};
+pub use e_faktur_document_repository::{
+    EFakturDocumentRepository,
+    EFakturDocumentPaginationParams,
+    EFakturDocumentPaginatedResult,
+    EFakturDocumentFilter,
+};
+pub use tax_filing_period_repository::{
+    TaxFilingPeriodRepository,
+    TaxFilingPeriodPaginationParams,
+    TaxFilingPeriodPaginatedResult,
+    TaxFilingPeriodFilter,
 };
 pub use tax_template_repository::{
     TaxTemplateRepository,

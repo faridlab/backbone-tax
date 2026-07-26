@@ -36,7 +36,7 @@ impl Seeder for SeedWithholdingCategorySeeder {
     }
 
     fn order(&self) -> i32 {
-        4
+        7
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {

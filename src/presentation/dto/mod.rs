@@ -6,6 +6,9 @@
 //! with validation and OpenAPI schema support.
 
 pub mod tax_category_dto;
+pub mod tax_transaction_dto;
+pub mod e_faktur_document_dto;
+pub mod tax_filing_period_dto;
 pub mod tax_template_dto;
 pub mod tax_template_row_dto;
 pub mod withholding_category_dto;
@@ -18,6 +21,30 @@ pub use tax_category_dto::{
     TaxCategoryResponseDto,
     TaxCategoryListResponseDto,
     TaxCategorySummaryDto,
+};
+pub use tax_transaction_dto::{
+    CreateTaxTransactionDto,
+    UpdateTaxTransactionDto,
+    PatchTaxTransactionDto,
+    TaxTransactionResponseDto,
+    TaxTransactionListResponseDto,
+    TaxTransactionSummaryDto,
+};
+pub use e_faktur_document_dto::{
+    CreateEFakturDocumentDto,
+    UpdateEFakturDocumentDto,
+    PatchEFakturDocumentDto,
+    EFakturDocumentResponseDto,
+    EFakturDocumentListResponseDto,
+    EFakturDocumentSummaryDto,
+};
+pub use tax_filing_period_dto::{
+    CreateTaxFilingPeriodDto,
+    UpdateTaxFilingPeriodDto,
+    PatchTaxFilingPeriodDto,
+    TaxFilingPeriodResponseDto,
+    TaxFilingPeriodListResponseDto,
+    TaxFilingPeriodSummaryDto,
 };
 pub use tax_template_dto::{
     CreateTaxTemplateDto,

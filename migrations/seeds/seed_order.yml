@@ -11,3 +11,8 @@
 - tax_template_seed
 - tax_template_row_seed
 - withholding_category_seed
+
+# Newly added seeds (preserve manual order above):
+- tax_filing_period_seed
+- e_faktur_document_seed
+- tax_transaction_seed

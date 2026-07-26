@@ -4,6 +4,12 @@
 
 pub mod tax_category_events;
 pub mod tax_category_event_handlers;
+pub mod tax_transaction_events;
+pub mod tax_transaction_event_handlers;
+pub mod e_faktur_document_events;
+pub mod e_faktur_document_event_handlers;
+pub mod tax_filing_period_events;
+pub mod tax_filing_period_event_handlers;
 pub mod tax_template_events;
 pub mod tax_template_event_handlers;
 pub mod tax_template_row_events;
@@ -13,6 +19,12 @@ pub mod withholding_category_event_handlers;
 
 pub use tax_category_events::{TaxCategoryEvent, TaxCategoryEventPublisher, NoopTaxCategoryEventPublisher};
 pub use tax_category_event_handlers::TaxCategoryEventHandler;
+pub use tax_transaction_events::{TaxTransactionEvent, TaxTransactionEventPublisher, NoopTaxTransactionEventPublisher};
+pub use tax_transaction_event_handlers::TaxTransactionEventHandler;
+pub use e_faktur_document_events::{EFakturDocumentEvent, EFakturDocumentEventPublisher, NoopEFakturDocumentEventPublisher};
+pub use e_faktur_document_event_handlers::EFakturDocumentEventHandler;
+pub use tax_filing_period_events::{TaxFilingPeriodEvent, TaxFilingPeriodEventPublisher, NoopTaxFilingPeriodEventPublisher};
+pub use tax_filing_period_event_handlers::TaxFilingPeriodEventHandler;
 pub use tax_template_events::{TaxTemplateEvent, TaxTemplateEventPublisher, NoopTaxTemplateEventPublisher};
 pub use tax_template_event_handlers::TaxTemplateEventHandler;
 pub use tax_template_row_events::{TaxTemplateRowEvent, TaxTemplateRowEventPublisher, NoopTaxTemplateRowEventPublisher};

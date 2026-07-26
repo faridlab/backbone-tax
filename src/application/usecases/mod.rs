@@ -8,6 +8,9 @@ pub mod base;
 pub use base::{UseCaseError, UseCaseResult, UseCaseHooks};
 
 pub mod tax_category_usecases;
+pub mod tax_transaction_usecases;
+pub mod e_faktur_document_usecases;
+pub mod tax_filing_period_usecases;
 pub mod tax_template_usecases;
 pub mod tax_template_row_usecases;
 pub mod withholding_category_usecases;
@@ -15,6 +18,18 @@ pub mod withholding_category_usecases;
 pub use tax_category_usecases::{
     CreateTaxCategoryUseCase, UpdateTaxCategoryUseCase, GetTaxCategoryUseCase,
     DeleteTaxCategoryUseCase, ListTaxCategoryUseCase,
+};
+pub use tax_transaction_usecases::{
+    CreateTaxTransactionUseCase, UpdateTaxTransactionUseCase, GetTaxTransactionUseCase,
+    DeleteTaxTransactionUseCase, ListTaxTransactionUseCase,
+};
+pub use e_faktur_document_usecases::{
+    CreateEFakturDocumentUseCase, UpdateEFakturDocumentUseCase, GetEFakturDocumentUseCase,
+    DeleteEFakturDocumentUseCase, ListEFakturDocumentUseCase,
+};
+pub use tax_filing_period_usecases::{
+    CreateTaxFilingPeriodUseCase, UpdateTaxFilingPeriodUseCase, GetTaxFilingPeriodUseCase,
+    DeleteTaxFilingPeriodUseCase, ListTaxFilingPeriodUseCase,
 };
 pub use tax_template_usecases::{
     CreateTaxTemplateUseCase, UpdateTaxTemplateUseCase, GetTaxTemplateUseCase,

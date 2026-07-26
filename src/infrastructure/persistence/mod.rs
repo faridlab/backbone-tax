@@ -5,6 +5,9 @@
 //! Uses backbone-orm's `DatabaseOperations<T>` trait.
 
 mod tax_category_repository;
+mod tax_transaction_repository;
+mod e_faktur_document_repository;
+mod tax_filing_period_repository;
 mod tax_template_repository;
 mod tax_template_row_repository;
 mod withholding_category_repository;
@@ -15,6 +18,9 @@ mod withholding_category_repository;
 
 // Re-exports
 pub use tax_category_repository::TaxCategoryRepository;
+pub use tax_transaction_repository::TaxTransactionRepository;
+pub use e_faktur_document_repository::EFakturDocumentRepository;
+pub use tax_filing_period_repository::TaxFilingPeriodRepository;
 pub use tax_template_repository::TaxTemplateRepository;
 pub use tax_template_row_repository::TaxTemplateRowRepository;
 pub use withholding_category_repository::WithholdingCategoryRepository;

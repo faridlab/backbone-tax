@@ -30,6 +30,15 @@ pub use events::*;
 /// - `TaxCategoryDto` - Data transfer object for TaxCategory
 /// - `TaxCategorySummary` - Summary view of TaxCategory
 /// - `TaxCategoryId` - Type-safe ID wrapper
+/// - `TaxTransactionDto` - Data transfer object for TaxTransaction
+/// - `TaxTransactionSummary` - Summary view of TaxTransaction
+/// - `TaxTransactionId` - Type-safe ID wrapper
+/// - `EFakturDocumentDto` - Data transfer object for EFakturDocument
+/// - `EFakturDocumentSummary` - Summary view of EFakturDocument
+/// - `EFakturDocumentId` - Type-safe ID wrapper
+/// - `TaxFilingPeriodDto` - Data transfer object for TaxFilingPeriod
+/// - `TaxFilingPeriodSummary` - Summary view of TaxFilingPeriod
+/// - `TaxFilingPeriodId` - Type-safe ID wrapper
 /// - `TaxTemplateDto` - Data transfer object for TaxTemplate
 /// - `TaxTemplateSummary` - Summary view of TaxTemplate
 /// - `TaxTemplateId` - Type-safe ID wrapper
@@ -47,6 +56,15 @@ pub use events::*;
 /// - `TaxCategoryCreatedEvent` - Published when TaxCategory is created
 /// - `TaxCategoryUpdatedEvent` - Published when TaxCategory is updated
 /// - `TaxCategoryDeletedEvent` - Published when TaxCategory is deleted
+/// - `TaxTransactionCreatedEvent` - Published when TaxTransaction is created
+/// - `TaxTransactionUpdatedEvent` - Published when TaxTransaction is updated
+/// - `TaxTransactionDeletedEvent` - Published when TaxTransaction is deleted
+/// - `EFakturDocumentCreatedEvent` - Published when EFakturDocument is created
+/// - `EFakturDocumentUpdatedEvent` - Published when EFakturDocument is updated
+/// - `EFakturDocumentDeletedEvent` - Published when EFakturDocument is deleted
+/// - `TaxFilingPeriodCreatedEvent` - Published when TaxFilingPeriod is created
+/// - `TaxFilingPeriodUpdatedEvent` - Published when TaxFilingPeriod is updated
+/// - `TaxFilingPeriodDeletedEvent` - Published when TaxFilingPeriod is deleted
 /// - `TaxTemplateCreatedEvent` - Published when TaxTemplate is created
 /// - `TaxTemplateUpdatedEvent` - Published when TaxTemplate is updated
 /// - `TaxTemplateDeletedEvent` - Published when TaxTemplate is deleted

@@ -32,6 +32,9 @@ pub use infrastructure::persistence::*;
 
 // Re-exports - Application services
 pub use application::service::TaxCategoryService;
+pub use application::service::TaxTransactionService;
+pub use application::service::EFakturDocumentService;
+pub use application::service::TaxFilingPeriodService;
 pub use application::service::TaxTemplateService;
 pub use application::service::TaxTemplateRowService;
 pub use application::service::WithholdingCategoryService;
@@ -61,6 +64,9 @@ use sqlx::PgPool;
 /// ```
 pub struct TaxModule {
     pub tax_category_service: Arc<TaxCategoryService>,
+    pub tax_transaction_service: Arc<TaxTransactionService>,
+    pub e_faktur_document_service: Arc<EFakturDocumentService>,
+    pub tax_filing_period_service: Arc<TaxFilingPeriodService>,
     pub tax_template_service: Arc<TaxTemplateService>,
     pub tax_template_row_service: Arc<TaxTemplateRowService>,
     pub withholding_category_service: Arc<WithholdingCategoryService>,
@@ -86,6 +92,9 @@ impl TaxModule {
     pub fn all_crud_routes(&self) -> Router {
         use presentation::http::{
             create_tax_category_routes,
+            create_tax_transaction_routes,
+            create_e_faktur_document_routes,
+            create_tax_filing_period_routes,
             create_tax_template_routes,
             create_tax_template_row_routes,
             create_withholding_category_routes,
@@ -93,6 +102,9 @@ impl TaxModule {
 
         Router::new()
             .merge(create_tax_category_routes(self.tax_category_service.clone()))
+            .merge(create_tax_transaction_routes(self.tax_transaction_service.clone()))
+            .merge(create_e_faktur_document_routes(self.e_faktur_document_service.clone()))
+            .merge(create_tax_filing_period_routes(self.tax_filing_period_service.clone()))
             .merge(create_tax_template_routes(self.tax_template_service.clone()))
             .merge(create_tax_template_row_routes(self.tax_template_row_service.clone()))
             .merge(create_withholding_category_routes(self.withholding_category_service.clone()))
@@ -140,6 +152,18 @@ impl TaxModuleBuilder {
         let tax_category_repository = Arc::new(TaxCategoryRepository::new(db_pool.clone()));
         let tax_category_service = Arc::new(TaxCategoryService::with_repository(tax_category_repository.clone()));
 
+        // TaxTransaction service
+        let tax_transaction_repository = Arc::new(TaxTransactionRepository::new(db_pool.clone()));
+        let tax_transaction_service = Arc::new(TaxTransactionService::with_repository(tax_transaction_repository.clone()));
+
+        // EFakturDocument service
+        let e_faktur_document_repository = Arc::new(EFakturDocumentRepository::new(db_pool.clone()));
+        let e_faktur_document_service = Arc::new(EFakturDocumentService::with_repository(e_faktur_document_repository.clone()));
+
+        // TaxFilingPeriod service
+        let tax_filing_period_repository = Arc::new(TaxFilingPeriodRepository::new(db_pool.clone()));
+        let tax_filing_period_service = Arc::new(TaxFilingPeriodService::with_repository(tax_filing_period_repository.clone()));
+
         // TaxTemplate service
         let tax_template_repository = Arc::new(TaxTemplateRepository::new(db_pool.clone()));
         let tax_template_service = Arc::new(TaxTemplateService::with_repository(tax_template_repository.clone()));
@@ -159,6 +183,9 @@ impl TaxModuleBuilder {
 
         Ok(TaxModule {
             tax_category_service,
+            tax_transaction_service,
+            e_faktur_document_service,
+            tax_filing_period_service,
             tax_template_service,
             tax_template_row_service,
             withholding_category_service,

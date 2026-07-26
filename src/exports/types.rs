@@ -72,6 +72,199 @@ pub struct TaxCategoryRef {
 }
 
 // ============================================================================
+// TAXTRANSACTION TYPES
+// ============================================================================
+
+/// Type-safe ID for TaxTransaction
+///
+/// Use this instead of raw Uuid for type safety across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TaxTransactionId(pub Uuid);
+
+impl TaxTransactionId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for TaxTransactionId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<TaxTransactionId> for Uuid {
+    fn from(id: TaxTransactionId) -> Self {
+        id.0
+    }
+}
+
+/// Data transfer object for TaxTransaction
+///
+/// This is the public representation of TaxTransaction for other modules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTransactionDto {
+    pub id: TaxTransactionId,
+    pub company_id: Uuid,
+    pub invoice_ref: Uuid,
+    pub invoice_kind: InvoiceKind,
+    pub posting_date: NaiveDate,
+    pub taxable_base: Decimal,
+    pub output_total: Decimal,
+    pub input_total: Decimal,
+    pub withholding_total: Decimal,
+    pub currency: String,
+    pub source: TaxTransactionSource,
+    pub efaktur_document_id: Option<Uuid>,
+    pub status: TaxTransactionStatus,
+    pub metadata: serde_json::Value,
+}
+
+/// Summary view of TaxTransaction for list displays
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTransactionSummary {
+    pub id: TaxTransactionId,
+    pub status: TaxTransactionStatus,
+}
+
+/// Reference to TaxTransaction for foreign key relationships
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTransactionRef {
+    pub id: TaxTransactionId,
+}
+
+// ============================================================================
+// EFAKTURDOCUMENT TYPES
+// ============================================================================
+
+/// Type-safe ID for EFakturDocument
+///
+/// Use this instead of raw Uuid for type safety across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct EFakturDocumentId(pub Uuid);
+
+impl EFakturDocumentId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for EFakturDocumentId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<EFakturDocumentId> for Uuid {
+    fn from(id: EFakturDocumentId) -> Self {
+        id.0
+    }
+}
+
+/// Data transfer object for EFakturDocument
+///
+/// This is the public representation of EFakturDocument for other modules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EFakturDocumentDto {
+    pub id: EFakturDocumentId,
+    pub company_id: Uuid,
+    pub tax_transaction_id: Uuid,
+    pub number: String,
+    pub transaction_code: String,
+    pub taxpayer_segment: String,
+    pub period: NaiveDate,
+    pub sequence: i32,
+    pub assignment_date: NaiveDate,
+    pub status: EFakturStatus,
+    pub replaces_id: Option<Uuid>,
+    pub metadata: serde_json::Value,
+}
+
+/// Summary view of EFakturDocument for list displays
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EFakturDocumentSummary {
+    pub id: EFakturDocumentId,
+    pub status: EFakturStatus,
+}
+
+/// Reference to EFakturDocument for foreign key relationships
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EFakturDocumentRef {
+    pub id: EFakturDocumentId,
+}
+
+// ============================================================================
+// TAXFILINGPERIOD TYPES
+// ============================================================================
+
+/// Type-safe ID for TaxFilingPeriod
+///
+/// Use this instead of raw Uuid for type safety across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TaxFilingPeriodId(pub Uuid);
+
+impl TaxFilingPeriodId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for TaxFilingPeriodId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<TaxFilingPeriodId> for Uuid {
+    fn from(id: TaxFilingPeriodId) -> Self {
+        id.0
+    }
+}
+
+/// Data transfer object for TaxFilingPeriod
+///
+/// This is the public representation of TaxFilingPeriod for other modules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxFilingPeriodDto {
+    pub id: TaxFilingPeriodId,
+    pub company_id: Uuid,
+    pub period: NaiveDate,
+    pub npwp: Option<String>,
+    pub taxpayer_segment: Option<String>,
+    pub next_sequence: i32,
+    pub output_total: Decimal,
+    pub input_total: Decimal,
+    pub withholding_total: Decimal,
+    pub status: TaxFilingStatus,
+    pub metadata: serde_json::Value,
+}
+
+/// Summary view of TaxFilingPeriod for list displays
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxFilingPeriodSummary {
+    pub id: TaxFilingPeriodId,
+    pub status: TaxFilingStatus,
+}
+
+/// Reference to TaxFilingPeriod for foreign key relationships
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxFilingPeriodRef {
+    pub id: TaxFilingPeriodId,
+}
+
+// ============================================================================
 // TAXTEMPLATE TYPES
 // ============================================================================
 

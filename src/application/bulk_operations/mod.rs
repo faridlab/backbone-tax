@@ -6,11 +6,17 @@ pub mod shared_types;
 pub use shared_types::*;
 
 pub mod tax_category_bulk;
+pub mod tax_transaction_bulk;
+pub mod e_faktur_document_bulk;
+pub mod tax_filing_period_bulk;
 pub mod tax_template_bulk;
 pub mod tax_template_row_bulk;
 pub mod withholding_category_bulk;
 
 pub use tax_category_bulk::TaxCategoryBulkService;
+pub use tax_transaction_bulk::TaxTransactionBulkService;
+pub use e_faktur_document_bulk::EFakturDocumentBulkService;
+pub use tax_filing_period_bulk::TaxFilingPeriodBulkService;
 pub use tax_template_bulk::TaxTemplateBulkService;
 pub use tax_template_row_bulk::TaxTemplateRowBulkService;
 pub use withholding_category_bulk::WithholdingCategoryBulkService;

@@ -6,6 +6,7 @@
 
 -- INSERT INTO tax.tax_templates (
 --     id,
+--     company_id,
 --     code,
 --     name,
 --     template_type,
