@@ -6,12 +6,20 @@
 //! calls this when billing emits SalesInvoicePosted/PurchaseInvoicePosted.
 //!
 //! Zero cargo edges: tax never imports billing. The composition ACL passes the invoice data.
+//!
+//! All SQL lives in the repositories (tax_transaction / tax_filing_period / e_faktur_document);
+//! this service only orchestrates. 4-layer rule.
 
 use backbone_orm::company_scope;
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use uuid::Uuid;
+
+use crate::infrastructure::persistence::{
+    AllocatedSequence, NewEFakturDocumentRow, NewTaxTransactionRow, EFakturDocumentRepository,
+    TaxFilingPeriodRepository, TaxTransactionRepository,
+};
 
 #[derive(Debug)]
 pub enum TaxComplianceError {
@@ -61,34 +69,30 @@ impl EFakturService {
         let mut tx = self.db_pool.begin().await?;
         company_scope::bind_company_on(&mut tx, data.company_id).await?;
 
-        // Idempotent insert (unique company + invoice_ref + invoice_kind).
-        let row = sqlx::query(
-            r#"INSERT INTO tax.tax_transactions
-                 (id, company_id, invoice_ref, invoice_kind, posting_date, taxable_base,
-                  output_total, input_total, withholding_total, status)
-               VALUES ($1, $2, $3, $4::invoice_kind, $5, $6, $7, $8, $9, 'recorded'::tax_transaction_status)
-               ON CONFLICT (company_id, invoice_ref, invoice_kind) WHERE (metadata->>'deleted_at') IS NULL
-               DO UPDATE SET status = tax.tax_transactions.status
-               RETURNING id"#,
-        )
-        .bind(Uuid::new_v4()).bind(data.company_id).bind(data.invoice_ref)
-        .bind(&data.invoice_kind).bind(data.posting_date).bind(data.taxable_base)
-        .bind(data.output_total).bind(data.input_total).bind(data.withholding_total)
-        .fetch_one(&mut *tx).await?;
-        let txn_id: Uuid = row.get("id");
+        // Idempotent insert (unique company + invoice_ref + invoice_kind). Repository returns the
+        // row's id whether the insert succeeded (fresh) or the ON CONFLICT DO UPDATE branch fired
+        // (re-delivery) — same observable behavior as the raw-SQL original.
+        let txn_id = {
+            let id = Uuid::new_v4();
+            let txns = TaxTransactionRepository::new(self.db_pool.clone());
+            txns.upsert_recorded(&mut *tx, &NewTaxTransactionRow {
+                id, company_id: data.company_id, invoice_ref: data.invoice_ref,
+                invoice_kind: &data.invoice_kind, posting_date: data.posting_date,
+                taxable_base: data.taxable_base, output_total: data.output_total,
+                input_total: data.input_total, withholding_total: data.withholding_total,
+            }).await?
+        };
 
         // For sales with output: assign an e-Faktur number (gapless, DJP format) — idempotent:
         // if the transaction already has one (re-delivery), reuse it.
         let efaktur_id = if data.invoice_kind == "sales" && data.output_total > Decimal::ZERO {
-            let existing: Option<Uuid> = sqlx::query_scalar(
-                "SELECT efaktur_document_id FROM tax.tax_transactions WHERE id = $1")
-                .bind(txn_id).fetch_one(&mut *tx).await?;
+            let txns = TaxTransactionRepository::new(self.db_pool.clone());
+            let existing = txns.find_efaktur_id(&mut *tx, txn_id).await?;
             if let Some(eid) = existing {
                 Some(eid) // reuse the existing e-Faktur (idempotent re-delivery)
             } else {
                 let eid = self.assign_efaktur_in_tx(&mut tx, txn_id, data.company_id, data.posting_date).await?;
-                sqlx::query("UPDATE tax.tax_transactions SET efaktur_document_id = $2 WHERE id = $1")
-                    .bind(txn_id).bind(eid).execute(&mut *tx).await?;
+                txns.attach_efaktur(&mut *tx, txn_id, eid).await?;
                 Some(eid)
             }
         } else {
@@ -108,40 +112,24 @@ impl EFakturService {
         let period_start = posting_date.format("%Y-%m-01").to_string().parse::<NaiveDate>().unwrap();
 
         // Ensure a TaxFilingPeriod exists for this month (auto-open if missing).
-        sqlx::query(
-            r#"INSERT INTO tax.tax_filing_periods (id, company_id, period, status)
-               VALUES ($1, $2, $3, 'open'::tax_filing_status)
-               ON CONFLICT (company_id, period) WHERE (metadata->>'deleted_at') IS NULL
-               DO NOTHING"#,
-        )
-        .bind(Uuid::new_v4()).bind(company_id).bind(period_start)
-        .execute(&mut **tx).await?;
+        let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
+        periods.ensure_open(&mut **tx, Uuid::new_v4(), company_id, period_start).await?;
 
         // Atomically allocate the next sequence (gapless — serializes on the row lock).
-        let row = sqlx::query(
-            r#"UPDATE tax.tax_filing_periods
-                 SET next_sequence = next_sequence + 1
-               WHERE company_id = $1 AND period = $2 AND (metadata->>'deleted_at') IS NULL
-               RETURNING next_sequence - 1 AS seq, COALESCE(taxpayer_segment, '000') AS seg"#,
-        )
-        .bind(company_id).bind(period_start)
-        .fetch_one(&mut **tx).await?;
-        let seq: i32 = row.get("seq");
-        let seg: String = row.get("seg");
+        let AllocatedSequence { seq, seg } = periods
+            .allocate_sequence(&mut **tx, company_id, period_start)
+            .await?;
         let month = posting_date.format("%m").to_string();
         let number = format!("010.{}-{}.{:08}", seg, month, seq);
 
         // Insert the EFakturDocument.
         let eid = Uuid::new_v4();
-        sqlx::query(
-            r#"INSERT INTO tax.efaktur_documents
-                 (id, company_id, tax_transaction_id, number, transaction_code,
-                  taxpayer_segment, period, sequence, assignment_date, status)
-               VALUES ($1, $2, $3, $4, '010', $5, $6, $7, $8, 'assigned'::e_faktur_status)"#,
-        )
-        .bind(eid).bind(company_id).bind(txn_id).bind(&number)
-        .bind(&seg).bind(period_start).bind(seq).bind(posting_date)
-        .execute(&mut **tx).await?;
+        let docs = EFakturDocumentRepository::new(self.db_pool.clone());
+        docs.insert(&mut **tx, &NewEFakturDocumentRow {
+            id: eid, company_id, tax_transaction_id: txn_id, number: &number,
+            taxpayer_segment: &seg, period: period_start, sequence: seq,
+            assignment_date: posting_date,
+        }).await?;
 
         Ok(eid)
     }

@@ -6,12 +6,21 @@
 //! wrapped in `company_scope::with_company_scope(Some(company), …)`, with `company_id` bound into
 //! both the INSERT and every existence SELECT — defense-in-depth on top of the RLS fence. Follows
 //! the catalog_write_service / pos_write_service exemplar.
+//!
+//! All SQL lives in the repositories (tax_category / tax_template / tax_template_row /
+//! withholding_category); this service only orchestrates. 4-layer rule.
 
 use backbone_orm::company_scope;
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
+
+use crate::infrastructure::persistence::{
+    NewTaxCategoryRow, NewTaxTemplateRow, NewTaxTemplateRowRecord, NewWithholdingCategoryRow,
+    TaxCategoryRepository, TaxTemplateRepository, TaxTemplateRowRepository,
+    WithholdingCategoryRepository,
+};
 
 use super::tax_engine::TaxError;
 
@@ -76,38 +85,15 @@ impl TaxWriteService {
         to.map(|t| t >= from).unwrap_or(true)
     }
 
-    /// Existence check filtered by the caller's company. `table` is a fixed literal from this
-    /// module, never user input. The `company_id = $2` shape preserves fail-closed behavior
-    /// under RLS even if the request scope wasn't set (missed scope → no rows returned).
-    async fn exists_in(
-        &self,
-        table: &str,
-        id: Uuid,
-        company: Uuid,
-    ) -> Result<bool, TaxError> {
-        let sql = format!(
-            "SELECT id FROM tax.{table} \
-             WHERE id = $1 AND company_id = $2 AND (metadata->>'deleted_at') IS NULL"
-        );
-        let found: Option<Uuid> = sqlx::query_scalar(&sql)
-            .bind(id)
-            .bind(company)
-            .fetch_optional(&self.db_pool)
-            .await?;
-        Ok(found.is_some())
-    }
-
     pub async fn create_category(&self, c: NewCategory) -> Result<Uuid, TaxError> {
         let company = c.company_id;
         company_scope::with_company_scope(Some(company), async move {
             let id = Uuid::new_v4();
             let kind = c.tax_kind.clone().unwrap_or_else(|| "vat".to_string());
-            let r = sqlx::query(
-                r#"INSERT INTO tax.tax_categories (id, company_id, code, name, tax_kind, status)
-                   VALUES ($1,$2,$3,$4,$5::tax_kind,'active'::tax_status)"#,
-            )
-            .bind(id).bind(company).bind(&c.code).bind(&c.name).bind(&kind)
-            .execute(&self.db_pool).await;
+            let repos = TaxCategoryRepository::new(self.db_pool.clone());
+            let r = repos.insert(&self.db_pool, &NewTaxCategoryRow {
+                id, company_id: company, code: &c.code, name: &c.name, tax_kind: &kind,
+            }).await;
             match r {
                 Ok(_) => Ok(id),
                 Err(e) if Self::is_dup(&e) => Err(TaxError::DuplicateCode(c.code)),
@@ -120,18 +106,19 @@ impl TaxWriteService {
         let company = t.company_id;
         company_scope::with_company_scope(Some(company), async move {
             if let Some(cid) = t.tax_category_id {
-                if !self.exists_in("tax_categories", cid, company).await? {
+                let cats = TaxCategoryRepository::new(self.db_pool.clone());
+                let found = cats.find_by_id_in_company(&self.db_pool, cid, company).await?;
+                if found.is_none() {
                     return Err(TaxError::CategoryNotFound(cid));
                 }
             }
             let id = Uuid::new_v4();
             let tt = t.template_type.clone().unwrap_or_else(|| "sales".to_string());
-            let r = sqlx::query(
-                r#"INSERT INTO tax.tax_templates (id, company_id, code, name, template_type, tax_category_id, is_inclusive, status)
-                   VALUES ($1,$2,$3,$4,$5::template_type,$6,$7,'active'::tax_status)"#,
-            )
-            .bind(id).bind(company).bind(&t.code).bind(&t.name).bind(&tt).bind(t.tax_category_id).bind(t.is_inclusive)
-            .execute(&self.db_pool).await;
+            let repos = TaxTemplateRepository::new(self.db_pool.clone());
+            let r = repos.insert(&self.db_pool, &NewTaxTemplateRow {
+                id, company_id: company, code: &t.code, name: &t.name,
+                template_type: &tt, tax_category_id: t.tax_category_id, is_inclusive: t.is_inclusive,
+            }).await;
             match r {
                 Ok(_) => Ok(id),
                 Err(e) if Self::is_dup(&e) => Err(TaxError::DuplicateCode(t.code)),
@@ -146,23 +133,20 @@ impl TaxWriteService {
             if !Self::valid_window(row.effective_from, row.effective_to) {
                 return Err(TaxError::InvalidDateRange);
             }
-            if !self.exists_in("tax_templates", row.template_id, company).await? {
+            let tpls = TaxTemplateRepository::new(self.db_pool.clone());
+            let found = tpls.find_by_id_in_company(&self.db_pool, row.template_id, company).await?;
+            if found.is_none() {
                 return Err(TaxError::TemplateNotFound(row.template_id));
             }
             // Reject an overlapping sibling at the same sort_order (council 2026-07-03): two rows
             // effective on the same date would double-charge. `[from, to]` inclusive, open-ended =
             // infinity. Scoped to this template (which is itself company-scoped via its
             // template_id), so the check is per-tenant.
-            let overlap: Option<Uuid> = sqlx::query_scalar(
-                r#"SELECT id FROM tax.tax_template_rows
-                   WHERE template_id=$1 AND sort_order=$2 AND (metadata->>'deleted_at') IS NULL
-                     AND daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]')
-                         && daterange($3, COALESCE($4, 'infinity'::date), '[]')
-                   LIMIT 1"#,
-            )
-            .bind(row.template_id).bind(row.sort_order).bind(row.effective_from).bind(row.effective_to)
-            .fetch_optional(&self.db_pool)
-            .await?;
+            let rows_repo = TaxTemplateRowRepository::new(self.db_pool.clone());
+            let overlap = rows_repo.find_overlap(
+                &self.db_pool, row.template_id, row.sort_order,
+                row.effective_from, row.effective_to,
+            ).await?;
             if overlap.is_some() {
                 return Err(TaxError::OverlappingWindow(format!(
                     "template row sort_order {} overlaps an existing effective window",
@@ -171,16 +155,13 @@ impl TaxWriteService {
             }
             let id = Uuid::new_v4();
             let ct = row.charge_type.clone().unwrap_or_else(|| "on_net_total".to_string());
-            sqlx::query(
-                r#"INSERT INTO tax.tax_template_rows
-                    (id, company_id, template_id, charge_type, rate, account_id, is_withholding, effective_from,
-                     effective_to, sort_order, description)
-                   VALUES ($1,$2,$3,$4::charge_type,$5,$6,$7,$8,$9,$10,$11)"#,
-            )
-            .bind(id).bind(company).bind(row.template_id).bind(&ct).bind(row.rate).bind(row.account_id)
-            .bind(row.is_withholding).bind(row.effective_from).bind(row.effective_to)
-            .bind(row.sort_order).bind(&row.description)
-            .execute(&self.db_pool).await?;
+            rows_repo.insert(&self.db_pool, &NewTaxTemplateRowRecord {
+                id, company_id: company, template_id: row.template_id,
+                charge_type: &ct, rate: row.rate, account_id: row.account_id,
+                is_withholding: row.is_withholding, effective_from: row.effective_from,
+                effective_to: row.effective_to, sort_order: row.sort_order,
+                description: row.description.as_deref(),
+            }).await?;
             Ok(id)
         }).await
     }
@@ -194,16 +175,10 @@ impl TaxWriteService {
             // Reject an overlapping window for the same code within this tenant (council 2026-07-03)
             // — so `resolve_withholding` always has exactly one applicable rate on any date. The
             // DB-level EXCLUDE (reshaped per-company by ADR-0010 B1) also enforces this.
-            let overlap: Option<Uuid> = sqlx::query_scalar(
-                r#"SELECT id FROM tax.withholding_categories
-                   WHERE company_id=$1 AND code=$2 AND (metadata->>'deleted_at') IS NULL
-                     AND daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]')
-                         && daterange($3, COALESCE($4, 'infinity'::date), '[]')
-                   LIMIT 1"#,
-            )
-            .bind(company).bind(&w.code).bind(w.effective_from).bind(w.effective_to)
-            .fetch_optional(&self.db_pool)
-            .await?;
+            let whs = WithholdingCategoryRepository::new(self.db_pool.clone());
+            let overlap = whs.find_overlap(
+                &self.db_pool, company, &w.code, w.effective_from, w.effective_to,
+            ).await?;
             if overlap.is_some() {
                 return Err(TaxError::OverlappingWindow(format!(
                     "withholding code {} overlaps an existing effective window",
@@ -211,14 +186,11 @@ impl TaxWriteService {
                 )));
             }
             let id = Uuid::new_v4();
-            sqlx::query(
-                r#"INSERT INTO tax.withholding_categories
-                    (id, company_id, code, name, rate, threshold_amount, account_id, effective_from, effective_to, status)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active'::tax_status)"#,
-            )
-            .bind(id).bind(company).bind(&w.code).bind(&w.name).bind(&w.rate).bind(&w.threshold_amount)
-            .bind(w.account_id).bind(w.effective_from).bind(w.effective_to)
-            .execute(&self.db_pool).await?;
+            whs.insert(&self.db_pool, &NewWithholdingCategoryRow {
+                id, company_id: company, code: &w.code, name: &w.name, rate: w.rate,
+                threshold_amount: w.threshold_amount, account_id: w.account_id,
+                effective_from: w.effective_from, effective_to: w.effective_to,
+            }).await?;
             Ok(id)
         }).await
     }

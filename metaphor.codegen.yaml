@@ -15,6 +15,17 @@ user_owned:
   - "src/application/service/tax_engine.rs"
   - "src/application/service/tax_write_service.rs"
   - "src/application/service/efaktur_service.rs"
+  # Own the hand-written tax SQL (the validated-write path's category/template/template-row/
+  # withholding SQL, and the e-Faktur engine's transaction/filing-period/document SQL) that the
+  # write services orchestrate. Declared here — not renamed with a `_custom` suffix — so the
+  # generator skips them wholesale; this declaration is what makes editing them legitimate.
+  - "src/infrastructure/persistence/tax_category_repository.rs"
+  - "src/infrastructure/persistence/tax_template_repository.rs"
+  - "src/infrastructure/persistence/tax_template_row_repository.rs"
+  - "src/infrastructure/persistence/withholding_category_repository.rs"
+  - "src/infrastructure/persistence/tax_transaction_repository.rs"
+  - "src/infrastructure/persistence/tax_filing_period_repository.rs"
+  - "src/infrastructure/persistence/e_faktur_document_repository.rs"
   - "src/presentation/http/guarded_routes.rs"
 
   # Behavior tests (the golden numeric oracle) + route probes + BDD features.

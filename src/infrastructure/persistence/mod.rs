@@ -34,4 +34,14 @@ pub use backbone_orm::repository::{
 
 // Re-export custom persistence types
 // <<< CUSTOM
+// The hand-written tax SQL's parameter/projection types. Every repository listed here is declared
+// `user_owned` in metaphor.codegen.yaml — see tax_write_service.rs / efaktur_service.rs, which
+// orchestrate them.
+pub use tax_category_repository::NewTaxCategoryRow;
+pub use tax_template_repository::NewTaxTemplateRow;
+pub use tax_template_row_repository::NewTaxTemplateRowRecord;
+pub use withholding_category_repository::NewWithholdingCategoryRow;
+pub use tax_transaction_repository::NewTaxTransactionRow;
+pub use tax_filing_period_repository::AllocatedSequence;
+pub use e_faktur_document_repository::NewEFakturDocumentRow;
 // END CUSTOM
