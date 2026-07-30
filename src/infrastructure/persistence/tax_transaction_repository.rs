@@ -113,6 +113,27 @@ impl TaxTransactionRepository {
             .bind(txn_id).bind(efaktur_id).execute(conn).await?;
         Ok(())
     }
+
+    /// Find the e-Faktur document (if any) attached to the live tax transaction for a given invoice.
+    /// Used by the cancellation/void path: given a billing `invoice_ref` (+ kind), resolve the
+    /// e-Faktur to void. Returns `None` when there is no transaction or no e-Faktur attached (purchase
+    /// invoices, or a sales invoice not yet numbered) — the caller treats that as a no-op.
+    pub async fn find_efaktur_id_by_invoice(
+        &self,
+        conn: &mut PgConnection,
+        company_id: Uuid,
+        invoice_ref: Uuid,
+        invoice_kind: &str,
+    ) -> Result<Option<Uuid>, sqlx::Error> {
+        let id: Option<Option<Uuid>> = sqlx::query_scalar(
+            r#"SELECT efaktur_document_id FROM tax.tax_transactions
+               WHERE company_id = $1 AND invoice_ref = $2 AND invoice_kind = $3::invoice_kind
+                 AND (metadata->>'deleted_at') IS NULL"#,
+        )
+        .bind(company_id).bind(invoice_ref).bind(invoice_kind)
+        .fetch_optional(conn).await?;
+        Ok(id.flatten())
+    }
 }
 
 backbone_core::impl_crud_repository!(TaxTransactionRepository, TaxTransaction, soft_delete);

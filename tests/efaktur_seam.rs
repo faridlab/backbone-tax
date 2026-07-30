@@ -75,3 +75,46 @@ async fn records_transaction_and_assigns_gapless_efaktur() {
         .bind(company).fetch_one(&pool).await.unwrap();
     assert_eq!(count, 2, "exactly 2 e-Faktur documents (the 2 sales; purchase has none)");
 }
+
+// TSEAM-VOID: voiding a sales invoice's e-Faktur flips status→voided, preserves the DJP sequence
+// (no reuse), and is idempotent + a no-op when there is no e-Faktur to void.
+#[tokio::test]
+async fn void_for_invoice_flips_status_preserving_sequence() {
+    let pool = pool().await;
+    let company = Uuid::new_v4();
+    let today = chrono::Utc::now().date_naive();
+    let svc = EFakturService::new(pool.clone());
+
+    // Record a sales invoice → e-Faktur assigned.
+    let invoice = Uuid::new_v4();
+    let data = PostedForTax {
+        invoice_ref: invoice, company_id: company, invoice_kind: "sales".into(),
+        posting_date: today, taxable_base: d("1000000"),
+        output_total: d("110000"), input_total: d("0"), withholding_total: d("0"),
+    };
+    let (_, efaktur) = svc.record_tax_transaction(&data).await.unwrap();
+    let efaktur = efaktur.unwrap();
+    let seq_before: i32 = sqlx::query_scalar("SELECT sequence FROM tax.efaktur_documents WHERE id=$1")
+        .bind(efaktur).fetch_one(&pool).await.unwrap();
+    let status_before: String = sqlx::query_scalar("SELECT status::text FROM tax.efaktur_documents WHERE id=$1")
+        .bind(efaktur).fetch_one(&pool).await.unwrap();
+    assert_eq!(status_before, "assigned");
+
+    // Void → status flips to voided; sequence + number preserved (DJP no-reuse).
+    svc.void_for_invoice(company, invoice, "sales").await.unwrap();
+    let seq_after: i32 = sqlx::query_scalar("SELECT sequence FROM tax.efaktur_documents WHERE id=$1")
+        .bind(efaktur).fetch_one(&pool).await.unwrap();
+    let status_after: String = sqlx::query_scalar("SELECT status::text FROM tax.efaktur_documents WHERE id=$1")
+        .bind(efaktur).fetch_one(&pool).await.unwrap();
+    assert_eq!(status_after, "voided", "status flipped to voided");
+    assert_eq!(seq_before, seq_after, "sequence preserved (DJP no-reuse — gapless stays intact)");
+
+    // Idempotent: void again → still voided, no error.
+    svc.void_for_invoice(company, invoice, "sales").await.unwrap();
+    let status_again: String = sqlx::query_scalar("SELECT status::text FROM tax.efaktur_documents WHERE id=$1")
+        .bind(efaktur).fetch_one(&pool).await.unwrap();
+    assert_eq!(status_again, "voided");
+
+    // No-op: voiding an invoice with no e-Faktur (unknown invoice) → Ok, nothing changes.
+    svc.void_for_invoice(company, Uuid::new_v4(), "sales").await.unwrap();
+}

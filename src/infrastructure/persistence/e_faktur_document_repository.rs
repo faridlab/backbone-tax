@@ -73,6 +73,20 @@ impl EFakturDocumentRepository {
         .execute(conn).await?;
         Ok(())
     }
+
+    /// Void an assigned e-Faktur (a credit note / cancellation). DJP rule: the sequence number is
+    /// PRESERVED — the row stays, only `status` flips to `voided` (the number is never reused, so the
+    /// gapless sequence stays intact). Idempotent: re-voiding an already-voided row is a no-op UPDATE.
+    pub async fn void_on(
+        &self,
+        conn: &mut PgConnection,
+        efaktur_id: Uuid,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE tax.efaktur_documents SET status = 'voided'::e_faktur_status WHERE id = $1")
+            .bind(efaktur_id)
+            .execute(conn).await?;
+        Ok(())
+    }
 }
 
 backbone_core::impl_crud_repository!(EFakturDocumentRepository, EFakturDocument, soft_delete);

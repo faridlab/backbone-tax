@@ -103,6 +103,30 @@ impl EFakturService {
         Ok((txn_id, efaktur_id))
     }
 
+    /// Void the e-Faktur assigned to a sales invoice (a credit note / cancellation). The DJP number
+    /// is preserved (never reused) — only `status` flips to Voided, so the gapless sequence stays
+    /// intact. Idempotent and a no-op when there is no e-Faktur for the invoice (purchase invoices,
+    /// or a sales invoice not yet numbered). `invoice_kind` filters the tax transaction.
+    pub async fn void_for_invoice(
+        &self,
+        company_id: Uuid,
+        invoice_ref: Uuid,
+        invoice_kind: &str,
+    ) -> Result<(), TaxComplianceError> {
+        let mut tx = self.db_pool.begin().await?;
+        company_scope::bind_company_on(&mut tx, company_id).await?;
+        let txns = TaxTransactionRepository::new(self.db_pool.clone());
+        if let Some(efaktur_id) = txns
+            .find_efaktur_id_by_invoice(&mut *tx, company_id, invoice_ref, invoice_kind)
+            .await?
+        {
+            let docs = EFakturDocumentRepository::new(self.db_pool.clone());
+            docs.void_on(&mut *tx, efaktur_id).await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
     /// Allocate a gapless e-Faktur number (010.NNN-NN.YYYYYYYY) via the TaxFilingPeriod sequence.
     /// Concurrent calls serialize on the per-period row (the UPDATE ... RETURNING is atomic).
     async fn assign_efaktur_in_tx(
