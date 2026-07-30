@@ -44,6 +44,10 @@ pub use application::service::{
     NewCategory, NewTemplate, NewTemplateRow, NewWithholding, TaxEngine, TaxError, TaxLine,
     TaxWriteService,
 };
+// The e-Faktur + tax-recording seam. The composition ACL calls
+// `EFakturService::record_tax_transaction` when billing emits a posted event —
+// this is the inbound audit-mirror write path (see docs/fsd.md).
+pub use application::service::{EFakturService, PostedForTax, TaxComplianceError};
 pub use presentation::http::create_guarded_tax_routes;
 // END CUSTOM
 use std::sync::Arc;
@@ -63,18 +67,25 @@ use sqlx::PgPool;
 /// let router = tax.all_crud_routes();
 /// ```
 pub struct TaxModule {
-    pub tax_category_service: Arc<TaxCategoryService>,
-    pub tax_transaction_service: Arc<TaxTransactionService>,
-    pub e_faktur_document_service: Arc<EFakturDocumentService>,
-    pub tax_filing_period_service: Arc<TaxFilingPeriodService>,
-    pub tax_template_service: Arc<TaxTemplateService>,
-    pub tax_template_row_service: Arc<TaxTemplateRowService>,
-    pub withholding_category_service: Arc<WithholdingCategoryService>,
+    pub(crate) tax_category_service: Arc<TaxCategoryService>,
+    pub(crate) tax_transaction_service: Arc<TaxTransactionService>,
+    pub(crate) e_faktur_document_service: Arc<EFakturDocumentService>,
+    pub(crate) tax_filing_period_service: Arc<TaxFilingPeriodService>,
+    pub(crate) tax_template_service: Arc<TaxTemplateService>,
+    pub(crate) tax_template_row_service: Arc<TaxTemplateRowService>,
+    pub(crate) withholding_category_service: Arc<WithholdingCategoryService>,
     // <<< CUSTOM
-    /// The region-neutral tax engine (compute tax lines).
+    /// The region-neutral tax engine (compute tax lines). Public so producing
+    /// modules (billing/selling/buying) can call it in-process and attach the
+    /// returned lines to their own AccountingPost (FSD: "tax contributes lines,
+    /// not a posting").
     pub tax_engine: Arc<TaxEngine>,
-    /// Validated tax-config writes.
+    /// Validated tax-config writes (mounted as guarded HTTP routes).
     pub tax_write_service: Arc<TaxWriteService>,
+    /// The e-Faktur + tax-recording seam. Public so the composition ACL can call
+    /// `record_tax_transaction` when billing emits SalesInvoicePosted /
+    /// PurchaseInvoicePosted — the inbound audit-mirror write path.
+    pub efaktur_service: Arc<EFakturService>,
     // END CUSTOM
 }
 
@@ -179,6 +190,7 @@ impl TaxModuleBuilder {
         // <<< CUSTOM
         let tax_engine = Arc::new(TaxEngine::new(db_pool.clone()));
         let tax_write_service = Arc::new(TaxWriteService::new(db_pool.clone()));
+        let efaktur_service = Arc::new(EFakturService::new(db_pool.clone()));
         // END CUSTOM
 
         Ok(TaxModule {
@@ -192,6 +204,7 @@ impl TaxModuleBuilder {
             // <<< CUSTOM
             tax_engine,
             tax_write_service,
+            efaktur_service,
             // END CUSTOM
         })
     }
