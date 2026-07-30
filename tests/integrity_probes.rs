@@ -6,6 +6,7 @@ use axum::http::{Request, StatusCode};
 use sqlx::PgPool;
 use tower::ServiceExt;
 
+use backbone_orm::company_scope;
 use backbone_tax::{create_guarded_tax_routes, TaxModule};
 
 async fn pool() -> PgPool {
@@ -51,12 +52,13 @@ async fn guarded_row_rejects_missing_template() {
 #[tokio::test]
 async fn guarded_row_rejects_bad_date_window() {
     let pool = pool().await;
+    let company = uuid::Uuid::new_v4();
     let app = create_guarded_tax_routes(&module(&pool).await);
     let (_, body) = req(app, "POST", "/tax-templates",
-        Some(format!(r#"{{"code":"{}","name":"T","templateType":"sales"}}"#, uq("T")))).await;
+        Some(format!(r#"{{"companyId":"{company}","code":"{}","name":"T","templateType":"sales"}}"#, uq("T")))).await;
     let tid = body.split("\"id\":\"").nth(1).unwrap().split('"').next().unwrap().to_string();
     // effective_to before effective_from
-    let row = format!(r#"{{"templateId":"{tid}","rate":"11","effectiveFrom":"2025-01-01","effectiveTo":"2024-01-01"}}"#);
+    let row = format!(r#"{{"companyId":"{company}","templateId":"{tid}","rate":"11","effectiveFrom":"2025-01-01","effectiveTo":"2024-01-01"}}"#);
     let (status, _) = req(create_guarded_tax_routes(&module(&pool).await), "POST", "/tax-template-rows", Some(row)).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
 }
@@ -65,18 +67,25 @@ async fn guarded_row_rejects_bad_date_window() {
 #[tokio::test]
 async fn compute_endpoint_returns_tax_lines() {
     let pool = pool().await;
+    let company = uuid::Uuid::new_v4();
     // seed a template + row via the guarded write surface
     let (_, tbody) = req(create_guarded_tax_routes(&module(&pool).await), "POST", "/tax-templates",
-        Some(format!(r#"{{"code":"{}","name":"PPN","templateType":"sales"}}"#, uq("C")))).await;
+        Some(format!(r#"{{"companyId":"{company}","code":"{}","name":"PPN","templateType":"sales"}}"#, uq("C")))).await;
     let tid = tbody.split("\"id\":\"").nth(1).unwrap().split('"').next().unwrap().to_string();
     req(create_guarded_tax_routes(&module(&pool).await), "POST", "/tax-template-rows",
-        Some(format!(r#"{{"templateId":"{tid}","rate":"11","effectiveFrom":"2022-04-01"}}"#))).await;
+        Some(format!(r#"{{"companyId":"{company}","templateId":"{tid}","rate":"11","effectiveFrom":"2022-04-01"}}"#))).await;
 
     let calc = format!(r#"{{"templateId":"{tid}","baseAmount":"1000000","onDate":"2026-07-03"}}"#);
-    let (status, body) = req(create_guarded_tax_routes(&module(&pool).await), "POST", "/tax/calculate", Some(calc)).await;
+    // The compute endpoint reads company from the AMBIENT task-local scope (set in deployment by the
+    // scope middleware), not the body — wrap the call in with_company_scope so the engine sees the
+    // same tenant the rows were created under (else it fails loud as NoCompanyScope → 401).
+    let (status, body) = company_scope::with_company_scope(
+        Some(company),
+        req(create_guarded_tax_routes(&module(&pool).await), "POST", "/tax/calculate", Some(calc)),
+    ).await;
     assert_eq!(status, StatusCode::OK);
     assert!(
-        body.contains(r#""tax_amount":"110000""#) && body.contains(r#""rate":"11""#),
-        "expected a PPN 110,000 line; got {body}"
+        body.contains(r#""tax_amount":"110000"#) && body.contains(r#""rate":"11."#),
+        "expected a PPN 110,000 line (11% of 1,000,000); got {body}"
     );
 }
