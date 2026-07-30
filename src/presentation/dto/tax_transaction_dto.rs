@@ -361,4 +361,3 @@ impl backbone_core::ApplyUpdateDto<UpdateTaxTransactionDto> for TaxTransaction {
 // Add custom DTOs specific to TaxTransaction here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
-

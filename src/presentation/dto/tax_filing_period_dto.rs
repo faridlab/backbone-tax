@@ -327,4 +327,3 @@ impl backbone_core::ApplyUpdateDto<UpdateTaxFilingPeriodDto> for TaxFilingPeriod
 // Add custom DTOs specific to TaxFilingPeriod here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
-
