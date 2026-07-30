@@ -17,10 +17,10 @@ path = "src/lib.rs"
 # or `rev = "<commit-sha>"`. Cargo dedupes the git fetch — the repo is only
 # cloned once even though four crates reference it.
 # -----------------------------------------------------------------------------
-backbone-core = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1", features = ["postgres"] }
-backbone-orm = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1" }
-backbone-auth = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1" }
-backbone-messaging = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.1" }
+backbone-core = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.6", features = ["postgres"] }
+backbone-orm = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.6" }
+backbone-auth = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.6", features = ["axum"] }
+backbone-messaging = { git = "https://github.com/faridlab/backbone-framework", tag = "v2.7.6" }
 
 # Core async runtime and serialization
 tokio = { version = "1.0", features = ["full"] }
@@ -83,3 +83,8 @@ pretty_assertions = "1.0"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 jsonwebtoken = "9.3"
 rand = "0.8"
+
+# The order-to-cash tax seam test (tests/invoice_seam.rs) drives a REAL backbone-billing post and
+# routes SalesInvoicePosted / PurchaseInvoicePosted → tax.record_tax_transaction. Dev-dependency
+# ONLY — zero normal cargo edge (mirrors backbone-selling → backbone-billing).
+backbone-billing = { path = "../backbone-billing" }
