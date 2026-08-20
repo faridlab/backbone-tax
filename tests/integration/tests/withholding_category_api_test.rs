@@ -72,7 +72,8 @@ pub struct WithholdingCategoryApiTest {
 
 impl WithholdingCategoryApiTest {
     pub fn new() -> Self {
-        let mut config = CrudTestConfig::new("/api/v1/withholding_categories", "WithholdingCategory");
+        let mut config =
+            CrudTestConfig::new("/api/v1/withholding_categories", "WithholdingCategory");
         config.supports_soft_delete = true;
         Self {
             inner: GenericCrudTest::new(config, WithholdingCategoryTestData),

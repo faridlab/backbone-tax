@@ -11,6 +11,20 @@ mod integration;
 use integration::tests::*;
 
 #[tokio::test]
+async fn test_company_tax_settings_api() {
+    let mut test = CompanyTaxSettingsApiTest::new();
+    let results = test.run_all().await;
+
+    let failed: Vec<_> = results.iter().filter(|r| !r.success).collect();
+    if !failed.is_empty() {
+        for f in &failed {
+            eprintln!("FAILED: {} - {}", f.test_name, f.details);
+        }
+        panic!("{} tests failed", failed.len());
+    }
+}
+
+#[tokio::test]
 async fn test_tax_category_api() {
     let mut test = TaxCategoryApiTest::new();
     let results = test.run_all().await;
@@ -67,6 +81,34 @@ async fn test_tax_filing_period_api() {
 }
 
 #[tokio::test]
+async fn test_tax_tag_api() {
+    let mut test = TaxTagApiTest::new();
+    let results = test.run_all().await;
+
+    let failed: Vec<_> = results.iter().filter(|r| !r.success).collect();
+    if !failed.is_empty() {
+        for f in &failed {
+            eprintln!("FAILED: {} - {}", f.test_name, f.details);
+        }
+        panic!("{} tests failed", failed.len());
+    }
+}
+
+#[tokio::test]
+async fn test_tax_repartition_line_api() {
+    let mut test = TaxRepartitionLineApiTest::new();
+    let results = test.run_all().await;
+
+    let failed: Vec<_> = results.iter().filter(|r| !r.success).collect();
+    if !failed.is_empty() {
+        for f in &failed {
+            eprintln!("FAILED: {} - {}", f.test_name, f.details);
+        }
+        panic!("{} tests failed", failed.len());
+    }
+}
+
+#[tokio::test]
 async fn test_tax_template_api() {
     let mut test = TaxTemplateApiTest::new();
     let results = test.run_all().await;
@@ -107,4 +149,3 @@ async fn test_withholding_category_api() {
         panic!("{} tests failed", failed.len());
     }
 }
-

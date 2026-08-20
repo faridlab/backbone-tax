@@ -10,11 +10,14 @@ use uuid::Uuid;
 
 use backbone_tax::application::service::efaktur_service::{EFakturService, PostedForTax};
 
-fn d(s: &str) -> Decimal { Decimal::from_str_exact(s).unwrap() }
+fn d(s: &str) -> Decimal {
+    Decimal::from_str_exact(s).unwrap()
+}
 
 async fn pool() -> PgPool {
-    let url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5433/backbone_tax".to_string());
+    let url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+        "postgresql://postgres:postgres@localhost:5433/backbone_tax".to_string()
+    });
     PgPool::connect(&url).await.expect("connect DB")
 }
 
@@ -27,53 +30,98 @@ async fn records_transaction_and_assigns_gapless_efaktur() {
 
     // 1) Record a sales invoice with PPN output 110,000 on a 1,000,000 base.
     let data1 = PostedForTax {
-        invoice_ref: Uuid::new_v4(), company_id: company, invoice_kind: "sales".into(),
-        posting_date: today, taxable_base: d("1000000"),
-        output_total: d("110000"), input_total: d("0"), withholding_total: d("0"),
+        invoice_ref: Uuid::new_v4(),
+        company_id: company,
+        invoice_kind: "sales".into(),
+        posting_date: today,
+        taxable_base: d("1000000"),
+        output_total: d("110000"),
+        input_total: d("0"),
+        withholding_total: d("0"),
     };
     let (txn1, efaktur1) = svc.record_tax_transaction(&data1).await.unwrap();
     assert!(efaktur1.is_some(), "sales with output → e-Faktur assigned");
     let efaktur1 = efaktur1.unwrap();
 
     // 2) Assert the number format: 010.NNN-NN.YYYYYYYY (19 chars).
-    let number: String = sqlx::query_scalar("SELECT number FROM tax.efaktur_documents WHERE id = $1")
-        .bind(efaktur1).fetch_one(&pool).await.unwrap();
-    assert!(number.starts_with("010."), "transaction_code = 010 (standard VAT)");
-    assert_eq!(number.len(), 19, "format is FFF.NNN-NN.YYYYYYYY = 19 chars, got '{number}'");
+    let number: String =
+        sqlx::query_scalar("SELECT number FROM tax.efaktur_documents WHERE id = $1")
+            .bind(efaktur1)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(
+        number.starts_with("010."),
+        "transaction_code = 010 (standard VAT)"
+    );
+    assert_eq!(
+        number.len(),
+        19,
+        "format is FFF.NNN-NN.YYYYYYYY = 19 chars, got '{number}'"
+    );
 
     // 3) Second sales invoice same month → sequence increments (gapless).
     let data2 = PostedForTax {
-        invoice_ref: Uuid::new_v4(), company_id: company, invoice_kind: "sales".into(),
-        posting_date: today, taxable_base: d("500000"),
-        output_total: d("55000"), input_total: d("0"), withholding_total: d("0"),
+        invoice_ref: Uuid::new_v4(),
+        company_id: company,
+        invoice_kind: "sales".into(),
+        posting_date: today,
+        taxable_base: d("500000"),
+        output_total: d("55000"),
+        input_total: d("0"),
+        withholding_total: d("0"),
     };
     let (_, efaktur2) = svc.record_tax_transaction(&data2).await.unwrap();
     let seq1: i32 = sqlx::query_scalar("SELECT sequence FROM tax.efaktur_documents WHERE id = $1")
-        .bind(efaktur1).fetch_one(&pool).await.unwrap();
+        .bind(efaktur1)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
     let seq2: i32 = sqlx::query_scalar("SELECT sequence FROM tax.efaktur_documents WHERE id = $1")
-        .bind(efaktur2.unwrap()).fetch_one(&pool).await.unwrap();
+        .bind(efaktur2.unwrap())
+        .fetch_one(&pool)
+        .await
+        .unwrap();
     assert_eq!(seq1, 1, "first sequence is 1 (DJP numbering starts at 1)");
     assert_eq!(seq2, 2, "second sequence is 2 (gapless)");
 
     // 4) Idempotency: re-deliver the same invoice → same transaction (no duplicate).
     let (txn1_again, efaktur1_again) = svc.record_tax_transaction(&data1).await.unwrap();
-    assert_eq!(txn1, txn1_again, "re-delivery reuses the same TaxTransaction");
-    assert_eq!(efaktur1, efaktur1_again.unwrap(), "re-delivery reuses the same EFakturDocument");
+    assert_eq!(
+        txn1, txn1_again,
+        "re-delivery reuses the same TaxTransaction"
+    );
+    assert_eq!(
+        efaktur1,
+        efaktur1_again.unwrap(),
+        "re-delivery reuses the same EFakturDocument"
+    );
 
     // 5) Purchase invoice → no e-Faktur (only sales get numbered).
     let data3 = PostedForTax {
-        invoice_ref: Uuid::new_v4(), company_id: company, invoice_kind: "purchase".into(),
-        posting_date: today, taxable_base: d("800000"),
-        output_total: d("0"), input_total: d("88000"), withholding_total: d("0"),
+        invoice_ref: Uuid::new_v4(),
+        company_id: company,
+        invoice_kind: "purchase".into(),
+        posting_date: today,
+        taxable_base: d("800000"),
+        output_total: d("0"),
+        input_total: d("88000"),
+        withholding_total: d("0"),
     };
     let (txn3, efaktur3) = svc.record_tax_transaction(&data3).await.unwrap();
     assert!(efaktur3.is_none(), "purchase → no e-Faktur assigned");
 
     // 6) No extra e-Faktur documents created (only the 2 sales).
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM tax.efaktur_documents WHERE company_id = $1")
-        .bind(company).fetch_one(&pool).await.unwrap();
-    assert_eq!(count, 2, "exactly 2 e-Faktur documents (the 2 sales; purchase has none)");
+    let count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM tax.efaktur_documents WHERE company_id = $1")
+            .bind(company)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(
+        count, 2,
+        "exactly 2 e-Faktur documents (the 2 sales; purchase has none)"
+    );
 }
 
 // TSEAM-VOID: voiding a sales invoice's e-Faktur flips status→voided, preserves the DJP sequence
@@ -88,33 +136,67 @@ async fn void_for_invoice_flips_status_preserving_sequence() {
     // Record a sales invoice → e-Faktur assigned.
     let invoice = Uuid::new_v4();
     let data = PostedForTax {
-        invoice_ref: invoice, company_id: company, invoice_kind: "sales".into(),
-        posting_date: today, taxable_base: d("1000000"),
-        output_total: d("110000"), input_total: d("0"), withholding_total: d("0"),
+        invoice_ref: invoice,
+        company_id: company,
+        invoice_kind: "sales".into(),
+        posting_date: today,
+        taxable_base: d("1000000"),
+        output_total: d("110000"),
+        input_total: d("0"),
+        withholding_total: d("0"),
     };
     let (_, efaktur) = svc.record_tax_transaction(&data).await.unwrap();
     let efaktur = efaktur.unwrap();
-    let seq_before: i32 = sqlx::query_scalar("SELECT sequence FROM tax.efaktur_documents WHERE id=$1")
-        .bind(efaktur).fetch_one(&pool).await.unwrap();
-    let status_before: String = sqlx::query_scalar("SELECT status::text FROM tax.efaktur_documents WHERE id=$1")
-        .bind(efaktur).fetch_one(&pool).await.unwrap();
+    let seq_before: i32 =
+        sqlx::query_scalar("SELECT sequence FROM tax.efaktur_documents WHERE id=$1")
+            .bind(efaktur)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    let status_before: String =
+        sqlx::query_scalar("SELECT status::text FROM tax.efaktur_documents WHERE id=$1")
+            .bind(efaktur)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(status_before, "assigned");
 
     // Void → status flips to voided; sequence + number preserved (DJP no-reuse).
-    svc.void_for_invoice(company, invoice, "sales").await.unwrap();
-    let seq_after: i32 = sqlx::query_scalar("SELECT sequence FROM tax.efaktur_documents WHERE id=$1")
-        .bind(efaktur).fetch_one(&pool).await.unwrap();
-    let status_after: String = sqlx::query_scalar("SELECT status::text FROM tax.efaktur_documents WHERE id=$1")
-        .bind(efaktur).fetch_one(&pool).await.unwrap();
+    svc.void_for_invoice(company, invoice, "sales")
+        .await
+        .unwrap();
+    let seq_after: i32 =
+        sqlx::query_scalar("SELECT sequence FROM tax.efaktur_documents WHERE id=$1")
+            .bind(efaktur)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    let status_after: String =
+        sqlx::query_scalar("SELECT status::text FROM tax.efaktur_documents WHERE id=$1")
+            .bind(efaktur)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(status_after, "voided", "status flipped to voided");
-    assert_eq!(seq_before, seq_after, "sequence preserved (DJP no-reuse — gapless stays intact)");
+    assert_eq!(
+        seq_before, seq_after,
+        "sequence preserved (DJP no-reuse — gapless stays intact)"
+    );
 
     // Idempotent: void again → still voided, no error.
-    svc.void_for_invoice(company, invoice, "sales").await.unwrap();
-    let status_again: String = sqlx::query_scalar("SELECT status::text FROM tax.efaktur_documents WHERE id=$1")
-        .bind(efaktur).fetch_one(&pool).await.unwrap();
+    svc.void_for_invoice(company, invoice, "sales")
+        .await
+        .unwrap();
+    let status_again: String =
+        sqlx::query_scalar("SELECT status::text FROM tax.efaktur_documents WHERE id=$1")
+            .bind(efaktur)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(status_again, "voided");
 
     // No-op: voiding an invoice with no e-Faktur (unknown invoice) → Ok, nothing changes.
-    svc.void_for_invoice(company, Uuid::new_v4(), "sales").await.unwrap();
+    svc.void_for_invoice(company, Uuid::new_v4(), "sales")
+        .await
+        .unwrap();
 }
