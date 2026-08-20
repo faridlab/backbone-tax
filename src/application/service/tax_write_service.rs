@@ -221,6 +221,43 @@ impl TaxWriteService {
         }
     }
 
+    /// Scoped lookup of an active template by its company-unique code. The
+    /// idempotency probe for template installation (chart + companion tax
+    /// templates): installers skip templates that already exist for the tenant
+    /// instead of relying on the duplicate-name/code errors. `None` = no such
+    /// template in this company.
+    pub async fn template_id_by_code(
+        &self,
+        company_id: Uuid,
+        code: &str,
+    ) -> Result<Option<Uuid>, TaxError> {
+        company_scope::with_company_scope(Some(company_id), async move {
+            let tpls = TaxTemplateRepository::new(self.db_pool.clone());
+            Ok(tpls
+                .find_by_code_in_company(&self.db_pool, company_id, code)
+                .await?)
+        })
+        .await
+    }
+
+    /// Scoped lookup of an active tag by its company-unique code — the tag twin
+    /// of [`Self::template_id_by_code`]. Installers resolve dataset tag codes to
+    /// existing ids (find) before creating them, so a re-run is a no-op instead
+    /// of a duplicate-code error. `None` = no such tag in this company.
+    pub async fn tag_id_by_code(
+        &self,
+        company_id: Uuid,
+        code: &str,
+    ) -> Result<Option<Uuid>, TaxError> {
+        company_scope::with_company_scope(Some(company_id), async move {
+            let tags = TaxTagRepository::new(self.db_pool.clone());
+            Ok(tags
+                .find_by_code_in_company(&self.db_pool, company_id, code)
+                .await?)
+        })
+        .await
+    }
+
     pub async fn create_template(&self, t: NewTemplate) -> Result<Uuid, TaxError> {
         let company = t.company_id;
         company_scope::with_company_scope(Some(company), async move {

@@ -105,6 +105,29 @@ impl TaxTemplateRepository {
         Ok(found)
     }
 
+    /// Code probe filtered by the caller's company. Lets idempotent template
+    /// installation (chart + tax-template setup) skip templates that already
+    /// exist for the tenant instead of tripping the duplicate-code error. Runs
+    /// through the scoped-execute helper so the RLS fence sees `app.company_id`.
+    pub async fn find_by_code_in_company(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        code: &str,
+    ) -> Result<Option<Uuid>, sqlx::Error> {
+        let found = backbone_orm::company_scope::fetch_optional_scalar_scoped(
+            pool,
+            sqlx::query_scalar(
+                r#"SELECT id FROM tax.tax_templates
+                   WHERE company_id = $1 AND code = $2 AND (metadata->>'deleted_at') IS NULL"#,
+            )
+            .bind(company_id)
+            .bind(code),
+        )
+        .await?;
+        Ok(found)
+    }
+
     /// Insert a new active tax template on any executor — a bound transaction
     /// connection (so the template and its seeded repartition families land
     /// atomically) or the pool directly. The caller has already established the
