@@ -48,6 +48,10 @@ pub enum TaxError {
     /// `NoEffectiveRate`/`CategoryNotFound` so operators can tell a missed scope from a genuine
     /// "no row applies on this date" (ADR-0010 B1).
     NoCompanyScope,
+    /// The request names a company other than the one the caller's token scoped the request to.
+    /// The named company would ride the RLS bind in the write path, so a mismatched value would
+    /// let an authenticated tenant shape another company's tax configuration.
+    CompanyMismatch,
     Db(sqlx::Error),
 }
 impl TaxError {
@@ -66,6 +70,7 @@ impl TaxError {
             TaxError::RepartitionInvalid(_) => "repartition_invalid",
             TaxError::CabaTransitionNotReconcilable(_) => "caba_transition_not_reconcilable",
             TaxError::NoCompanyScope => "no_company_scope",
+            TaxError::CompanyMismatch => "company_mismatch",
             TaxError::Db(_) => "internal_error",
         }
     }
@@ -73,6 +78,7 @@ impl TaxError {
         match self {
             TaxError::Db(_) => 500,
             TaxError::NoCompanyScope => 401,
+            TaxError::CompanyMismatch => 403,
             _ => 422,
         }
     }

@@ -54,6 +54,21 @@ fn err_response(e: TaxError) -> axum::response::Response {
         .into_response()
 }
 
+// ── Tenant consistency ────────────────────────────────────────────────────────
+//
+// Every body or query below names the caller's `companyId`, and the write service binds that value
+// into its statements — it would override whatever company the caller's token established. When a
+// host has mounted an ambient company scope (backbone-auth's `company_auth` wraps every request in
+// it), the named company must agree with it, or an authenticated tenant could shape ANY company's
+// tax configuration simply by naming it in the body. With no ambient scope (unit tests, trusted
+// internal hosts) the check is skipped — the module keeps its standalone shape.
+fn tenant_guard(requested: Uuid) -> Option<axum::response::Response> {
+    match backbone_orm::current_company() {
+        Some(authenticated) if authenticated != requested => Some(err_response(TaxError::CompanyMismatch)),
+        _ => None,
+    }
+}
+
 // ── config writes ──────────────────────────────────────────────────────────────
 // Each create body carries the caller's `companyId` (ADR-0010 B1): the write service binds it
 // into the INSERT and wraps the call in `with_company_scope`. The compute endpoints below read
@@ -71,6 +86,9 @@ async fn create_category(
     State(svc): State<Arc<TaxWriteService>>,
     Json(b): Json<CreateCategoryBody>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
     match svc
         .create_category(NewCategory {
             company_id: b.company_id,
@@ -107,6 +125,9 @@ async fn create_template(
     State(svc): State<Arc<TaxWriteService>>,
     Json(b): Json<CreateTemplateBody>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
     match svc
         .create_template(NewTemplate {
             company_id: b.company_id,
@@ -177,6 +198,9 @@ async fn list_repartition_lines(
     State(svc): State<Arc<TaxWriteService>>,
     axum::extract::Query(q): axum::extract::Query<RepartitionQuery>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(q.company_id) {
+        return r;
+    }
     match svc.repartition_lines(q.company_id, q.template_id).await {
         Ok(lines) => {
             let out: Vec<RepartitionLineOut> = lines
@@ -199,6 +223,9 @@ async fn get_company_settings(
     State(svc): State<Arc<TaxWriteService>>,
     axum::extract::Query(q): axum::extract::Query<CompanyIdQuery>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(q.company_id) {
+        return r;
+    }
     match svc.company_settings(q.company_id).await {
         Ok(s) => (StatusCode::OK, Json(s.map(CompanySettingsOut::from))).into_response(),
         Err(e) => err_response(e),
@@ -208,6 +235,9 @@ async fn put_company_settings(
     State(svc): State<Arc<TaxWriteService>>,
     Json(b): Json<CompanySettingsBody>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
     match svc
         .upsert_company_settings(NewCompanySettings {
             company_id: b.company_id,
@@ -245,6 +275,9 @@ async fn add_repartition_line(
     State(svc): State<Arc<TaxWriteService>>,
     Json(b): Json<AddRepartitionLineBody>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
     match svc
         .add_repartition_line(NewRepartitionLine {
             company_id: b.company_id,
@@ -297,6 +330,9 @@ async fn replace_repartition_family(
     State(svc): State<Arc<TaxWriteService>>,
     Json(b): Json<ReplaceFamilyBody>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
     match svc
         .replace_repartition_family(ReplaceRepartitionFamily {
             company_id: b.company_id,
@@ -334,6 +370,9 @@ async fn create_tag(
     State(svc): State<Arc<TaxWriteService>>,
     Json(b): Json<CreateTagBody>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
     match svc
         .create_tag(NewTag {
             company_id: b.company_id,
@@ -371,6 +410,9 @@ async fn add_row(
     State(svc): State<Arc<TaxWriteService>>,
     Json(b): Json<AddRowBody>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
     match svc
         .add_row(NewTemplateRow {
             company_id: b.company_id,
@@ -410,6 +452,9 @@ async fn create_withholding(
     State(svc): State<Arc<TaxWriteService>>,
     Json(b): Json<CreateWithholdingBody>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
     match svc
         .create_withholding(NewWithholding {
             company_id: b.company_id,
@@ -516,6 +561,9 @@ async fn calculate_document(
     State(engine): State<Arc<TaxEngine>>,
     Json(b): Json<DocumentCalculateBody>,
 ) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
     let doc_type = match DocumentType::from_db(&b.document_type) {
         Some(t) => t,
         None => {
