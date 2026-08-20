@@ -8,17 +8,17 @@
 //! ## Usage from other modules
 //!
 //! ```text
-//! use tax::exports::{TaxCategoryDto, TaxQueryService};
+//! use tax::exports::{CompanyTaxSettingsDto};
 //! ```
 
-mod types;
-mod services;
 mod events;
+mod services;
+mod types;
 
 // Re-export all public types
-pub use types::*;
-pub use services::*;
 pub use events::*;
+pub use services::*;
+pub use types::*;
 
 // ============================================================================
 // EXPORT SUMMARY
@@ -27,6 +27,9 @@ pub use events::*;
 /// Summary of what this module exports
 ///
 /// ## Public Types
+/// - `CompanyTaxSettingsDto` - Data transfer object for CompanyTaxSettings
+/// - `CompanyTaxSettingsSummary` - Summary view of CompanyTaxSettings
+/// - `CompanyTaxSettingsId` - Type-safe ID wrapper
 /// - `TaxCategoryDto` - Data transfer object for TaxCategory
 /// - `TaxCategorySummary` - Summary view of TaxCategory
 /// - `TaxCategoryId` - Type-safe ID wrapper
@@ -39,6 +42,12 @@ pub use events::*;
 /// - `TaxFilingPeriodDto` - Data transfer object for TaxFilingPeriod
 /// - `TaxFilingPeriodSummary` - Summary view of TaxFilingPeriod
 /// - `TaxFilingPeriodId` - Type-safe ID wrapper
+/// - `TaxTagDto` - Data transfer object for TaxTag
+/// - `TaxTagSummary` - Summary view of TaxTag
+/// - `TaxTagId` - Type-safe ID wrapper
+/// - `TaxRepartitionLineDto` - Data transfer object for TaxRepartitionLine
+/// - `TaxRepartitionLineSummary` - Summary view of TaxRepartitionLine
+/// - `TaxRepartitionLineId` - Type-safe ID wrapper
 /// - `TaxTemplateDto` - Data transfer object for TaxTemplate
 /// - `TaxTemplateSummary` - Summary view of TaxTemplate
 /// - `TaxTemplateId` - Type-safe ID wrapper
@@ -49,10 +58,10 @@ pub use events::*;
 /// - `WithholdingCategorySummary` - Summary view of WithholdingCategory
 /// - `WithholdingCategoryId` - Type-safe ID wrapper
 ///
-/// ## Public Services
-/// - `TaxQueryService` - Read-only queries
-///
 /// ## Public Events
+/// - `CompanyTaxSettingsCreatedEvent` - Published when CompanyTaxSettings is created
+/// - `CompanyTaxSettingsUpdatedEvent` - Published when CompanyTaxSettings is updated
+/// - `CompanyTaxSettingsDeletedEvent` - Published when CompanyTaxSettings is deleted
 /// - `TaxCategoryCreatedEvent` - Published when TaxCategory is created
 /// - `TaxCategoryUpdatedEvent` - Published when TaxCategory is updated
 /// - `TaxCategoryDeletedEvent` - Published when TaxCategory is deleted
@@ -65,6 +74,12 @@ pub use events::*;
 /// - `TaxFilingPeriodCreatedEvent` - Published when TaxFilingPeriod is created
 /// - `TaxFilingPeriodUpdatedEvent` - Published when TaxFilingPeriod is updated
 /// - `TaxFilingPeriodDeletedEvent` - Published when TaxFilingPeriod is deleted
+/// - `TaxTagCreatedEvent` - Published when TaxTag is created
+/// - `TaxTagUpdatedEvent` - Published when TaxTag is updated
+/// - `TaxTagDeletedEvent` - Published when TaxTag is deleted
+/// - `TaxRepartitionLineCreatedEvent` - Published when TaxRepartitionLine is created
+/// - `TaxRepartitionLineUpdatedEvent` - Published when TaxRepartitionLine is updated
+/// - `TaxRepartitionLineDeletedEvent` - Published when TaxRepartitionLine is deleted
 /// - `TaxTemplateCreatedEvent` - Published when TaxTemplate is created
 /// - `TaxTemplateUpdatedEvent` - Published when TaxTemplate is updated
 /// - `TaxTemplateDeletedEvent` - Published when TaxTemplate is deleted

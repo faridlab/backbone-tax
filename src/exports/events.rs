@@ -5,10 +5,37 @@
 //! These events are published by this module for other modules to subscribe to.
 //! Events are the primary mechanism for cross-module communication.
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 use super::types::*;
+
+// ============================================================================
+// COMPANYTAXSETTINGS EVENTS
+// ============================================================================
+
+/// Event published when a CompanyTaxSettings is created
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompanyTaxSettingsCreatedEvent {
+    pub id: CompanyTaxSettingsId,
+    pub data: CompanyTaxSettingsDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a CompanyTaxSettings is updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompanyTaxSettingsUpdatedEvent {
+    pub id: CompanyTaxSettingsId,
+    pub data: CompanyTaxSettingsDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a CompanyTaxSettings is deleted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompanyTaxSettingsDeletedEvent {
+    pub id: CompanyTaxSettingsId,
+    pub occurred_at: DateTime<Utc>,
+}
 
 // ============================================================================
 // TAXCATEGORY EVENTS
@@ -119,6 +146,60 @@ pub struct TaxFilingPeriodDeletedEvent {
 }
 
 // ============================================================================
+// TAXTAG EVENTS
+// ============================================================================
+
+/// Event published when a TaxTag is created
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTagCreatedEvent {
+    pub id: TaxTagId,
+    pub data: TaxTagDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a TaxTag is updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTagUpdatedEvent {
+    pub id: TaxTagId,
+    pub data: TaxTagDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a TaxTag is deleted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTagDeletedEvent {
+    pub id: TaxTagId,
+    pub occurred_at: DateTime<Utc>,
+}
+
+// ============================================================================
+// TAXREPARTITIONLINE EVENTS
+// ============================================================================
+
+/// Event published when a TaxRepartitionLine is created
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxRepartitionLineCreatedEvent {
+    pub id: TaxRepartitionLineId,
+    pub data: TaxRepartitionLineDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a TaxRepartitionLine is updated
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxRepartitionLineUpdatedEvent {
+    pub id: TaxRepartitionLineId,
+    pub data: TaxRepartitionLineDto,
+    pub occurred_at: DateTime<Utc>,
+}
+
+/// Event published when a TaxRepartitionLine is deleted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxRepartitionLineDeletedEvent {
+    pub id: TaxRepartitionLineId,
+    pub occurred_at: DateTime<Utc>,
+}
+
+// ============================================================================
 // TAXTEMPLATE EVENTS
 // ============================================================================
 
@@ -207,6 +288,9 @@ pub struct WithholdingCategoryDeletedEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum TaxEvent {
+    CompanyTaxSettingsCreated(CompanyTaxSettingsCreatedEvent),
+    CompanyTaxSettingsUpdated(CompanyTaxSettingsUpdatedEvent),
+    CompanyTaxSettingsDeleted(CompanyTaxSettingsDeletedEvent),
     TaxCategoryCreated(TaxCategoryCreatedEvent),
     TaxCategoryUpdated(TaxCategoryUpdatedEvent),
     TaxCategoryDeleted(TaxCategoryDeletedEvent),
@@ -219,6 +303,12 @@ pub enum TaxEvent {
     TaxFilingPeriodCreated(TaxFilingPeriodCreatedEvent),
     TaxFilingPeriodUpdated(TaxFilingPeriodUpdatedEvent),
     TaxFilingPeriodDeleted(TaxFilingPeriodDeletedEvent),
+    TaxTagCreated(TaxTagCreatedEvent),
+    TaxTagUpdated(TaxTagUpdatedEvent),
+    TaxTagDeleted(TaxTagDeletedEvent),
+    TaxRepartitionLineCreated(TaxRepartitionLineCreatedEvent),
+    TaxRepartitionLineUpdated(TaxRepartitionLineUpdatedEvent),
+    TaxRepartitionLineDeleted(TaxRepartitionLineDeletedEvent),
     TaxTemplateCreated(TaxTemplateCreatedEvent),
     TaxTemplateUpdated(TaxTemplateUpdatedEvent),
     TaxTemplateDeleted(TaxTemplateDeletedEvent),

@@ -5,11 +5,68 @@
 //! These DTOs are the ONLY types other modules should use.
 //! They are decoupled from internal domain entities.
 
+use crate::domain::entity::*;
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc, NaiveDate};
-use rust_decimal::Decimal;
-use crate::domain::entity::*;
+
+// ============================================================================
+// COMPANYTAXSETTINGS TYPES
+// ============================================================================
+
+/// Type-safe ID for CompanyTaxSettings
+///
+/// Use this instead of raw Uuid for type safety across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CompanyTaxSettingsId(pub Uuid);
+
+impl CompanyTaxSettingsId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for CompanyTaxSettingsId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<CompanyTaxSettingsId> for Uuid {
+    fn from(id: CompanyTaxSettingsId) -> Self {
+        id.0
+    }
+}
+
+/// Data transfer object for CompanyTaxSettings
+///
+/// This is the public representation of CompanyTaxSettings for other modules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompanyTaxSettingsDto {
+    pub id: CompanyTaxSettingsId,
+    pub company_id: Uuid,
+    pub rounding_method: TaxRoundingMethod,
+    pub default_exigibility: TaxExigibility,
+    pub cash_basis_transition_account_id: Option<Uuid>,
+    pub metadata: serde_json::Value,
+}
+
+/// Summary view of CompanyTaxSettings for list displays
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompanyTaxSettingsSummary {
+    pub id: CompanyTaxSettingsId,
+}
+
+/// Reference to CompanyTaxSettings for foreign key relationships
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompanyTaxSettingsRef {
+    pub id: CompanyTaxSettingsId,
+}
 
 // ============================================================================
 // TAXCATEGORY TYPES
@@ -265,6 +322,125 @@ pub struct TaxFilingPeriodRef {
 }
 
 // ============================================================================
+// TAXTAG TYPES
+// ============================================================================
+
+/// Type-safe ID for TaxTag
+///
+/// Use this instead of raw Uuid for type safety across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TaxTagId(pub Uuid);
+
+impl TaxTagId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for TaxTagId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<TaxTagId> for Uuid {
+    fn from(id: TaxTagId) -> Self {
+        id.0
+    }
+}
+
+/// Data transfer object for TaxTag
+///
+/// This is the public representation of TaxTag for other modules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTagDto {
+    pub id: TaxTagId,
+    pub company_id: Uuid,
+    pub code: String,
+    pub name: String,
+    pub metadata: serde_json::Value,
+}
+
+/// Summary view of TaxTag for list displays
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTagSummary {
+    pub id: TaxTagId,
+    pub name: String,
+}
+
+/// Reference to TaxTag for foreign key relationships
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxTagRef {
+    pub id: TaxTagId,
+}
+
+// ============================================================================
+// TAXREPARTITIONLINE TYPES
+// ============================================================================
+
+/// Type-safe ID for TaxRepartitionLine
+///
+/// Use this instead of raw Uuid for type safety across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TaxRepartitionLineId(pub Uuid);
+
+impl TaxRepartitionLineId {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
+}
+
+impl From<Uuid> for TaxRepartitionLineId {
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
+}
+
+impl From<TaxRepartitionLineId> for Uuid {
+    fn from(id: TaxRepartitionLineId) -> Self {
+        id.0
+    }
+}
+
+/// Data transfer object for TaxRepartitionLine
+///
+/// This is the public representation of TaxRepartitionLine for other modules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxRepartitionLineDto {
+    pub id: TaxRepartitionLineId,
+    pub company_id: Uuid,
+    pub template_id: Uuid,
+    pub document_type: RepartitionDocumentType,
+    pub repartition_type: RepartitionType,
+    pub factor_percent: Decimal,
+    pub account_id: Option<Uuid>,
+    pub tag_ids: Vec<Uuid>,
+    pub sort_order: i32,
+    pub description: Option<String>,
+    pub metadata: serde_json::Value,
+}
+
+/// Summary view of TaxRepartitionLine for list displays
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxRepartitionLineSummary {
+    pub id: TaxRepartitionLineId,
+}
+
+/// Reference to TaxRepartitionLine for foreign key relationships
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaxRepartitionLineRef {
+    pub id: TaxRepartitionLineId,
+}
+
+// ============================================================================
 // TAXTEMPLATE TYPES
 // ============================================================================
 
@@ -308,6 +484,8 @@ pub struct TaxTemplateDto {
     pub template_type: TemplateType,
     pub tax_category_id: Option<Uuid>,
     pub is_inclusive: bool,
+    pub tax_exigibility: TaxExigibility,
+    pub cash_basis_transition_account_id: Option<Uuid>,
     pub status: TaxStatus,
     pub metadata: serde_json::Value,
 }
