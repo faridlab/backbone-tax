@@ -56,6 +56,9 @@ user_owned:
   # repartition family validation).
   - "migrations/20260819100004_add_template_exigibility_columns.*"
   - "migrations/20260819100005_tax_db_guards.*"
+  # Repair migration: converges databases where the pre-hardening enum guards
+  # were suppressed by a sibling module's same-named enum in a shared database.
+  - "migrations/20260820120000_repair_shared_db_enum_collision.*"
 
   # Hand-authored module documentation.
   - "docs/**"
