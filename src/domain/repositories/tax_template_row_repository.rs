@@ -5,11 +5,11 @@
 //! This trait defines the repository contract for the TaxTemplateRow aggregate.
 //! Implementation is in the infrastructure layer.
 
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::domain::entity::{TaxTemplateRow, ChargeType};
+use crate::domain::entity::{ChargeType, TaxTemplateRow};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]
@@ -55,7 +55,12 @@ pub struct TaxTemplateRowFilter {
 impl TaxTemplateRowFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some() || self.template_id.is_some() || self.charge_type.is_some() || self.account_id.is_some() || self.is_withholding.is_some() || self.description.is_some()
+        self.company_id.is_some()
+            || self.template_id.is_some()
+            || self.charge_type.is_some()
+            || self.account_id.is_some()
+            || self.is_withholding.is_some()
+            || self.description.is_some()
     }
 }
 
@@ -65,7 +70,6 @@ impl TaxTemplateRowFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait TaxTemplateRowRepository: Send + Sync {
-
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -90,10 +94,17 @@ pub trait TaxTemplateRowRepository: Send + Sync {
     // =========================================================================
 
     /// List tax_template_row with pagination
-    async fn list(&self, params: TaxTemplateRowPaginationParams) -> Result<TaxTemplateRowPaginatedResult>;
+    async fn list(
+        &self,
+        params: TaxTemplateRowPaginationParams,
+    ) -> Result<TaxTemplateRowPaginatedResult>;
 
     /// List tax_template_row with pagination and filters
-    async fn list_with_filters(&self, params: TaxTemplateRowPaginationParams, filters: TaxTemplateRowFilter) -> Result<TaxTemplateRowPaginatedResult>;
+    async fn list_with_filters(
+        &self,
+        params: TaxTemplateRowPaginationParams,
+        filters: TaxTemplateRowFilter,
+    ) -> Result<TaxTemplateRowPaginatedResult>;
 
     /// Count all tax_template_row entities
     async fn count(&self) -> Result<u64>;
@@ -115,7 +126,10 @@ pub trait TaxTemplateRowRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<TaxTemplateRow>>;
 
     /// List soft-deleted tax_template_row entities
-    async fn list_deleted(&self, params: TaxTemplateRowPaginationParams) -> Result<TaxTemplateRowPaginatedResult>;
+    async fn list_deleted(
+        &self,
+        params: TaxTemplateRowPaginationParams,
+    ) -> Result<TaxTemplateRowPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;

@@ -27,7 +27,9 @@ pub struct EFakturDocumentRepository(
 
 impl std::ops::Deref for EFakturDocumentRepository {
     type Target = backbone_orm::GenericCrudRepository<EFakturDocument, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl EFakturDocumentRepository {
@@ -68,9 +70,16 @@ impl EFakturDocumentRepository {
                   taxpayer_segment, period, sequence, assignment_date, status)
                VALUES ($1, $2, $3, $4, '010', $5, $6, $7, $8, 'assigned'::e_faktur_status)"#,
         )
-        .bind(r.id).bind(r.company_id).bind(r.tax_transaction_id).bind(r.number)
-        .bind(r.taxpayer_segment).bind(r.period).bind(r.sequence).bind(r.assignment_date)
-        .execute(conn).await?;
+        .bind(r.id)
+        .bind(r.company_id)
+        .bind(r.tax_transaction_id)
+        .bind(r.number)
+        .bind(r.taxpayer_segment)
+        .bind(r.period)
+        .bind(r.sequence)
+        .bind(r.assignment_date)
+        .execute(conn)
+        .await?;
         Ok(())
     }
 
@@ -82,9 +91,12 @@ impl EFakturDocumentRepository {
         conn: &mut PgConnection,
         efaktur_id: Uuid,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE tax.efaktur_documents SET status = 'voided'::e_faktur_status WHERE id = $1")
-            .bind(efaktur_id)
-            .execute(conn).await?;
+        sqlx::query(
+            "UPDATE tax.efaktur_documents SET status = 'voided'::e_faktur_status WHERE id = $1",
+        )
+        .bind(efaktur_id)
+        .execute(conn)
+        .await?;
         Ok(())
     }
 }

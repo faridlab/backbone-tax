@@ -9,20 +9,26 @@ use anyhow::Result;
 use async_trait::async_trait;
 use sqlx::PgPool;
 
-mod tax_category_seeder;
-mod tax_transaction_seeder;
+mod company_tax_settings_seeder;
 mod e_faktur_document_seeder;
+mod tax_category_seeder;
 mod tax_filing_period_seeder;
-mod tax_template_seeder;
+mod tax_repartition_line_seeder;
+mod tax_tag_seeder;
 mod tax_template_row_seeder;
+mod tax_template_seeder;
+mod tax_transaction_seeder;
 mod withholding_category_seeder;
 
-pub use tax_category_seeder::SeedTaxCategorySeeder;
-pub use tax_transaction_seeder::SeedTaxTransactionSeeder;
+pub use company_tax_settings_seeder::SeedCompanyTaxSettingsSeeder;
 pub use e_faktur_document_seeder::SeedEFakturDocumentSeeder;
+pub use tax_category_seeder::SeedTaxCategorySeeder;
 pub use tax_filing_period_seeder::SeedTaxFilingPeriodSeeder;
-pub use tax_template_seeder::SeedTaxTemplateSeeder;
+pub use tax_repartition_line_seeder::SeedTaxRepartitionLineSeeder;
+pub use tax_tag_seeder::SeedTaxTagSeeder;
 pub use tax_template_row_seeder::SeedTaxTemplateRowSeeder;
+pub use tax_template_seeder::SeedTaxTemplateSeeder;
+pub use tax_transaction_seeder::SeedTaxTransactionSeeder;
 pub use withholding_category_seeder::SeedWithholdingCategorySeeder;
 
 // ============================================================================
@@ -65,8 +71,6 @@ pub enum SeederType {
     Development,
     /// Test data (for automated tests)
     Test,
-// <<< CUSTOM SEEDERS START >>>
-// Add custom seeders here.
 }
 
 // ============================================================================

@@ -5,9 +5,9 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -16,9 +16,10 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
-use crate::domain::entity::TaxTemplate;
 use crate::domain::entity::AuditMetadata;
+use crate::domain::entity::TaxExigibility;
 use crate::domain::entity::TaxStatus;
+use crate::domain::entity::TaxTemplate;
 use crate::domain::entity::TemplateType;
 
 // =============================================================================
@@ -34,7 +35,10 @@ use crate::domain::entity::TemplateType;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateTaxTemplateDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 40)))]
@@ -45,11 +49,23 @@ pub struct CreateTaxTemplateDto {
     pub name: String,
     #[serde(alias = "template_type")]
     pub template_type: TemplateType,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "tax_category_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "tax_category_id"
+    )]
     pub tax_category_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(alias = "is_inclusive")]
     pub is_inclusive: bool,
+    #[serde(alias = "tax_exigibility")]
+    pub tax_exigibility: TaxExigibility,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "cash_basis_transition_account_id"
+    )]
+    pub cash_basis_transition_account_id: Option<Uuid>,
     pub status: TaxStatus,
 }
 
@@ -66,7 +82,10 @@ pub struct CreateTaxTemplateDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateTaxTemplateDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 40)))]
@@ -77,11 +96,23 @@ pub struct UpdateTaxTemplateDto {
     pub name: String,
     #[serde(alias = "template_type")]
     pub template_type: TemplateType,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "tax_category_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "tax_category_id"
+    )]
     pub tax_category_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(alias = "is_inclusive")]
     pub is_inclusive: bool,
+    #[serde(alias = "tax_exigibility")]
+    pub tax_exigibility: TaxExigibility,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "cash_basis_transition_account_id"
+    )]
+    pub cash_basis_transition_account_id: Option<Uuid>,
     pub status: TaxStatus,
 }
 
@@ -98,7 +129,10 @@ pub struct UpdateTaxTemplateDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchTaxTemplateDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
     pub company_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 40)))]
@@ -116,6 +150,13 @@ pub struct PatchTaxTemplateDto {
     #[cfg_attr(feature = "openapi", schema(example = true))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "is_inclusive")]
     pub is_inclusive: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none", alias = "tax_exigibility")]
+    pub tax_exigibility: Option<TaxExigibility>,
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        alias = "cash_basis_transition_account_id"
+    )]
+    pub cash_basis_transition_account_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<TaxStatus>,
 }
@@ -123,7 +164,15 @@ pub struct PatchTaxTemplateDto {
 impl PatchTaxTemplateDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some() || self.code.is_some() || self.name.is_some() || self.template_type.is_some() || self.tax_category_id.is_some() || self.is_inclusive.is_some() || self.status.is_some()
+        self.company_id.is_some()
+            || self.code.is_some()
+            || self.name.is_some()
+            || self.template_type.is_some()
+            || self.tax_category_id.is_some()
+            || self.is_inclusive.is_some()
+            || self.tax_exigibility.is_some()
+            || self.cash_basis_transition_account_id.is_some()
+            || self.status.is_some()
     }
 }
 
@@ -139,9 +188,15 @@ impl PatchTaxTemplateDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct TaxTemplateResponseDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub code: String,
@@ -151,6 +206,8 @@ pub struct TaxTemplateResponseDto {
     pub tax_category_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = true))]
     pub is_inclusive: bool,
+    pub tax_exigibility: TaxExigibility,
+    pub cash_basis_transition_account_id: Option<Uuid>,
     pub status: TaxStatus,
     pub metadata: AuditMetadata,
 }
@@ -229,6 +286,8 @@ impl From<TaxTemplate> for TaxTemplateResponseDto {
             template_type: entity.template_type,
             tax_category_id: entity.tax_category_id,
             is_inclusive: entity.is_inclusive,
+            tax_exigibility: entity.tax_exigibility,
+            cash_basis_transition_account_id: entity.cash_basis_transition_account_id,
             status: entity.status,
             metadata: entity.metadata,
         }
@@ -258,6 +317,8 @@ impl From<CreateTaxTemplateDto> for TaxTemplate {
             template_type: dto.template_type,
             tax_category_id: dto.tax_category_id,
             is_inclusive: dto.is_inclusive,
+            tax_exigibility: dto.tax_exigibility,
+            cash_basis_transition_account_id: dto.cash_basis_transition_account_id,
             status: dto.status,
             metadata: AuditMetadata::default(),
         }
@@ -274,6 +335,8 @@ impl From<&TaxTemplate> for TaxTemplateResponseDto {
             template_type: entity.template_type.clone(),
             tax_category_id: entity.tax_category_id.clone(),
             is_inclusive: entity.is_inclusive.clone(),
+            tax_exigibility: entity.tax_exigibility.clone(),
+            cash_basis_transition_account_id: entity.cash_basis_transition_account_id.clone(),
             status: entity.status.clone(),
             metadata: entity.metadata.clone(),
         }
@@ -294,6 +357,8 @@ impl backbone_core::ApplyUpdateDto<UpdateTaxTemplateDto> for TaxTemplate {
         self.template_type = dto.template_type;
         self.tax_category_id = dto.tax_category_id;
         self.is_inclusive = dto.is_inclusive;
+        self.tax_exigibility = dto.tax_exigibility;
+        self.cash_basis_transition_account_id = dto.cash_basis_transition_account_id;
         self.status = dto.status;
         Ok(self)
     }

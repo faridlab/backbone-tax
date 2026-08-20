@@ -4,14 +4,17 @@
 //!
 //! Combinators (AND/OR/NOT) come from `backbone_core::Specification`.
 
-pub use backbone_core::{Specification, AndSpecification, OrSpecification, NotSpecification};
+pub use backbone_core::{AndSpecification, NotSpecification, OrSpecification, Specification};
 
-pub mod tax_category_specification;
-pub mod tax_transaction_specification;
+pub mod company_tax_settings_specification;
 pub mod e_faktur_document_specification;
+pub mod tax_category_specification;
 pub mod tax_filing_period_specification;
-pub mod tax_template_specification;
+pub mod tax_repartition_line_specification;
+pub mod tax_tag_specification;
 pub mod tax_template_row_specification;
+pub mod tax_template_specification;
+pub mod tax_transaction_specification;
 pub mod withholding_category_specification;
 
 // <<< CUSTOM

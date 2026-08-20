@@ -5,11 +5,13 @@
 //! This trait defines the repository contract for the TaxTransaction aggregate.
 //! Implementation is in the infrastructure layer.
 
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::domain::entity::{TaxTransaction, InvoiceKind, TaxTransactionSource, TaxTransactionStatus};
+use crate::domain::entity::{
+    InvoiceKind, TaxTransaction, TaxTransactionSource, TaxTransactionStatus,
+};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]
@@ -56,7 +58,13 @@ pub struct TaxTransactionFilter {
 impl TaxTransactionFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some() || self.invoice_ref.is_some() || self.invoice_kind.is_some() || self.currency.is_some() || self.source.is_some() || self.efaktur_document_id.is_some() || self.status.is_some()
+        self.company_id.is_some()
+            || self.invoice_ref.is_some()
+            || self.invoice_kind.is_some()
+            || self.currency.is_some()
+            || self.source.is_some()
+            || self.efaktur_document_id.is_some()
+            || self.status.is_some()
     }
 }
 
@@ -66,7 +74,6 @@ impl TaxTransactionFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait TaxTransactionRepository: Send + Sync {
-
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -91,10 +98,17 @@ pub trait TaxTransactionRepository: Send + Sync {
     // =========================================================================
 
     /// List tax_transaction with pagination
-    async fn list(&self, params: TaxTransactionPaginationParams) -> Result<TaxTransactionPaginatedResult>;
+    async fn list(
+        &self,
+        params: TaxTransactionPaginationParams,
+    ) -> Result<TaxTransactionPaginatedResult>;
 
     /// List tax_transaction with pagination and filters
-    async fn list_with_filters(&self, params: TaxTransactionPaginationParams, filters: TaxTransactionFilter) -> Result<TaxTransactionPaginatedResult>;
+    async fn list_with_filters(
+        &self,
+        params: TaxTransactionPaginationParams,
+        filters: TaxTransactionFilter,
+    ) -> Result<TaxTransactionPaginatedResult>;
 
     /// Count all tax_transaction entities
     async fn count(&self) -> Result<u64>;
@@ -116,7 +130,10 @@ pub trait TaxTransactionRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<TaxTransaction>>;
 
     /// List soft-deleted tax_transaction entities
-    async fn list_deleted(&self, params: TaxTransactionPaginationParams) -> Result<TaxTransactionPaginatedResult>;
+    async fn list_deleted(
+        &self,
+        params: TaxTransactionPaginationParams,
+    ) -> Result<TaxTransactionPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;

@@ -5,10 +5,10 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc, NaiveDate};
-use rust_decimal::Decimal;
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -17,9 +17,9 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
-use crate::domain::entity::TaxTemplateRow;
 use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::ChargeType;
+use crate::domain::entity::TaxTemplateRow;
 
 // =============================================================================
 // Create DTO
@@ -34,10 +34,16 @@ use crate::domain::entity::ChargeType;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateTaxTemplateRowDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "template_id")]
     pub template_id: Uuid,
     #[serde(alias = "charge_type")]
@@ -51,7 +57,11 @@ pub struct CreateTaxTemplateRowDto {
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     #[serde(alias = "effective_from")]
     pub effective_from: NaiveDate,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "effective_to")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "effective_to"
+    )]
     pub effective_to: Option<NaiveDate>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "sort_order")]
@@ -74,10 +84,16 @@ pub struct CreateTaxTemplateRowDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateTaxTemplateRowDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "template_id")]
     pub template_id: Uuid,
     #[serde(alias = "charge_type")]
@@ -91,7 +107,11 @@ pub struct UpdateTaxTemplateRowDto {
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     #[serde(alias = "effective_from")]
     pub effective_from: NaiveDate,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "effective_to")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "effective_to"
+    )]
     pub effective_to: Option<NaiveDate>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "sort_order")]
@@ -114,10 +134,16 @@ pub struct UpdateTaxTemplateRowDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchTaxTemplateRowDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
     pub company_id: Option<Uuid>,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(skip_serializing_if = "Option::is_none", alias = "template_id")]
     pub template_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "charge_type")]
@@ -145,7 +171,16 @@ pub struct PatchTaxTemplateRowDto {
 impl PatchTaxTemplateRowDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some() || self.template_id.is_some() || self.charge_type.is_some() || self.rate.is_some() || self.account_id.is_some() || self.is_withholding.is_some() || self.effective_from.is_some() || self.effective_to.is_some() || self.sort_order.is_some() || self.description.is_some()
+        self.company_id.is_some()
+            || self.template_id.is_some()
+            || self.charge_type.is_some()
+            || self.rate.is_some()
+            || self.account_id.is_some()
+            || self.is_withholding.is_some()
+            || self.effective_from.is_some()
+            || self.effective_to.is_some()
+            || self.sort_order.is_some()
+            || self.description.is_some()
     }
 }
 
@@ -161,11 +196,20 @@ impl PatchTaxTemplateRowDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct TaxTemplateRowResponseDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub company_id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub template_id: Uuid,
     pub charge_type: ChargeType,
     pub rate: Decimal,
@@ -211,7 +255,12 @@ pub struct TaxTemplateRowListResponseDto {
 
 impl TaxTemplateRowListResponseDto {
     /// Create a new list response from items and pagination info
-    pub fn new(items: Vec<TaxTemplateRowResponseDto>, total: u64, page: u32, per_page: u32) -> Self {
+    pub fn new(
+        items: Vec<TaxTemplateRowResponseDto>,
+        total: u64,
+        page: u32,
+        per_page: u32,
+    ) -> Self {
         let total_pages = if per_page > 0 {
             ((total as f64) / (per_page as f64)).ceil() as u32
         } else {

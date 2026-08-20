@@ -1,13 +1,13 @@
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use rust_decimal::Decimal;
 
+use super::AuditMetadata;
 use super::InvoiceKind;
 use super::TaxTransactionSource;
 use super::TaxTransactionStatus;
-use super::AuditMetadata;
 
 /// Strongly-typed ID for TaxTransaction
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -15,9 +15,15 @@ use super::AuditMetadata;
 pub struct TaxTransactionId(pub Uuid);
 
 impl TaxTransactionId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for TaxTransactionId {
@@ -34,20 +40,28 @@ impl std::str::FromStr for TaxTransactionId {
 }
 
 impl From<Uuid> for TaxTransactionId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<TaxTransactionId> for Uuid {
-    fn from(id: TaxTransactionId) -> Self { id.0 }
+    fn from(id: TaxTransactionId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for TaxTransactionId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for TaxTransactionId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -73,11 +87,23 @@ pub struct TaxTransaction {
 impl TaxTransaction {
     /// Create a builder for TaxTransaction
     pub fn builder() -> TaxTransactionBuilder {
-        TaxTransactionBuilder::default()
+        <TaxTransactionBuilder as Default>::default()
     }
 
     /// Create a new TaxTransaction with required fields
-    pub fn new(company_id: Uuid, invoice_ref: Uuid, invoice_kind: InvoiceKind, posting_date: NaiveDate, taxable_base: Decimal, output_total: Decimal, input_total: Decimal, withholding_total: Decimal, currency: String, source: TaxTransactionSource, status: TaxTransactionStatus) -> Self {
+    pub fn new(
+        company_id: Uuid,
+        invoice_ref: Uuid,
+        invoice_kind: InvoiceKind,
+        posting_date: NaiveDate,
+        taxable_base: Decimal,
+        output_total: Decimal,
+        input_total: Decimal,
+        withholding_total: Decimal,
+        currency: String,
+        source: TaxTransactionSource,
+        status: TaxTransactionStatus,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             company_id,
@@ -151,7 +177,6 @@ impl TaxTransaction {
         &self.status
     }
 
-
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -171,40 +196,64 @@ impl TaxTransaction {
         for (key, value) in fields {
             match key.as_str() {
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "invoice_ref" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.invoice_ref = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.invoice_ref = v;
+                    }
                 }
                 "invoice_kind" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.invoice_kind = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.invoice_kind = v;
+                    }
                 }
                 "posting_date" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.posting_date = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.posting_date = v;
+                    }
                 }
                 "taxable_base" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.taxable_base = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.taxable_base = v;
+                    }
                 }
                 "output_total" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.output_total = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.output_total = v;
+                    }
                 }
                 "input_total" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.input_total = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.input_total = v;
+                    }
                 }
                 "withholding_total" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.withholding_total = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.withholding_total = v;
+                    }
                 }
                 "currency" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.currency = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.currency = v;
+                    }
                 }
                 "source" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.source = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.source = v;
+                    }
                 }
                 "efaktur_document_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.efaktur_document_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.efaktur_document_id = v;
+                    }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.status = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -372,11 +421,21 @@ impl TaxTransactionBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<TaxTransaction, String> {
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
-        let invoice_ref = self.invoice_ref.ok_or_else(|| "invoice_ref is required".to_string())?;
-        let invoice_kind = self.invoice_kind.ok_or_else(|| "invoice_kind is required".to_string())?;
-        let posting_date = self.posting_date.ok_or_else(|| "posting_date is required".to_string())?;
-        let taxable_base = self.taxable_base.ok_or_else(|| "taxable_base is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
+        let invoice_ref = self
+            .invoice_ref
+            .ok_or_else(|| "invoice_ref is required".to_string())?;
+        let invoice_kind = self
+            .invoice_kind
+            .ok_or_else(|| "invoice_kind is required".to_string())?;
+        let posting_date = self
+            .posting_date
+            .ok_or_else(|| "posting_date is required".to_string())?;
+        let taxable_base = self
+            .taxable_base
+            .ok_or_else(|| "taxable_base is required".to_string())?;
 
         Ok(TaxTransaction {
             id: Uuid::new_v4(),
@@ -388,10 +447,10 @@ impl TaxTransactionBuilder {
             output_total: self.output_total.unwrap_or(Decimal::from(0)),
             input_total: self.input_total.unwrap_or(Decimal::from(0)),
             withholding_total: self.withholding_total.unwrap_or(Decimal::from(0)),
-            currency: self.currency.unwrap_or(Default::default()),
-            source: self.source.unwrap_or(TaxTransactionSource::default()),
+            currency: self.currency.unwrap_or_default(),
+            source: self.source.unwrap_or_default(),
             efaktur_document_id: self.efaktur_document_id,
-            status: self.status.unwrap_or(TaxTransactionStatus::default()),
+            status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })
     }

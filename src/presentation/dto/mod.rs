@@ -5,69 +5,57 @@
 //! This module provides DTOs for the presentation layer,
 //! with validation and OpenAPI schema support.
 
-pub mod tax_category_dto;
-pub mod tax_transaction_dto;
+pub mod company_tax_settings_dto;
 pub mod e_faktur_document_dto;
+pub mod tax_category_dto;
 pub mod tax_filing_period_dto;
+pub mod tax_repartition_line_dto;
+pub mod tax_tag_dto;
 pub mod tax_template_dto;
 pub mod tax_template_row_dto;
+pub mod tax_transaction_dto;
 pub mod withholding_category_dto;
 
 // Re-exports
-pub use tax_category_dto::{
-    CreateTaxCategoryDto,
-    UpdateTaxCategoryDto,
-    PatchTaxCategoryDto,
-    TaxCategoryResponseDto,
-    TaxCategoryListResponseDto,
-    TaxCategorySummaryDto,
-};
-pub use tax_transaction_dto::{
-    CreateTaxTransactionDto,
-    UpdateTaxTransactionDto,
-    PatchTaxTransactionDto,
-    TaxTransactionResponseDto,
-    TaxTransactionListResponseDto,
-    TaxTransactionSummaryDto,
+pub use company_tax_settings_dto::{
+    CompanyTaxSettingsListResponseDto, CompanyTaxSettingsResponseDto, CompanyTaxSettingsSummaryDto,
+    CreateCompanyTaxSettingsDto, PatchCompanyTaxSettingsDto, UpdateCompanyTaxSettingsDto,
 };
 pub use e_faktur_document_dto::{
-    CreateEFakturDocumentDto,
-    UpdateEFakturDocumentDto,
-    PatchEFakturDocumentDto,
-    EFakturDocumentResponseDto,
-    EFakturDocumentListResponseDto,
-    EFakturDocumentSummaryDto,
+    CreateEFakturDocumentDto, EFakturDocumentListResponseDto, EFakturDocumentResponseDto,
+    EFakturDocumentSummaryDto, PatchEFakturDocumentDto, UpdateEFakturDocumentDto,
+};
+pub use tax_category_dto::{
+    CreateTaxCategoryDto, PatchTaxCategoryDto, TaxCategoryListResponseDto, TaxCategoryResponseDto,
+    TaxCategorySummaryDto, UpdateTaxCategoryDto,
 };
 pub use tax_filing_period_dto::{
-    CreateTaxFilingPeriodDto,
-    UpdateTaxFilingPeriodDto,
-    PatchTaxFilingPeriodDto,
-    TaxFilingPeriodResponseDto,
-    TaxFilingPeriodListResponseDto,
-    TaxFilingPeriodSummaryDto,
+    CreateTaxFilingPeriodDto, PatchTaxFilingPeriodDto, TaxFilingPeriodListResponseDto,
+    TaxFilingPeriodResponseDto, TaxFilingPeriodSummaryDto, UpdateTaxFilingPeriodDto,
+};
+pub use tax_repartition_line_dto::{
+    CreateTaxRepartitionLineDto, PatchTaxRepartitionLineDto, TaxRepartitionLineListResponseDto,
+    TaxRepartitionLineResponseDto, TaxRepartitionLineSummaryDto, UpdateTaxRepartitionLineDto,
+};
+pub use tax_tag_dto::{
+    CreateTaxTagDto, PatchTaxTagDto, TaxTagListResponseDto, TaxTagResponseDto, TaxTagSummaryDto,
+    UpdateTaxTagDto,
 };
 pub use tax_template_dto::{
-    CreateTaxTemplateDto,
-    UpdateTaxTemplateDto,
-    PatchTaxTemplateDto,
-    TaxTemplateResponseDto,
-    TaxTemplateListResponseDto,
-    TaxTemplateSummaryDto,
+    CreateTaxTemplateDto, PatchTaxTemplateDto, TaxTemplateListResponseDto, TaxTemplateResponseDto,
+    TaxTemplateSummaryDto, UpdateTaxTemplateDto,
 };
 pub use tax_template_row_dto::{
-    CreateTaxTemplateRowDto,
-    UpdateTaxTemplateRowDto,
-    PatchTaxTemplateRowDto,
-    TaxTemplateRowResponseDto,
-    TaxTemplateRowListResponseDto,
-    TaxTemplateRowSummaryDto,
+    CreateTaxTemplateRowDto, PatchTaxTemplateRowDto, TaxTemplateRowListResponseDto,
+    TaxTemplateRowResponseDto, TaxTemplateRowSummaryDto, UpdateTaxTemplateRowDto,
+};
+pub use tax_transaction_dto::{
+    CreateTaxTransactionDto, PatchTaxTransactionDto, TaxTransactionListResponseDto,
+    TaxTransactionResponseDto, TaxTransactionSummaryDto, UpdateTaxTransactionDto,
 };
 pub use withholding_category_dto::{
-    CreateWithholdingCategoryDto,
-    UpdateWithholdingCategoryDto,
-    PatchWithholdingCategoryDto,
-    WithholdingCategoryResponseDto,
-    WithholdingCategoryListResponseDto,
+    CreateWithholdingCategoryDto, PatchWithholdingCategoryDto, UpdateWithholdingCategoryDto,
+    WithholdingCategoryListResponseDto, WithholdingCategoryResponseDto,
     WithholdingCategorySummaryDto,
 };
 
@@ -94,8 +82,12 @@ pub struct PaginationParams {
     pub sort_order: Option<String>,
 }
 
-fn default_page() -> u32 { 1 }
-fn default_per_page() -> u32 { 20 }
+fn default_page() -> u32 {
+    1
+}
+fn default_per_page() -> u32 {
+    20
+}
 
 /// API response wrapper
 #[derive(Debug, Clone, Serialize)]
@@ -120,7 +112,11 @@ pub struct ApiError {
 
 impl<T> ApiResponse<T> {
     pub fn ok(data: T) -> Self {
-        Self { success: true, data: Some(data), error: None }
+        Self {
+            success: true,
+            data: Some(data),
+            error: None,
+        }
     }
 
     pub fn err(code: impl Into<String>, message: impl Into<String>) -> Self {

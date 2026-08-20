@@ -1,10 +1,10 @@
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::EFakturStatus;
 use super::AuditMetadata;
+use super::EFakturStatus;
 
 /// Strongly-typed ID for EFakturDocument
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -12,9 +12,15 @@ use super::AuditMetadata;
 pub struct EFakturDocumentId(pub Uuid);
 
 impl EFakturDocumentId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for EFakturDocumentId {
@@ -31,20 +37,28 @@ impl std::str::FromStr for EFakturDocumentId {
 }
 
 impl From<Uuid> for EFakturDocumentId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<EFakturDocumentId> for Uuid {
-    fn from(id: EFakturDocumentId) -> Self { id.0 }
+    fn from(id: EFakturDocumentId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for EFakturDocumentId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for EFakturDocumentId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -68,11 +82,21 @@ pub struct EFakturDocument {
 impl EFakturDocument {
     /// Create a builder for EFakturDocument
     pub fn builder() -> EFakturDocumentBuilder {
-        EFakturDocumentBuilder::default()
+        <EFakturDocumentBuilder as Default>::default()
     }
 
     /// Create a new EFakturDocument with required fields
-    pub fn new(company_id: Uuid, tax_transaction_id: Uuid, number: String, transaction_code: String, taxpayer_segment: String, period: NaiveDate, sequence: i32, assignment_date: NaiveDate, status: EFakturStatus) -> Self {
+    pub fn new(
+        company_id: Uuid,
+        tax_transaction_id: Uuid,
+        number: String,
+        transaction_code: String,
+        taxpayer_segment: String,
+        period: NaiveDate,
+        sequence: i32,
+        assignment_date: NaiveDate,
+        status: EFakturStatus,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             company_id,
@@ -144,7 +168,6 @@ impl EFakturDocument {
         &self.status
     }
 
-
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -164,34 +187,54 @@ impl EFakturDocument {
         for (key, value) in fields {
             match key.as_str() {
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "tax_transaction_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.tax_transaction_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.tax_transaction_id = v;
+                    }
                 }
                 "number" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.number = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.number = v;
+                    }
                 }
                 "transaction_code" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.transaction_code = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.transaction_code = v;
+                    }
                 }
                 "taxpayer_segment" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.taxpayer_segment = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.taxpayer_segment = v;
+                    }
                 }
                 "period" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.period = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.period = v;
+                    }
                 }
                 "sequence" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.sequence = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.sequence = v;
+                    }
                 }
                 "assignment_date" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.assignment_date = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.assignment_date = v;
+                    }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.status = v;
+                    }
                 }
                 "replaces_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.replaces_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.replaces_id = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -344,14 +387,30 @@ impl EFakturDocumentBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<EFakturDocument, String> {
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
-        let tax_transaction_id = self.tax_transaction_id.ok_or_else(|| "tax_transaction_id is required".to_string())?;
-        let number = self.number.ok_or_else(|| "number is required".to_string())?;
-        let transaction_code = self.transaction_code.ok_or_else(|| "transaction_code is required".to_string())?;
-        let taxpayer_segment = self.taxpayer_segment.ok_or_else(|| "taxpayer_segment is required".to_string())?;
-        let period = self.period.ok_or_else(|| "period is required".to_string())?;
-        let sequence = self.sequence.ok_or_else(|| "sequence is required".to_string())?;
-        let assignment_date = self.assignment_date.ok_or_else(|| "assignment_date is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
+        let tax_transaction_id = self
+            .tax_transaction_id
+            .ok_or_else(|| "tax_transaction_id is required".to_string())?;
+        let number = self
+            .number
+            .ok_or_else(|| "number is required".to_string())?;
+        let transaction_code = self
+            .transaction_code
+            .ok_or_else(|| "transaction_code is required".to_string())?;
+        let taxpayer_segment = self
+            .taxpayer_segment
+            .ok_or_else(|| "taxpayer_segment is required".to_string())?;
+        let period = self
+            .period
+            .ok_or_else(|| "period is required".to_string())?;
+        let sequence = self
+            .sequence
+            .ok_or_else(|| "sequence is required".to_string())?;
+        let assignment_date = self
+            .assignment_date
+            .ok_or_else(|| "assignment_date is required".to_string())?;
 
         Ok(EFakturDocument {
             id: Uuid::new_v4(),
@@ -363,7 +422,7 @@ impl EFakturDocumentBuilder {
             period,
             sequence,
             assignment_date,
-            status: self.status.unwrap_or(EFakturStatus::default()),
+            status: self.status.unwrap_or_default(),
             replaces_id: self.replaces_id,
             metadata: AuditMetadata::default(),
         })

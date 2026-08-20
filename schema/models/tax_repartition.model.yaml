@@ -1,0 +1,141 @@
+# =============================================================================
+# Domain: Tax
+# Entities: TaxRepartitionLine + TaxTag
+# Description: How a computed tax amount routes to accounts and report tags.
+# Each template carries two SEPARATE repartition families — invoice (regular
+# documents; purchase invoices use this family too) and refund (credit notes).
+# Within a family: exactly one `base` line (tags only) plus one or more `tax`
+# lines whose factor_percent values sum to 100 — the tax amount splits across
+# them by factor (e.g. 60% to the VAT payable account, 40% to a city levy).
+# Templates created before this table existed have no repartition rows; the
+# engine then falls back to the charge row's own account at factor 1.0.
+# =============================================================================
+
+models:
+  - name: TaxTag
+    collection: tax_tags
+    description: "A tax-report aggregation key (lines carrying the same tag roll up together)"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique tag identifier"
+
+      company_id:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "Owning tenant # logical FK to organization.Company.id (no hard SQL FK — RLS is the fence, ADR-0010 B1)"
+
+      code:
+        type: string
+        attributes: ["@required", "@max(40)"]
+        description: "Short unique code (report key)"
+
+      name:
+        type: string
+        attributes: ["@required", "@max(150)"]
+        description: "Human-readable tag name"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: unique
+        fields: [company_id, code]
+        where: "deleted_at IS NULL"
+
+  - name: TaxRepartitionLine
+    collection: tax_repartition_lines
+    description: "One routing line of a template's invoice or refund repartition family"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique repartition line identifier"
+
+      company_id:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "Owning tenant (denormalized from the template for RLS) # logical FK to organization.Company.id (no hard SQL FK — RLS is the fence, ADR-0010 B1)"
+
+      template_id:
+        type: uuid
+        attributes: ["@required", "@foreign_key(TaxTemplate.id)"]
+        description: "Owning tax template"
+
+      document_type:
+        type: RepartitionDocumentType
+        attributes: ["@default(invoice)"]
+        description: "Which family this line belongs to — regular documents vs credit notes (purchase invoices use the invoice family)"
+
+      repartition_type:
+        type: RepartitionType
+        attributes: ["@default(tax)"]
+        description: "base lines carry tags only; tax lines carry the account the amount lands on"
+
+      factor_percent:
+        type: decimal
+        attributes: ["@required", "@precision(16,12)", "@non_negative"]
+        description: "Share of the tax amount this line takes, in percent (100 = whole amount); a family's tax lines must sum to 100"
+
+      account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Account the routed amount posts to # logical FK to accounting.Account.id; required on tax lines unless the tax defers to its transition account"
+
+      tag_ids:
+        type: uuid[]?
+        description: "Report tags attached to this line # logical FKs to TaxTag.id"
+
+      sort_order:
+        type: int
+        attributes: ["@default(0)"]
+        description: "Stable ordering within the family"
+
+      description:
+        type: string?
+        attributes: ["@max(150)"]
+        description: "Line label"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    relations:
+      template:
+        type: TaxTemplate
+        attributes: ["@one", "@foreign_key(template_id)"]
+        description: "Owning template"
+        inverse: repartition_lines
+
+    indexes:
+      - type: index
+        fields: [template_id, document_type, repartition_type, sort_order]
+
+# =============================================================================
+# Enums
+# =============================================================================
+
+enums:
+  - name: RepartitionDocumentType
+    description: "Which document family a repartition line routes for"
+    variants:
+      - name: invoice
+        description: "Regular documents (sales AND purchase invoices)"
+        default: true
+      - name: refund
+        description: "Credit notes / refunds"
+
+  - name: RepartitionType
+    description: "What a repartition line carries"
+    variants:
+      - name: base
+        description: "Base line: report tags only, never an account or an amount"
+      - name: tax
+        description: "Tax line: the account the (factored) tax amount lands on, plus tags"
+        default: true

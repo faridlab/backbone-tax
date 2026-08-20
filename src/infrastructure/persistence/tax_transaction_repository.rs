@@ -28,7 +28,9 @@ pub struct TaxTransactionRepository(
 
 impl std::ops::Deref for TaxTransactionRepository {
     type Target = backbone_orm::GenericCrudRepository<TaxTransaction, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl TaxTransactionRepository {
@@ -110,7 +112,10 @@ impl TaxTransactionRepository {
         efaktur_id: Uuid,
     ) -> Result<(), sqlx::Error> {
         sqlx::query("UPDATE tax.tax_transactions SET efaktur_document_id = $2 WHERE id = $1")
-            .bind(txn_id).bind(efaktur_id).execute(conn).await?;
+            .bind(txn_id)
+            .bind(efaktur_id)
+            .execute(conn)
+            .await?;
         Ok(())
     }
 
@@ -130,8 +135,11 @@ impl TaxTransactionRepository {
                WHERE company_id = $1 AND invoice_ref = $2 AND invoice_kind = $3::invoice_kind
                  AND (metadata->>'deleted_at') IS NULL"#,
         )
-        .bind(company_id).bind(invoice_ref).bind(invoice_kind)
-        .fetch_optional(conn).await?;
+        .bind(company_id)
+        .bind(invoice_ref)
+        .bind(invoice_kind)
+        .fetch_optional(conn)
+        .await?;
         Ok(id.flatten())
     }
 }

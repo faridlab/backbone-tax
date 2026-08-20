@@ -15,6 +15,13 @@ user_owned:
   - "src/application/service/tax_engine.rs"
   - "src/application/service/tax_write_service.rs"
   - "src/application/service/efaktur_service.rs"
+  # Document-grade rounding primitives (round_globally redistribution math).
+  - "src/application/service/tax_rounding.rs"
+  # Hand-written SQL for the company tax settings / repartition / tag entities
+  # (upserts, family-aware reads) that the write service orchestrates.
+  - "src/infrastructure/persistence/company_tax_settings_repository.rs"
+  - "src/infrastructure/persistence/tax_repartition_line_repository.rs"
+  - "src/infrastructure/persistence/tax_tag_repository.rs"
   # Own the hand-written tax SQL (the validated-write path's category/template/template-row/
   # withholding SQL, and the e-Faktur engine's transaction/filing-period/document SQL) that the
   # write services orchestrate. Declared here — not renamed with a `_custom` suffix — so the
@@ -30,11 +37,25 @@ user_owned:
 
   # Behavior tests (the golden numeric oracle) + route probes + BDD features.
   - "tests/tax_golden_cases.rs"
+  - "tests/tax_rounding_unit.rs"
   - "tests/integrity_probes.rs"
   - "tests/features/**"
 
   # Hand-authored DB constraint (effective-window overlap) — regen must not remove it.
   - "migrations/20260426220020_tax_effective_overlap_exclude.*"
+
+  # The new-entity create migrations carry hand-added company-fence stanzas
+  # (ADR-0014), CHECK constraints, and the template FK — a plain regen would
+  # re-emit them bare and strip the guards. Owned forward; later schema changes
+  # land as hand-authored ALTERs anyway (the generator emits no ALTERs).
+  - "migrations/20260819100001_create_company_tax_settings_table.*"
+  - "migrations/20260819100002_create_tax_repartition_line_table.*"
+  - "migrations/20260819100003_create_tax_tag_table.*"
+  # Hand-authored migrations: template cash-basis columns + the DB guard
+  # objects (name uniqueness, company immutability, transition reconcilability,
+  # repartition family validation).
+  - "migrations/20260819100004_add_template_exigibility_columns.*"
+  - "migrations/20260819100005_tax_db_guards.*"
 
   # Hand-authored module documentation.
   - "docs/**"

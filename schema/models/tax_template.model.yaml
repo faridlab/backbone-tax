@@ -47,6 +47,16 @@ models:
         attributes: ["@default(false)"]
         description: "Rates are tax-inclusive (base already contains the tax) vs exclusive"
 
+      tax_exigibility:
+        type: TaxExigibility
+        attributes: ["@default(on_invoice)"]
+        description: "When this tax becomes exigible: at post (on_invoice) or when its receivable/payable is reconciled (on_payment, cash basis). Resolved from the company's settings at creation and materialized here so a later company posture change never rewrites history."
+
+      cash_basis_transition_account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Suspense account this tax's amounts sit on until collected (required when tax_exigibility is on_payment) # logical FK to accounting.Account.id; must be reconcilable"
+
       status:
         type: TaxStatus
         attributes: ["@default(active)"]
@@ -62,6 +72,12 @@ models:
         type: TaxTemplateRow[]
         attributes: ["@one_to_many"]
         description: "Charge rows of this template"
+        inverse: template
+
+      repartition_lines:
+        type: TaxRepartitionLine[]
+        attributes: ["@one_to_many"]
+        description: "Routing lines (accounts + tags) of this template, per document family"
         inverse: template
 
     indexes:

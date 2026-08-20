@@ -1,11 +1,11 @@
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use rust_decimal::Decimal;
 
-use super::ChargeType;
 use super::AuditMetadata;
+use super::ChargeType;
 
 /// Strongly-typed ID for TaxTemplateRow
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,9 +13,15 @@ use super::AuditMetadata;
 pub struct TaxTemplateRowId(pub Uuid);
 
 impl TaxTemplateRowId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for TaxTemplateRowId {
@@ -32,20 +38,28 @@ impl std::str::FromStr for TaxTemplateRowId {
 }
 
 impl From<Uuid> for TaxTemplateRowId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<TaxTemplateRowId> for Uuid {
-    fn from(id: TaxTemplateRowId) -> Self { id.0 }
+    fn from(id: TaxTemplateRowId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for TaxTemplateRowId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for TaxTemplateRowId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -69,11 +83,19 @@ pub struct TaxTemplateRow {
 impl TaxTemplateRow {
     /// Create a builder for TaxTemplateRow
     pub fn builder() -> TaxTemplateRowBuilder {
-        TaxTemplateRowBuilder::default()
+        <TaxTemplateRowBuilder as Default>::default()
     }
 
     /// Create a new TaxTemplateRow with required fields
-    pub fn new(company_id: Uuid, template_id: Uuid, charge_type: ChargeType, rate: Decimal, is_withholding: bool, effective_from: NaiveDate, sort_order: i32) -> Self {
+    pub fn new(
+        company_id: Uuid,
+        template_id: Uuid,
+        charge_type: ChargeType,
+        rate: Decimal,
+        is_withholding: bool,
+        effective_from: NaiveDate,
+        sort_order: i32,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             company_id,
@@ -140,7 +162,6 @@ impl TaxTemplateRow {
         self.metadata.deleted_by.as_ref()
     }
 
-
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -172,34 +193,54 @@ impl TaxTemplateRow {
         for (key, value) in fields {
             match key.as_str() {
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "template_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.template_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.template_id = v;
+                    }
                 }
                 "charge_type" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.charge_type = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.charge_type = v;
+                    }
                 }
                 "rate" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.rate = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.rate = v;
+                    }
                 }
                 "account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.account_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.account_id = v;
+                    }
                 }
                 "is_withholding" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.is_withholding = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.is_withholding = v;
+                    }
                 }
                 "effective_from" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.effective_from = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.effective_from = v;
+                    }
                 }
                 "effective_to" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.effective_to = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.effective_to = v;
+                    }
                 }
                 "sort_order" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.sort_order = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.sort_order = v;
+                    }
                 }
                 "description" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.description = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.description = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -355,16 +396,22 @@ impl TaxTemplateRowBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<TaxTemplateRow, String> {
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
-        let template_id = self.template_id.ok_or_else(|| "template_id is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
+        let template_id = self
+            .template_id
+            .ok_or_else(|| "template_id is required".to_string())?;
         let rate = self.rate.ok_or_else(|| "rate is required".to_string())?;
-        let effective_from = self.effective_from.ok_or_else(|| "effective_from is required".to_string())?;
+        let effective_from = self
+            .effective_from
+            .ok_or_else(|| "effective_from is required".to_string())?;
 
         Ok(TaxTemplateRow {
             id: Uuid::new_v4(),
             company_id,
             template_id,
-            charge_type: self.charge_type.unwrap_or(ChargeType::default()),
+            charge_type: self.charge_type.unwrap_or_default(),
             rate,
             account_id: self.account_id,
             is_withholding: self.is_withholding.unwrap_or(false),

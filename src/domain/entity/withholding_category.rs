@@ -1,11 +1,11 @@
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use rust_decimal::Decimal;
 
-use super::TaxStatus;
 use super::AuditMetadata;
+use super::TaxStatus;
 
 /// Strongly-typed ID for WithholdingCategory
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,9 +13,15 @@ use super::AuditMetadata;
 pub struct WithholdingCategoryId(pub Uuid);
 
 impl WithholdingCategoryId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for WithholdingCategoryId {
@@ -32,20 +38,28 @@ impl std::str::FromStr for WithholdingCategoryId {
 }
 
 impl From<Uuid> for WithholdingCategoryId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<WithholdingCategoryId> for Uuid {
-    fn from(id: WithholdingCategoryId) -> Self { id.0 }
+    fn from(id: WithholdingCategoryId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for WithholdingCategoryId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for WithholdingCategoryId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -68,11 +82,19 @@ pub struct WithholdingCategory {
 impl WithholdingCategory {
     /// Create a builder for WithholdingCategory
     pub fn builder() -> WithholdingCategoryBuilder {
-        WithholdingCategoryBuilder::default()
+        <WithholdingCategoryBuilder as Default>::default()
     }
 
     /// Create a new WithholdingCategory with required fields
-    pub fn new(company_id: Uuid, code: String, name: String, rate: Decimal, threshold_amount: Decimal, effective_from: NaiveDate, status: TaxStatus) -> Self {
+    pub fn new(
+        company_id: Uuid,
+        code: String,
+        name: String,
+        rate: Decimal,
+        threshold_amount: Decimal,
+        effective_from: NaiveDate,
+        status: TaxStatus,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             company_id,
@@ -143,7 +165,6 @@ impl WithholdingCategory {
         &self.status
     }
 
-
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -169,31 +190,49 @@ impl WithholdingCategory {
         for (key, value) in fields {
             match key.as_str() {
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "code" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.code = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.code = v;
+                    }
                 }
                 "name" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.name = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.name = v;
+                    }
                 }
                 "rate" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.rate = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.rate = v;
+                    }
                 }
                 "threshold_amount" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.threshold_amount = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.threshold_amount = v;
+                    }
                 }
                 "account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.account_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.account_id = v;
+                    }
                 }
                 "effective_from" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.effective_from = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.effective_from = v;
+                    }
                 }
                 "effective_to" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.effective_to = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.effective_to = v;
+                    }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.status = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -338,11 +377,15 @@ impl WithholdingCategoryBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<WithholdingCategory, String> {
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
         let code = self.code.ok_or_else(|| "code is required".to_string())?;
         let name = self.name.ok_or_else(|| "name is required".to_string())?;
         let rate = self.rate.ok_or_else(|| "rate is required".to_string())?;
-        let effective_from = self.effective_from.ok_or_else(|| "effective_from is required".to_string())?;
+        let effective_from = self
+            .effective_from
+            .ok_or_else(|| "effective_from is required".to_string())?;
 
         Ok(WithholdingCategory {
             id: Uuid::new_v4(),
@@ -354,7 +397,7 @@ impl WithholdingCategoryBuilder {
             account_id: self.account_id,
             effective_from,
             effective_to: self.effective_to,
-            status: self.status.unwrap_or(TaxStatus::default()),
+            status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })
     }

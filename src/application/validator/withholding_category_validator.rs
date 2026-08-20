@@ -5,9 +5,9 @@
 //! Returns an `EntityValidator<WithholdingCategory>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
-use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
-use backbone_core::{NonNegative, RequiredString};
 use crate::domain::entity::WithholdingCategory;
+use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
+use backbone_core::{NonNegative, RequiredString};
 
 /// Validator type alias for WithholdingCategory entities.
 pub type WithholdingCategoryValidator = EntityValidator<WithholdingCategory>;
@@ -15,8 +15,12 @@ pub type WithholdingCategoryValidator = EntityValidator<WithholdingCategory>;
 /// Build a validator for WithholdingCategory with all schema-defined field rules.
 pub fn withholding_category_validator() -> WithholdingCategoryValidator {
     EntityValidator::new()
-        .rule(RequiredString::new("code", |e: &WithholdingCategory| &e.code))
-        .rule(RequiredString::new("name", |e: &WithholdingCategory| &e.name))
+        .rule(RequiredString::new("code", |e: &WithholdingCategory| {
+            &e.code
+        }))
+        .rule(RequiredString::new("name", |e: &WithholdingCategory| {
+            &e.name
+        }))
     // <<< CUSTOM RULES
     // END CUSTOM RULES
 }

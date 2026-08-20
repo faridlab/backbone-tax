@@ -27,7 +27,9 @@ pub struct TaxFilingPeriodRepository(
 
 impl std::ops::Deref for TaxFilingPeriodRepository {
     type Target = backbone_orm::GenericCrudRepository<TaxFilingPeriod, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl TaxFilingPeriodRepository {
@@ -63,8 +65,11 @@ impl TaxFilingPeriodRepository {
                ON CONFLICT (company_id, period) WHERE (metadata->>'deleted_at') IS NULL
                DO NOTHING"#,
         )
-        .bind(id).bind(company_id).bind(period)
-        .execute(conn).await?;
+        .bind(id)
+        .bind(company_id)
+        .bind(period)
+        .execute(conn)
+        .await?;
         Ok(())
     }
 
@@ -90,8 +95,10 @@ impl TaxFilingPeriodRepository {
                WHERE company_id = $1 AND period = $2 AND (metadata->>'deleted_at') IS NULL
                RETURNING next_sequence - 1 AS seq, COALESCE(taxpayer_segment, '000') AS seg"#,
         )
-        .bind(company_id).bind(period)
-        .fetch_one(conn).await?;
+        .bind(company_id)
+        .bind(period)
+        .fetch_one(conn)
+        .await?;
         Ok(AllocatedSequence {
             seq: row.get("seq"),
             seg: row.get("seg"),

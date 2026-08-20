@@ -9,10 +9,13 @@
 use std::sync::Arc;
 
 // Import all services
+use crate::application::service::CompanyTaxSettingsService;
 use crate::application::service::TaxCategoryService;
 use crate::application::service::TaxTransactionService;
 use crate::application::service::EFakturDocumentService;
 use crate::application::service::TaxFilingPeriodService;
+use crate::application::service::TaxTagService;
+use crate::application::service::TaxRepartitionLineService;
 use crate::application::service::TaxTemplateService;
 use crate::application::service::TaxTemplateRowService;
 use crate::application::service::WithholdingCategoryService;
@@ -35,6 +38,8 @@ use crate::application::service::WithholdingCategoryService;
 /// ```
 #[derive(Clone)]
 pub struct AppState {
+    /// CompanyTaxSettings service
+    pub company_tax_settings_service: Arc<CompanyTaxSettingsService>,
     /// TaxCategory service
     pub tax_category_service: Arc<TaxCategoryService>,
     /// TaxTransaction service
@@ -43,6 +48,10 @@ pub struct AppState {
     pub e_faktur_document_service: Arc<EFakturDocumentService>,
     /// TaxFilingPeriod service
     pub tax_filing_period_service: Arc<TaxFilingPeriodService>,
+    /// TaxTag service
+    pub tax_tag_service: Arc<TaxTagService>,
+    /// TaxRepartitionLine service
+    pub tax_repartition_line_service: Arc<TaxRepartitionLineService>,
     /// TaxTemplate service
     pub tax_template_service: Arc<TaxTemplateService>,
     /// TaxTemplateRow service
@@ -54,19 +63,25 @@ pub struct AppState {
 impl AppState {
     /// Create a new AppState with all services.
     pub fn new(
+        company_tax_settings_service: Arc<CompanyTaxSettingsService>,
         tax_category_service: Arc<TaxCategoryService>,
         tax_transaction_service: Arc<TaxTransactionService>,
         e_faktur_document_service: Arc<EFakturDocumentService>,
         tax_filing_period_service: Arc<TaxFilingPeriodService>,
+        tax_tag_service: Arc<TaxTagService>,
+        tax_repartition_line_service: Arc<TaxRepartitionLineService>,
         tax_template_service: Arc<TaxTemplateService>,
         tax_template_row_service: Arc<TaxTemplateRowService>,
         withholding_category_service: Arc<WithholdingCategoryService>
     ) -> Self {
         Self {
+            company_tax_settings_service,
             tax_category_service,
             tax_transaction_service,
             e_faktur_document_service,
             tax_filing_period_service,
+            tax_tag_service,
+            tax_repartition_line_service,
             tax_template_service,
             tax_template_row_service,
             withholding_category_service,
@@ -76,10 +91,13 @@ impl AppState {
     /// Create AppState from module instance.
     pub fn from_module(module: &crate::TaxModule) -> Self {
         Self {
+            company_tax_settings_service: module.company_tax_settings_service.clone(),
             tax_category_service: module.tax_category_service.clone(),
             tax_transaction_service: module.tax_transaction_service.clone(),
             e_faktur_document_service: module.e_faktur_document_service.clone(),
             tax_filing_period_service: module.tax_filing_period_service.clone(),
+            tax_tag_service: module.tax_tag_service.clone(),
+            tax_repartition_line_service: module.tax_repartition_line_service.clone(),
             tax_template_service: module.tax_template_service.clone(),
             tax_template_row_service: module.tax_template_row_service.clone(),
             withholding_category_service: module.withholding_category_service.clone(),
@@ -92,10 +110,13 @@ impl AppState {
 /// Allows incremental construction of AppState.
 #[derive(Default)]
 pub struct AppStateBuilder {
+    company_tax_settings_service: Option<Arc<CompanyTaxSettingsService>>,
     tax_category_service: Option<Arc<TaxCategoryService>>,
     tax_transaction_service: Option<Arc<TaxTransactionService>>,
     e_faktur_document_service: Option<Arc<EFakturDocumentService>>,
     tax_filing_period_service: Option<Arc<TaxFilingPeriodService>>,
+    tax_tag_service: Option<Arc<TaxTagService>>,
+    tax_repartition_line_service: Option<Arc<TaxRepartitionLineService>>,
     tax_template_service: Option<Arc<TaxTemplateService>>,
     tax_template_row_service: Option<Arc<TaxTemplateRowService>>,
     withholding_category_service: Option<Arc<WithholdingCategoryService>>,
@@ -105,6 +126,12 @@ impl AppStateBuilder {
     /// Create a new builder.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Set the CompanyTaxSettings service.
+    pub fn with_company_tax_settings_service(mut self, service: Arc<CompanyTaxSettingsService>) -> Self {
+        self.company_tax_settings_service = Some(service);
+        self
     }
 
     /// Set the TaxCategory service.
@@ -128,6 +155,18 @@ impl AppStateBuilder {
     /// Set the TaxFilingPeriod service.
     pub fn with_tax_filing_period_service(mut self, service: Arc<TaxFilingPeriodService>) -> Self {
         self.tax_filing_period_service = Some(service);
+        self
+    }
+
+    /// Set the TaxTag service.
+    pub fn with_tax_tag_service(mut self, service: Arc<TaxTagService>) -> Self {
+        self.tax_tag_service = Some(service);
+        self
+    }
+
+    /// Set the TaxRepartitionLine service.
+    pub fn with_tax_repartition_line_service(mut self, service: Arc<TaxRepartitionLineService>) -> Self {
+        self.tax_repartition_line_service = Some(service);
         self
     }
 
@@ -156,10 +195,13 @@ impl AppStateBuilder {
     /// Panics if any required service is not set.
     pub fn build(self) -> AppState {
         AppState {
+            company_tax_settings_service: self.company_tax_settings_service.expect("company_tax_settings_service is required"),
             tax_category_service: self.tax_category_service.expect("tax_category_service is required"),
             tax_transaction_service: self.tax_transaction_service.expect("tax_transaction_service is required"),
             e_faktur_document_service: self.e_faktur_document_service.expect("e_faktur_document_service is required"),
             tax_filing_period_service: self.tax_filing_period_service.expect("tax_filing_period_service is required"),
+            tax_tag_service: self.tax_tag_service.expect("tax_tag_service is required"),
+            tax_repartition_line_service: self.tax_repartition_line_service.expect("tax_repartition_line_service is required"),
             tax_template_service: self.tax_template_service.expect("tax_template_service is required"),
             tax_template_row_service: self.tax_template_row_service.expect("tax_template_row_service is required"),
             withholding_category_service: self.withholding_category_service.expect("withholding_category_service is required"),

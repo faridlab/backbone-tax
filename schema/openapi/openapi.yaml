@@ -11,6 +11,8 @@ servers:
     description: Development server
 
 tags:
+  - name: CompanyTaxSettingses
+    description: CompanyTaxSettings management endpoints
   - name: TaxCategories
     description: TaxCategory management endpoints
   - name: TaxTransactions
@@ -19,6 +21,10 @@ tags:
     description: EFakturDocument management endpoints
   - name: TaxFilingPeriods
     description: TaxFilingPeriod management endpoints
+  - name: TaxTags
+    description: TaxTag management endpoints
+  - name: TaxRepartitionLines
+    description: TaxRepartitionLine management endpoints
   - name: TaxTemplates
     description: TaxTemplate management endpoints
   - name: TaxTemplateRows
@@ -27,6 +33,372 @@ tags:
     description: WithholdingCategory management endpoints
 
 paths:
+  /api/v1/company_tax_settingses:
+    get:
+      tags:
+        - CompanyTaxSettingses
+      summary: List CompanyTaxSettingses
+      description: Get a paginated list of CompanyTaxSettingses with optional filtering and sorting
+      operationId: listCompanyTaxSettingses
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettingsList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - CompanyTaxSettingses
+      summary: Create CompanyTaxSettings
+      description: Create a new CompanyTaxSettings
+      operationId: createCompanyTaxSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCompanyTaxSettingsRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/company_tax_settingses/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags:
+        - CompanyTaxSettingses
+      summary: Get CompanyTaxSettings by ID
+      operationId: getCompanyTaxSettings
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettings'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - CompanyTaxSettingses
+      summary: Update CompanyTaxSettings (full)
+      operationId: updateCompanyTaxSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCompanyTaxSettingsRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettings'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - CompanyTaxSettingses
+      summary: Update CompanyTaxSettings (partial)
+      operationId: patchCompanyTaxSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchCompanyTaxSettingsRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettings'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - CompanyTaxSettingses
+      summary: Delete CompanyTaxSettings (soft)
+      operationId: deleteCompanyTaxSettings
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/company_tax_settingses/bulk:
+    post:
+      tags:
+        - CompanyTaxSettingses
+      summary: Bulk create CompanyTaxSettingses
+      operationId: bulkCreateCompanyTaxSettingses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateCompanyTaxSettingsRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyTaxSettings'
+    put:
+      tags:
+        - CompanyTaxSettingses
+      summary: Bulk update CompanyTaxSettingses (full, atomic)
+      operationId: bulkUpdateCompanyTaxSettingses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateCompanyTaxSettingsRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettingsBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - CompanyTaxSettingses
+      summary: Bulk partial-update CompanyTaxSettingses (atomic)
+      operationId: bulkPatchCompanyTaxSettingses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettingsBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/company_tax_settingses/upsert:
+    post:
+      tags:
+        - CompanyTaxSettingses
+      summary: Upsert CompanyTaxSettings
+      operationId: upsertCompanyTaxSettings
+      parameters:
+        - name: key_field
+          in: query
+          schema:
+            type: string
+        - name: key_value
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCompanyTaxSettingsRequest'
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettings'
+
+  /api/v1/company_tax_settingses/trash:
+    get:
+      tags:
+        - CompanyTaxSettingses
+      summary: List deleted CompanyTaxSettingses
+      operationId: listDeletedCompanyTaxSettingses
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettingsList'
+
+  /api/v1/company_tax_settingses/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags:
+        - CompanyTaxSettingses
+      summary: Restore deleted CompanyTaxSettings
+      operationId: restoreCompanyTaxSettings
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettings'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/company_tax_settingses/empty:
+    delete:
+      tags:
+        - CompanyTaxSettingses
+      summary: Empty trash for CompanyTaxSettingses
+      operationId: emptyTrashCompanyTaxSettingses
+      responses:
+        '200':
+          description: Trash emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /api/v1/company_tax_settingses/delete/bulk:
+    post:
+      tags:
+        - CompanyTaxSettingses
+      summary: Bulk soft-delete CompanyTaxSettingses by ids (atomic)
+      operationId: bulkDeleteCompanyTaxSettingses
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/company_tax_settingses/restore/bulk:
+    post:
+      tags:
+        - CompanyTaxSettingses
+      summary: Bulk restore CompanyTaxSettingses by ids (atomic)
+      operationId: bulkRestoreCompanyTaxSettingses
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyTaxSettingsBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/company_tax_settingses/restore/all:
+    post:
+      tags:
+        - CompanyTaxSettingses
+      summary: Restore all soft-deleted CompanyTaxSettingses
+      operationId: restoreAllCompanyTaxSettingses
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/company_tax_settingses/trash/bulk:
+    delete:
+      tags:
+        - CompanyTaxSettingses
+      summary: Bulk permanently-delete CompanyTaxSettingses from trash by ids (atomic)
+      operationId: bulkPermanentDeleteCompanyTaxSettingses
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /api/v1/tax_categories:
     get:
       tags:
@@ -1491,6 +1863,738 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /api/v1/tax_tags:
+    get:
+      tags:
+        - TaxTags
+      summary: List TaxTags
+      description: Get a paginated list of TaxTags with optional filtering and sorting
+      operationId: listTaxTags
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTagList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - TaxTags
+      summary: Create TaxTag
+      description: Create a new TaxTag
+      operationId: createTaxTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaxTagRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/tax_tags/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags:
+        - TaxTags
+      summary: Get TaxTag by ID
+      operationId: getTaxTag
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTag'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - TaxTags
+      summary: Update TaxTag (full)
+      operationId: updateTaxTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaxTagRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTag'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - TaxTags
+      summary: Update TaxTag (partial)
+      operationId: patchTaxTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaxTagRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTag'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - TaxTags
+      summary: Delete TaxTag (soft)
+      operationId: deleteTaxTag
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tax_tags/bulk:
+    post:
+      tags:
+        - TaxTags
+      summary: Bulk create TaxTags
+      operationId: bulkCreateTaxTags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateTaxTagRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaxTag'
+    put:
+      tags:
+        - TaxTags
+      summary: Bulk update TaxTags (full, atomic)
+      operationId: bulkUpdateTaxTags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateTaxTagRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTagBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - TaxTags
+      summary: Bulk partial-update TaxTags (atomic)
+      operationId: bulkPatchTaxTags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTagBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_tags/upsert:
+    post:
+      tags:
+        - TaxTags
+      summary: Upsert TaxTag
+      operationId: upsertTaxTag
+      parameters:
+        - name: key_field
+          in: query
+          schema:
+            type: string
+        - name: key_value
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaxTagRequest'
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTag'
+
+  /api/v1/tax_tags/trash:
+    get:
+      tags:
+        - TaxTags
+      summary: List deleted TaxTags
+      operationId: listDeletedTaxTags
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTagList'
+
+  /api/v1/tax_tags/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags:
+        - TaxTags
+      summary: Restore deleted TaxTag
+      operationId: restoreTaxTag
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTag'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tax_tags/empty:
+    delete:
+      tags:
+        - TaxTags
+      summary: Empty trash for TaxTags
+      operationId: emptyTrashTaxTags
+      responses:
+        '200':
+          description: Trash emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /api/v1/tax_tags/delete/bulk:
+    post:
+      tags:
+        - TaxTags
+      summary: Bulk soft-delete TaxTags by ids (atomic)
+      operationId: bulkDeleteTaxTags
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_tags/restore/bulk:
+    post:
+      tags:
+        - TaxTags
+      summary: Bulk restore TaxTags by ids (atomic)
+      operationId: bulkRestoreTaxTags
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxTagBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_tags/restore/all:
+    post:
+      tags:
+        - TaxTags
+      summary: Restore all soft-deleted TaxTags
+      operationId: restoreAllTaxTags
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/tax_tags/trash/bulk:
+    delete:
+      tags:
+        - TaxTags
+      summary: Bulk permanently-delete TaxTags from trash by ids (atomic)
+      operationId: bulkPermanentDeleteTaxTags
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_repartition_lines:
+    get:
+      tags:
+        - TaxRepartitionLines
+      summary: List TaxRepartitionLines
+      description: Get a paginated list of TaxRepartitionLines with optional filtering and sorting
+      operationId: listTaxRepartitionLines
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SortByParam'
+        - $ref: '#/components/parameters/SortOrderParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLineList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - TaxRepartitionLines
+      summary: Create TaxRepartitionLine
+      description: Create a new TaxRepartitionLine
+      operationId: createTaxRepartitionLine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaxRepartitionLineRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLine'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/tax_repartition_lines/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+
+    get:
+      tags:
+        - TaxRepartitionLines
+      summary: Get TaxRepartitionLine by ID
+      operationId: getTaxRepartitionLine
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLine'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - TaxRepartitionLines
+      summary: Update TaxRepartitionLine (full)
+      operationId: updateTaxRepartitionLine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaxRepartitionLineRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLine'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - TaxRepartitionLines
+      summary: Update TaxRepartitionLine (partial)
+      operationId: patchTaxRepartitionLine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaxRepartitionLineRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLine'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - TaxRepartitionLines
+      summary: Delete TaxRepartitionLine (soft)
+      operationId: deleteTaxRepartitionLine
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tax_repartition_lines/bulk:
+    post:
+      tags:
+        - TaxRepartitionLines
+      summary: Bulk create TaxRepartitionLines
+      operationId: bulkCreateTaxRepartitionLines
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CreateTaxRepartitionLineRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaxRepartitionLine'
+    put:
+      tags:
+        - TaxRepartitionLines
+      summary: Bulk update TaxRepartitionLines (full, atomic)
+      operationId: bulkUpdateTaxRepartitionLines
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                allOf:
+                  - type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                  - $ref: '#/components/schemas/UpdateTaxRepartitionLineRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLineBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    patch:
+      tags:
+        - TaxRepartitionLines
+      summary: Bulk partial-update TaxRepartitionLines (atomic)
+      operationId: bulkPatchTaxRepartitionLines
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  required: [ids, patch]
+                  properties:
+                    ids:
+                      type: array
+                      items: { type: string }
+                    patch:
+                      type: object
+                      additionalProperties: true
+                - type: object
+                  required: [items]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, patch]
+                        properties:
+                          id: { type: string }
+                          patch: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLineBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_repartition_lines/upsert:
+    post:
+      tags:
+        - TaxRepartitionLines
+      summary: Upsert TaxRepartitionLine
+      operationId: upsertTaxRepartitionLine
+      parameters:
+        - name: key_field
+          in: query
+          schema:
+            type: string
+        - name: key_value
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaxRepartitionLineRequest'
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLine'
+
+  /api/v1/tax_repartition_lines/trash:
+    get:
+      tags:
+        - TaxRepartitionLines
+      summary: List deleted TaxRepartitionLines
+      operationId: listDeletedTaxRepartitionLines
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLineList'
+
+  /api/v1/tax_repartition_lines/{id}/restore:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags:
+        - TaxRepartitionLines
+      summary: Restore deleted TaxRepartitionLine
+      operationId: restoreTaxRepartitionLine
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLine'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tax_repartition_lines/empty:
+    delete:
+      tags:
+        - TaxRepartitionLines
+      summary: Empty trash for TaxRepartitionLines
+      operationId: emptyTrashTaxRepartitionLines
+      responses:
+        '200':
+          description: Trash emptied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted_count:
+                    type: integer
+
+  /api/v1/tax_repartition_lines/delete/bulk:
+    post:
+      tags:
+        - TaxRepartitionLines
+      summary: Bulk soft-delete TaxRepartitionLines by ids (atomic)
+      operationId: bulkDeleteTaxRepartitionLines
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Soft-deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  soft_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_repartition_lines/restore/bulk:
+    post:
+      tags:
+        - TaxRepartitionLines
+      summary: Bulk restore TaxRepartitionLines by ids (atomic)
+      operationId: bulkRestoreTaxRepartitionLines
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxRepartitionLineBulkResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/tax_repartition_lines/restore/all:
+    post:
+      tags:
+        - TaxRepartitionLines
+      summary: Restore all soft-deleted TaxRepartitionLines
+      operationId: restoreAllTaxRepartitionLines
+      responses:
+        '200':
+          description: Restored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  restored: { type: integer }
+
+  /api/v1/tax_repartition_lines/trash/bulk:
+    delete:
+      tags:
+        - TaxRepartitionLines
+      summary: Bulk permanently-delete TaxRepartitionLines from trash by ids (atomic)
+      operationId: bulkPermanentDeleteTaxRepartitionLines
+      requestBody:
+        $ref: '#/components/requestBodies/BatchIds'
+      responses:
+        '200':
+          description: Permanently deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permanently_deleted: { type: integer }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /api/v1/tax_templates:
     get:
       tags:
@@ -2591,6 +3695,116 @@ paths:
 
 components:
   schemas:
+    CompanyTaxSettings:
+      type: object
+      required:
+        - id
+        - company_id
+        - rounding_method
+        - default_exigibility
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        rounding_method:
+          type: string
+        default_exigibility:
+          type: string
+        cash_basis_transition_account_id:
+          nullable: true
+          type: string
+          format: uuid
+        metadata:
+          type: object
+
+    CompanyTaxSettingsBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompanyTaxSettings'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    CreateCompanyTaxSettingsRequest:
+      type: object
+      required:
+        - company_id
+        - rounding_method
+        - default_exigibility
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        rounding_method:
+          type: string
+        default_exigibility:
+          type: string
+        cash_basis_transition_account_id:
+          nullable: true
+          type: string
+          format: uuid
+        metadata:
+          type: object
+
+    UpdateCompanyTaxSettingsRequest:
+      type: object
+      required:
+        - company_id
+        - rounding_method
+        - default_exigibility
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        rounding_method:
+          type: string
+        default_exigibility:
+          type: string
+        cash_basis_transition_account_id:
+          nullable: true
+          type: string
+          format: uuid
+        metadata:
+          type: object
+
+    PatchCompanyTaxSettingsRequest:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        rounding_method:
+          type: string
+        default_exigibility:
+          type: string
+        cash_basis_transition_account_id:
+          nullable: true
+          type: string
+          format: uuid
+        metadata:
+          type: object
+
+    CompanyTaxSettingsList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompanyTaxSettings'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
     TaxCategory:
       type: object
       required:
@@ -3307,6 +4521,286 @@ components:
         meta:
           $ref: '#/components/schemas/PaginationMeta'
 
+    TaxTag:
+      type: object
+      required:
+        - id
+        - company_id
+        - code
+        - name
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          maxLength: 40
+        name:
+          type: string
+          maxLength: 150
+        metadata:
+          type: object
+
+    TaxTagBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxTag'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    CreateTaxTagRequest:
+      type: object
+      required:
+        - company_id
+        - code
+        - name
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          maxLength: 40
+        name:
+          type: string
+          maxLength: 150
+        metadata:
+          type: object
+
+    UpdateTaxTagRequest:
+      type: object
+      required:
+        - company_id
+        - code
+        - name
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          maxLength: 40
+        name:
+          type: string
+          maxLength: 150
+        metadata:
+          type: object
+
+    PatchTaxTagRequest:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+          maxLength: 40
+        name:
+          type: string
+          maxLength: 150
+        metadata:
+          type: object
+
+    TaxTagList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxTag'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    TaxRepartitionLine:
+      type: object
+      required:
+        - id
+        - company_id
+        - template_id
+        - document_type
+        - repartition_type
+        - factor_percent
+        - tag_ids
+        - sort_order
+        - metadata
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        template_id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+        repartition_type:
+          type: string
+        factor_percent:
+          type: string
+        account_id:
+          nullable: true
+          type: string
+          format: uuid
+        tag_ids:
+          type: array
+        sort_order:
+          type: integer
+          format: int32
+        description:
+          nullable: true
+          type: string
+          maxLength: 150
+        metadata:
+          type: object
+
+    TaxRepartitionLineBulkResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxRepartitionLine'
+        total: { type: integer }
+        failed: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    CreateTaxRepartitionLineRequest:
+      type: object
+      required:
+        - company_id
+        - template_id
+        - document_type
+        - repartition_type
+        - factor_percent
+        - tag_ids
+        - sort_order
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        template_id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+        repartition_type:
+          type: string
+        factor_percent:
+          type: string
+        account_id:
+          nullable: true
+          type: string
+          format: uuid
+        tag_ids:
+          type: array
+        sort_order:
+          type: integer
+          format: int32
+        description:
+          nullable: true
+          type: string
+          maxLength: 150
+        metadata:
+          type: object
+
+    UpdateTaxRepartitionLineRequest:
+      type: object
+      required:
+        - company_id
+        - template_id
+        - document_type
+        - repartition_type
+        - factor_percent
+        - tag_ids
+        - sort_order
+        - metadata
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        template_id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+        repartition_type:
+          type: string
+        factor_percent:
+          type: string
+        account_id:
+          nullable: true
+          type: string
+          format: uuid
+        tag_ids:
+          type: array
+        sort_order:
+          type: integer
+          format: int32
+        description:
+          nullable: true
+          type: string
+          maxLength: 150
+        metadata:
+          type: object
+
+    PatchTaxRepartitionLineRequest:
+      type: object
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        template_id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+        repartition_type:
+          type: string
+        factor_percent:
+          type: string
+        account_id:
+          nullable: true
+          type: string
+          format: uuid
+        tag_ids:
+          type: array
+        sort_order:
+          type: integer
+          format: int32
+        description:
+          nullable: true
+          type: string
+          maxLength: 150
+        metadata:
+          type: object
+
+    TaxRepartitionLineList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxRepartitionLine'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
     TaxTemplate:
       type: object
       required:
@@ -3316,6 +4810,7 @@ components:
         - name
         - template_type
         - is_inclusive
+        - tax_exigibility
         - status
         - metadata
       properties:
@@ -3339,6 +4834,12 @@ components:
           format: uuid
         is_inclusive:
           type: boolean
+        tax_exigibility:
+          type: string
+        cash_basis_transition_account_id:
+          nullable: true
+          type: string
+          format: uuid
         status:
           type: string
         metadata:
@@ -3365,6 +4866,7 @@ components:
         - name
         - template_type
         - is_inclusive
+        - tax_exigibility
         - status
         - metadata
       properties:
@@ -3385,6 +4887,12 @@ components:
           format: uuid
         is_inclusive:
           type: boolean
+        tax_exigibility:
+          type: string
+        cash_basis_transition_account_id:
+          nullable: true
+          type: string
+          format: uuid
         status:
           type: string
         metadata:
@@ -3398,6 +4906,7 @@ components:
         - name
         - template_type
         - is_inclusive
+        - tax_exigibility
         - status
         - metadata
       properties:
@@ -3418,6 +4927,12 @@ components:
           format: uuid
         is_inclusive:
           type: boolean
+        tax_exigibility:
+          type: string
+        cash_basis_transition_account_id:
+          nullable: true
+          type: string
+          format: uuid
         status:
           type: string
         metadata:
@@ -3443,6 +4958,12 @@ components:
           format: uuid
         is_inclusive:
           type: boolean
+        tax_exigibility:
+          type: string
+        cash_basis_transition_account_id:
+          nullable: true
+          type: string
+          format: uuid
         status:
           type: string
         metadata:

@@ -3,9 +3,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::TemplateType;
-use super::TaxStatus;
 use super::AuditMetadata;
+use super::TaxExigibility;
+use super::TaxStatus;
+use super::TemplateType;
 
 /// Strongly-typed ID for TaxTemplate
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,9 +14,15 @@ use super::AuditMetadata;
 pub struct TaxTemplateId(pub Uuid);
 
 impl TaxTemplateId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for TaxTemplateId {
@@ -32,20 +39,28 @@ impl std::str::FromStr for TaxTemplateId {
 }
 
 impl From<Uuid> for TaxTemplateId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<TaxTemplateId> for Uuid {
-    fn from(id: TaxTemplateId) -> Self { id.0 }
+    fn from(id: TaxTemplateId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for TaxTemplateId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for TaxTemplateId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -57,6 +72,8 @@ pub struct TaxTemplate {
     pub template_type: TemplateType,
     pub tax_category_id: Option<Uuid>,
     pub is_inclusive: bool,
+    pub tax_exigibility: TaxExigibility,
+    pub cash_basis_transition_account_id: Option<Uuid>,
     pub status: TaxStatus,
     #[serde(default)]
     #[sqlx(json)]
@@ -66,11 +83,19 @@ pub struct TaxTemplate {
 impl TaxTemplate {
     /// Create a builder for TaxTemplate
     pub fn builder() -> TaxTemplateBuilder {
-        TaxTemplateBuilder::default()
+        <TaxTemplateBuilder as Default>::default()
     }
 
     /// Create a new TaxTemplate with required fields
-    pub fn new(company_id: Uuid, code: String, name: String, template_type: TemplateType, is_inclusive: bool, status: TaxStatus) -> Self {
+    pub fn new(
+        company_id: Uuid,
+        code: String,
+        name: String,
+        template_type: TemplateType,
+        is_inclusive: bool,
+        tax_exigibility: TaxExigibility,
+        status: TaxStatus,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             company_id,
@@ -79,6 +104,8 @@ impl TaxTemplate {
             template_type,
             tax_category_id: None,
             is_inclusive,
+            tax_exigibility,
+            cash_basis_transition_account_id: None,
             status,
             metadata: AuditMetadata::default(),
         }
@@ -139,7 +166,6 @@ impl TaxTemplate {
         &self.status
     }
 
-
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -147,6 +173,12 @@ impl TaxTemplate {
     /// Set the tax_category_id field (chainable)
     pub fn with_tax_category_id(mut self, value: Uuid) -> Self {
         self.tax_category_id = Some(value);
+        self
+    }
+
+    /// Set the cash_basis_transition_account_id field (chainable)
+    pub fn with_cash_basis_transition_account_id(mut self, value: Uuid) -> Self {
+        self.cash_basis_transition_account_id = Some(value);
         self
     }
 
@@ -159,25 +191,49 @@ impl TaxTemplate {
         for (key, value) in fields {
             match key.as_str() {
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "code" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.code = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.code = v;
+                    }
                 }
                 "name" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.name = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.name = v;
+                    }
                 }
                 "template_type" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.template_type = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.template_type = v;
+                    }
                 }
                 "tax_category_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.tax_category_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.tax_category_id = v;
+                    }
                 }
                 "is_inclusive" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.is_inclusive = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.is_inclusive = v;
+                    }
+                }
+                "tax_exigibility" => {
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.tax_exigibility = v;
+                    }
+                }
+                "cash_basis_transition_account_id" => {
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.cash_basis_transition_account_id = v;
+                    }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.status = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -235,7 +291,12 @@ impl backbone_orm::EntityRepoMeta for TaxTemplate {
         m.insert("id".to_string(), "uuid".to_string());
         m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("tax_category_id".to_string(), "uuid".to_string());
+        m.insert(
+            "cash_basis_transition_account_id".to_string(),
+            "uuid".to_string(),
+        );
         m.insert("template_type".to_string(), "template_type".to_string());
+        m.insert("tax_exigibility".to_string(), "tax_exigibility".to_string());
         m.insert("status".to_string(), "tax_status".to_string());
         m
     }
@@ -259,6 +320,8 @@ pub struct TaxTemplateBuilder {
     template_type: Option<TemplateType>,
     tax_category_id: Option<Uuid>,
     is_inclusive: Option<bool>,
+    tax_exigibility: Option<TaxExigibility>,
+    cash_basis_transition_account_id: Option<Uuid>,
     status: Option<TaxStatus>,
 }
 
@@ -299,6 +362,18 @@ impl TaxTemplateBuilder {
         self
     }
 
+    /// Set the tax_exigibility field (default: `TaxExigibility::default()`)
+    pub fn tax_exigibility(mut self, value: TaxExigibility) -> Self {
+        self.tax_exigibility = Some(value);
+        self
+    }
+
+    /// Set the cash_basis_transition_account_id field (optional)
+    pub fn cash_basis_transition_account_id(mut self, value: Uuid) -> Self {
+        self.cash_basis_transition_account_id = Some(value);
+        self
+    }
+
     /// Set the status field (default: `TaxStatus::default()`)
     pub fn status(mut self, value: TaxStatus) -> Self {
         self.status = Some(value);
@@ -309,7 +384,9 @@ impl TaxTemplateBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<TaxTemplate, String> {
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
         let code = self.code.ok_or_else(|| "code is required".to_string())?;
         let name = self.name.ok_or_else(|| "name is required".to_string())?;
 
@@ -318,10 +395,12 @@ impl TaxTemplateBuilder {
             company_id,
             code,
             name,
-            template_type: self.template_type.unwrap_or(TemplateType::default()),
+            template_type: self.template_type.unwrap_or_default(),
             tax_category_id: self.tax_category_id,
             is_inclusive: self.is_inclusive.unwrap_or(false),
-            status: self.status.unwrap_or(TaxStatus::default()),
+            tax_exigibility: self.tax_exigibility.unwrap_or_default(),
+            cash_basis_transition_account_id: self.cash_basis_transition_account_id,
+            status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })
     }

@@ -71,6 +71,63 @@ rules:
     when: calculate
     assert: "an inclusive template may only carry on_net_total charge rows (grossing-up basis is otherwise undefined)"
     error_code: inclusive_cumulative_unsupported
+  # Document-grade engine (rounding policy, repartition, cash-basis exigibility).
+  # ADR-0015 enforcement posture: db = a DB object (index/trigger/constraint) enforces it;
+  # service = compute-time or write-path only, because no raw write path can reach it.
+  - id: R12
+    name: rounding_policy
+    when: calculate_document
+    assert: "round_per_line: round raw_base per line, round each tax amount per line; round_globally: keep raw amounts, aggregate per tax across all base lines, round per document, redistribute the deltas. Read the VALUE — the default round_globally rounds the aggregate, despite the reference UI labelling it 'Round per Tax'"
+    error_code: none
+    enforcement: service
+  - id: R13
+    name: smooth_delta_only
+    when: calculate_document
+    assert: "distribute_delta_smoothly is the ONLY delta primitive — tax totals, base totals and repartition splits all redistribute through it (integer cents at currency precision, apportioned by weight, biggest-first, residual cents on the largest factors); Σ redistributed == original + delta EXACTLY"
+    error_code: none
+    enforcement: service
+  - id: R14
+    name: repartition_family_valid
+    when: writing_repartition_lines
+    assert: "per (template, document_type): exactly one base line, at least one tax line, Σ tax factor_percent = 100.00 (2dp), and the invoice family is well-formed if and only if the refund family is"
+    error_code: repartition_invalid
+    enforcement: both
+    note: "DB arm is a DEFERRABLE INITIALLY DEFERRED constraint trigger checking the family at commit (raw SQL bypasses the service); service arm returns a friendly 422 first"
+  - id: R15
+    name: template_name_unique
+    when: creating_template
+    assert: "template name unique among non-deleted templates of the same company and template_type"
+    error_code: duplicate_name
+    enforcement: both
+    note: "DB arm is a partial unique index (company_id, template_type, name) WHERE deleted_at IS NULL; the (company_id, code) unique stays as the primary locator"
+  - id: R16
+    name: caba_transition_reconcilable
+    when: creating_template/updating_settings
+    assert: "an on_payment template (or a company defaulting to on_payment) must name a transition account, and that account must be reconcilable; if the accounting schema is absent the requirement is unverifiable so the write is refused"
+    error_code: caba_transition_not_reconcilable
+    enforcement: both
+    note: "DB arm is a trigger guarded by to_regclass('accounting.accounts') — inert where the accounting module is not installed; the CHECK pairing exigibility with a non-null transition account is structural"
+  - id: R17
+    name: template_company_immutable
+    when: updating_template/row
+    assert: "company_id can never change once set (referencing moves would silently cross the fence)"
+    error_code: company_immutable
+    enforcement: db
+    note: "trigger raises on any UPDATE OF company_id — stronger than the reference check-at-change-time rule because there is no company-change verb to gate"
+  - id: R18
+    name: caba_default_posture
+    when: creating_template
+    assert: "a template created under a company whose settings row defaults to on_payment inherits on_payment and the company transition account; an explicit per-template override wins"
+    error_code: none
+    enforcement: service
+    note: "resolved and MATERIALIZED on the template row at creation so a later company posture change never rewrites existing templates"
+
+# Ported guards with no target in this module's shape (stated, not silently dropped):
+#   TG2 (tax-group country must match the tax's country) and TG5 (no nested tax groups) —
+#   there is no tax-group entity and no country axis here; they land if/when a grouping
+#   entity is introduced (chart-template work).
+#   TG7 (a referenced tax cannot be deleted) — structurally satisfied: this module has no
+#   hard-delete path at all; deactivation is the soft-delete status change.
 
 # The seam: tax contributes LINES, never a posting.
 events: {}

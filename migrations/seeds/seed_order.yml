@@ -16,3 +16,8 @@
 - tax_filing_period_seed
 - e_faktur_document_seed
 - tax_transaction_seed
+
+# Newly added seeds (preserve manual order above):
+- tax_repartition_line_seed
+- company_tax_settings_seed
+- tax_tag_seed

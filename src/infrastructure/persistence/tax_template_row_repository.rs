@@ -28,7 +28,9 @@ pub struct TaxTemplateRowRepository(
 
 impl std::ops::Deref for TaxTemplateRowRepository {
     type Target = backbone_orm::GenericCrudRepository<TaxTemplateRow, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl TaxTemplateRowRepository {
@@ -75,7 +77,10 @@ impl TaxTemplateRowRepository {
                      && daterange($3, COALESCE($4, 'infinity'::date), '[]')
                LIMIT 1"#,
         )
-        .bind(template_id).bind(sort_order).bind(effective_from).bind(effective_to)
+        .bind(template_id)
+        .bind(sort_order)
+        .bind(effective_from)
+        .bind(effective_to)
         .fetch_optional(pool)
         .await?;
         Ok(overlap)

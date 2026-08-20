@@ -12,12 +12,15 @@ use sqlx::postgres::PgPoolOptions;
 use std::env;
 
 // Import seeders
-use backbone_tax::seeders::SeedTaxCategorySeeder;
-use backbone_tax::seeders::SeedTaxTransactionSeeder;
+use backbone_tax::seeders::SeedCompanyTaxSettingsSeeder;
 use backbone_tax::seeders::SeedEFakturDocumentSeeder;
+use backbone_tax::seeders::SeedTaxCategorySeeder;
 use backbone_tax::seeders::SeedTaxFilingPeriodSeeder;
-use backbone_tax::seeders::SeedTaxTemplateSeeder;
+use backbone_tax::seeders::SeedTaxRepartitionLineSeeder;
+use backbone_tax::seeders::SeedTaxTagSeeder;
 use backbone_tax::seeders::SeedTaxTemplateRowSeeder;
+use backbone_tax::seeders::SeedTaxTemplateSeeder;
+use backbone_tax::seeders::SeedTaxTransactionSeeder;
 use backbone_tax::seeders::SeedWithholdingCategorySeeder;
 use backbone_tax::seeders::Seeder;
 
@@ -25,13 +28,14 @@ use backbone_tax::seeders::Seeder;
 async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     let force = args.iter().any(|a| a == "--force");
-    let filter: Option<&str> = args.iter()
+    let filter: Option<&str> = args
+        .iter()
         .skip(1)
         .find(|a| !a.starts_with("-"))
         .map(|s| s.as_str());
 
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let database_url =
+        env::var("DATABASE_URL").map_err(|e| anyhow::anyhow!("DATABASE_URL must be set: {e}"))?;
 
     println!("Connecting to database...");
 
@@ -47,10 +51,13 @@ async fn main() -> Result<()> {
 
     // Register seeders in order
     let mut seeders: Vec<Box<dyn Seeder + Send + Sync>> = Vec::new();
+    seeders.push(Box::new(SeedCompanyTaxSettingsSeeder::new()));
     seeders.push(Box::new(SeedTaxCategorySeeder::new()));
     seeders.push(Box::new(SeedTaxTransactionSeeder::new()));
     seeders.push(Box::new(SeedEFakturDocumentSeeder::new()));
     seeders.push(Box::new(SeedTaxFilingPeriodSeeder::new()));
+    seeders.push(Box::new(SeedTaxTagSeeder::new()));
+    seeders.push(Box::new(SeedTaxRepartitionLineSeeder::new()));
     seeders.push(Box::new(SeedTaxTemplateSeeder::new()));
     seeders.push(Box::new(SeedTaxTemplateRowSeeder::new()));
     seeders.push(Box::new(SeedWithholdingCategorySeeder::new()));

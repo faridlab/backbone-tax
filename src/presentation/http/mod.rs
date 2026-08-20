@@ -5,12 +5,15 @@
 //! These handlers use Axum and backbone-core's BackboneCrudHandler
 //! to provide all 12 standard Backbone CRUD endpoints.
 
-pub mod tax_category_handler;
-pub mod tax_transaction_handler;
+pub mod company_tax_settings_handler;
 pub mod e_faktur_document_handler;
+pub mod tax_category_handler;
 pub mod tax_filing_period_handler;
+pub mod tax_repartition_line_handler;
+pub mod tax_tag_handler;
 pub mod tax_template_handler;
 pub mod tax_template_row_handler;
+pub mod tax_transaction_handler;
 pub mod withholding_category_handler;
 
 // <<< CUSTOM
@@ -18,13 +21,43 @@ pub mod guarded_routes;
 // END CUSTOM
 
 // Re-exports
-pub use tax_category_handler::{create_tax_category_routes, create_tax_category_read_routes, create_tax_category_write_routes};
-pub use tax_transaction_handler::{create_tax_transaction_routes, create_tax_transaction_read_routes, create_tax_transaction_write_routes};
-pub use e_faktur_document_handler::{create_e_faktur_document_routes, create_e_faktur_document_read_routes, create_e_faktur_document_write_routes};
-pub use tax_filing_period_handler::{create_tax_filing_period_routes, create_tax_filing_period_read_routes, create_tax_filing_period_write_routes};
-pub use tax_template_handler::{create_tax_template_routes, create_tax_template_read_routes, create_tax_template_write_routes};
-pub use tax_template_row_handler::{create_tax_template_row_routes, create_tax_template_row_read_routes, create_tax_template_row_write_routes};
-pub use withholding_category_handler::{create_withholding_category_routes, create_withholding_category_read_routes, create_withholding_category_write_routes};
+pub use company_tax_settings_handler::{
+    create_company_tax_settings_read_routes, create_company_tax_settings_routes,
+    create_company_tax_settings_write_routes,
+};
+pub use e_faktur_document_handler::{
+    create_e_faktur_document_read_routes, create_e_faktur_document_routes,
+    create_e_faktur_document_write_routes,
+};
+pub use tax_category_handler::{
+    create_tax_category_read_routes, create_tax_category_routes, create_tax_category_write_routes,
+};
+pub use tax_filing_period_handler::{
+    create_tax_filing_period_read_routes, create_tax_filing_period_routes,
+    create_tax_filing_period_write_routes,
+};
+pub use tax_repartition_line_handler::{
+    create_tax_repartition_line_read_routes, create_tax_repartition_line_routes,
+    create_tax_repartition_line_write_routes,
+};
+pub use tax_tag_handler::{
+    create_tax_tag_read_routes, create_tax_tag_routes, create_tax_tag_write_routes,
+};
+pub use tax_template_handler::{
+    create_tax_template_read_routes, create_tax_template_routes, create_tax_template_write_routes,
+};
+pub use tax_template_row_handler::{
+    create_tax_template_row_read_routes, create_tax_template_row_routes,
+    create_tax_template_row_write_routes,
+};
+pub use tax_transaction_handler::{
+    create_tax_transaction_read_routes, create_tax_transaction_routes,
+    create_tax_transaction_write_routes,
+};
+pub use withholding_category_handler::{
+    create_withholding_category_read_routes, create_withholding_category_routes,
+    create_withholding_category_write_routes,
+};
 // <<< CUSTOM
 pub use guarded_routes::create_guarded_tax_routes;
 // END CUSTOM

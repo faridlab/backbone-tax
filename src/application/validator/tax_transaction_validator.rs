@@ -5,17 +5,18 @@
 //! Returns an `EntityValidator<TaxTransaction>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
-use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
-use backbone_core::{NonNegative, RequiredString};
 use crate::domain::entity::TaxTransaction;
+use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
+use backbone_core::{NonNegative, RequiredString};
 
 /// Validator type alias for TaxTransaction entities.
 pub type TaxTransactionValidator = EntityValidator<TaxTransaction>;
 
 /// Build a validator for TaxTransaction with all schema-defined field rules.
 pub fn tax_transaction_validator() -> TaxTransactionValidator {
-    EntityValidator::new()
-        .rule(RequiredString::new("currency", |e: &TaxTransaction| &e.currency))
+    EntityValidator::new().rule(RequiredString::new("currency", |e: &TaxTransaction| {
+        &e.currency
+    }))
     // <<< CUSTOM RULES
     // END CUSTOM RULES
 }

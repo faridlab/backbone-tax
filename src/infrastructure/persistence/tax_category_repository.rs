@@ -26,7 +26,9 @@ pub struct TaxCategoryRepository(
 
 impl std::ops::Deref for TaxCategoryRepository {
     type Target = backbone_orm::GenericCrudRepository<TaxCategory, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl TaxCategoryRepository {
@@ -79,8 +81,13 @@ impl TaxCategoryRepository {
             r#"INSERT INTO tax.tax_categories (id, company_id, code, name, tax_kind, status)
                VALUES ($1,$2,$3,$4,$5::tax_kind,'active'::tax_status)"#,
         )
-        .bind(r.id).bind(r.company_id).bind(r.code).bind(r.name).bind(r.tax_kind)
-        .execute(pool).await?;
+        .bind(r.id)
+        .bind(r.company_id)
+        .bind(r.code)
+        .bind(r.name)
+        .bind(r.tax_kind)
+        .execute(pool)
+        .await?;
         Ok(())
     }
 }

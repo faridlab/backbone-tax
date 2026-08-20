@@ -1,0 +1,73 @@
+# =============================================================================
+# Domain: Tax
+# Entity: CompanyTaxSettings
+# Description: Per-company tax computation posture — the rounding policy and the
+# cash-basis (deferred exigibility) default. One row per company; an absent row
+# means the defaults (round_globally + on_invoice), which mirror the reference
+# ERP semantics (the rounding field reads "Round per Tax" but its VALUE is
+# round_globally — ports must read the value, never the label).
+# =============================================================================
+
+models:
+  - name: CompanyTaxSettings
+    collection: company_tax_settings
+    description: "Per-company tax computation settings (rounding policy, cash-basis default)"
+
+    fields:
+      id:
+        type: uuid
+        attributes: ["@id", "@default(uuid)"]
+        description: "Unique settings row identifier"
+
+      company_id:
+        type: uuid
+        attributes: ["@required", "@exclude_from_foreign_key_check"]
+        description: "Owning tenant # logical FK to organization.Company.id (no hard SQL FK — RLS is the fence, ADR-0010 B1)"
+
+      rounding_method:
+        type: TaxRoundingMethod
+        attributes: ["@default(round_globally)"]
+        description: "Where tax amounts round: per document after aggregation (round_globally) or per invoice line (round_per_line)"
+
+      default_exigibility:
+        type: TaxExigibility
+        attributes: ["@default(on_invoice)"]
+        description: "Exigibility posture templates of this company default to at creation (per-template override remains)"
+
+      cash_basis_transition_account_id:
+        type: uuid?
+        attributes: ["@exclude_from_foreign_key_check"]
+        description: "Company-level suspense account deferred tax sits on until its receivable/payable is collected # logical FK to accounting.Account.id; must be reconcilable when default_exigibility is on_payment"
+
+      metadata:
+        type: Metadata
+        attributes: ["@audit_metadata"]
+        description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
+
+    indexes:
+      - type: unique
+        fields: [company_id]
+        where: "deleted_at IS NULL"
+
+# =============================================================================
+# Enums
+# =============================================================================
+
+enums:
+  - name: TaxRoundingMethod
+    description: "Rounding policy for document-level tax computation (value, not label — round_globally is the default and rounds the AGGREGATE)"
+    variants:
+      - name: round_globally
+        description: "Keep raw amounts, aggregate per tax across all base lines, round per document, redistribute the deltas"
+        default: true
+      - name: round_per_line
+        description: "Round each line's base and each tax amount per line; no global adjustment"
+
+  - name: TaxExigibility
+    description: "When a tax becomes exigible (booked to its final account)"
+    variants:
+      - name: on_invoice
+        description: "Exigible at invoice post (accrual)"
+        default: true
+      - name: on_payment
+        description: "Exigible when the receivable/payable is reconciled (cash basis); until then the tax sits on the transition account"

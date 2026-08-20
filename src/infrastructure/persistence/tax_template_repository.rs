@@ -26,7 +26,9 @@ pub struct TaxTemplateRepository(
 
 impl std::ops::Deref for TaxTemplateRepository {
     type Target = backbone_orm::GenericCrudRepository<TaxTemplate, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl TaxTemplateRepository {
@@ -36,7 +38,10 @@ impl TaxTemplateRepository {
     }
 }
 
-/// The exact row a validated tax-template insert writes.
+/// The exact row a validated tax-template insert writes. `tax_exigibility` and
+/// `cash_basis_transition_account_id` are resolved against the company settings
+/// at create time and MATERIALIZED here — a later company posture change never
+/// rewrites existing templates.
 pub struct NewTaxTemplateRow<'a> {
     pub id: Uuid,
     pub company_id: Uuid,
@@ -45,6 +50,8 @@ pub struct NewTaxTemplateRow<'a> {
     pub template_type: &'a str,
     pub tax_category_id: Option<Uuid>,
     pub is_inclusive: bool,
+    pub tax_exigibility: &'a str,
+    pub cash_basis_transition_account_id: Option<Uuid>,
 }
 
 /// Tax-template SQL. Lives here (not in the service) per the module's 4-layer rule.
@@ -69,21 +76,56 @@ impl TaxTemplateRepository {
         Ok(found)
     }
 
-    /// Insert a new active tax template. The caller has already established the request scope via
-    /// `with_company_scope`; the explicit `company_id` bind is defense-in-depth on top of the RLS
-    /// fence. The `$5::template_type` cast mirrors the original hand-written SQL exactly.
-    pub async fn insert(
+    /// Name-collision probe filtered by the caller's company + template type —
+    /// the friendly duplicate-name pre-check (the DB also enforces it with a
+    /// partial unique index for raw SQL writers).
+    pub async fn find_by_name_in_company(
         &self,
         pool: &PgPool,
-        r: &NewTaxTemplateRow<'_>,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            r#"INSERT INTO tax.tax_templates (id, company_id, code, name, template_type, tax_category_id, is_inclusive, status)
-               VALUES ($1,$2,$3,$4,$5::template_type,$6,$7,'active'::tax_status)"#,
+        company_id: Uuid,
+        template_type: &str,
+        name: &str,
+    ) -> Result<Option<Uuid>, sqlx::Error> {
+        let found: Option<Uuid> = sqlx::query_scalar(
+            r#"SELECT id FROM tax.tax_templates
+               WHERE company_id = $1 AND template_type::text = $2 AND name = $3
+                 AND (metadata->>'deleted_at') IS NULL"#,
         )
-        .bind(r.id).bind(r.company_id).bind(r.code).bind(r.name)
-        .bind(r.template_type).bind(r.tax_category_id).bind(r.is_inclusive)
-        .execute(pool).await?;
+        .bind(company_id)
+        .bind(template_type)
+        .bind(name)
+        .fetch_optional(pool)
+        .await?;
+        Ok(found)
+    }
+
+    /// Insert a new active tax template on any executor — a bound transaction
+    /// connection (so the template and its seeded repartition families land
+    /// atomically) or the pool directly. The caller has already established the
+    /// company scope; the explicit `company_id` bind is defense-in-depth on top
+    /// of the RLS fence.
+    pub async fn insert_on<'e, E>(executor: E, r: &NewTaxTemplateRow<'_>) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+    {
+        sqlx::query(
+            r#"INSERT INTO tax.tax_templates
+                   (id, company_id, code, name, template_type, tax_category_id, is_inclusive,
+                    status, tax_exigibility, cash_basis_transition_account_id)
+               VALUES ($1,$2,$3,$4,$5::template_type,$6,$7,'active'::tax_status,
+                       $8::tax_exigibility,$9)"#,
+        )
+        .bind(r.id)
+        .bind(r.company_id)
+        .bind(r.code)
+        .bind(r.name)
+        .bind(r.template_type)
+        .bind(r.tax_category_id)
+        .bind(r.is_inclusive)
+        .bind(r.tax_exigibility)
+        .bind(r.cash_basis_transition_account_id)
+        .execute(executor)
+        .await?;
         Ok(())
     }
 }

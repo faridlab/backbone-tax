@@ -1,11 +1,11 @@
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use rust_decimal::Decimal;
 
-use super::TaxFilingStatus;
 use super::AuditMetadata;
+use super::TaxFilingStatus;
 
 /// Strongly-typed ID for TaxFilingPeriod
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,9 +13,15 @@ use super::AuditMetadata;
 pub struct TaxFilingPeriodId(pub Uuid);
 
 impl TaxFilingPeriodId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for TaxFilingPeriodId {
@@ -32,20 +38,28 @@ impl std::str::FromStr for TaxFilingPeriodId {
 }
 
 impl From<Uuid> for TaxFilingPeriodId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<TaxFilingPeriodId> for Uuid {
-    fn from(id: TaxFilingPeriodId) -> Self { id.0 }
+    fn from(id: TaxFilingPeriodId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for TaxFilingPeriodId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for TaxFilingPeriodId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -68,11 +82,19 @@ pub struct TaxFilingPeriod {
 impl TaxFilingPeriod {
     /// Create a builder for TaxFilingPeriod
     pub fn builder() -> TaxFilingPeriodBuilder {
-        TaxFilingPeriodBuilder::default()
+        <TaxFilingPeriodBuilder as Default>::default()
     }
 
     /// Create a new TaxFilingPeriod with required fields
-    pub fn new(company_id: Uuid, period: NaiveDate, next_sequence: i32, output_total: Decimal, input_total: Decimal, withholding_total: Decimal, status: TaxFilingStatus) -> Self {
+    pub fn new(
+        company_id: Uuid,
+        period: NaiveDate,
+        next_sequence: i32,
+        output_total: Decimal,
+        input_total: Decimal,
+        withholding_total: Decimal,
+        status: TaxFilingStatus,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             company_id,
@@ -143,7 +165,6 @@ impl TaxFilingPeriod {
         &self.status
     }
 
-
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -169,31 +190,49 @@ impl TaxFilingPeriod {
         for (key, value) in fields {
             match key.as_str() {
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "period" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.period = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.period = v;
+                    }
                 }
                 "npwp" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.npwp = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.npwp = v;
+                    }
                 }
                 "taxpayer_segment" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.taxpayer_segment = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.taxpayer_segment = v;
+                    }
                 }
                 "next_sequence" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.next_sequence = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.next_sequence = v;
+                    }
                 }
                 "output_total" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.output_total = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.output_total = v;
+                    }
                 }
                 "input_total" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.input_total = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.input_total = v;
+                    }
                 }
                 "withholding_total" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.withholding_total = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.withholding_total = v;
+                    }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.status = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -337,8 +376,12 @@ impl TaxFilingPeriodBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<TaxFilingPeriod, String> {
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
-        let period = self.period.ok_or_else(|| "period is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
+        let period = self
+            .period
+            .ok_or_else(|| "period is required".to_string())?;
 
         Ok(TaxFilingPeriod {
             id: Uuid::new_v4(),
@@ -350,7 +393,7 @@ impl TaxFilingPeriodBuilder {
             output_total: self.output_total.unwrap_or(Decimal::from(0)),
             input_total: self.input_total.unwrap_or(Decimal::from(0)),
             withholding_total: self.withholding_total.unwrap_or(Decimal::from(0)),
-            status: self.status.unwrap_or(TaxFilingStatus::default()),
+            status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })
     }

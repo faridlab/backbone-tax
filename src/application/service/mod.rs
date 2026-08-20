@@ -7,31 +7,43 @@
 pub mod error;
 pub use error::{ServiceError, ServiceResult};
 
-pub mod tax_category_service;
-pub mod tax_transaction_service;
+pub mod company_tax_settings_service;
 pub mod e_faktur_document_service;
+pub mod tax_category_service;
 pub mod tax_filing_period_service;
-pub mod tax_template_service;
+pub mod tax_repartition_line_service;
+pub mod tax_tag_service;
 pub mod tax_template_row_service;
+pub mod tax_template_service;
+pub mod tax_transaction_service;
 pub mod withholding_category_service;
 
 // <<< CUSTOM
-pub mod tax_engine;
-pub mod tax_write_service;
 pub mod efaktur_service;
+pub mod tax_engine;
+pub mod tax_rounding;
+pub mod tax_write_service;
 pub use efaktur_service::{EFakturService, PostedForTax, TaxComplianceError};
 // END CUSTOM
 
-pub use tax_category_service::TaxCategoryService;
-pub use tax_transaction_service::TaxTransactionService;
+pub use company_tax_settings_service::CompanyTaxSettingsService;
 pub use e_faktur_document_service::EFakturDocumentService;
+pub use tax_category_service::TaxCategoryService;
 pub use tax_filing_period_service::TaxFilingPeriodService;
-pub use tax_template_service::TaxTemplateService;
+pub use tax_repartition_line_service::TaxRepartitionLineService;
+pub use tax_tag_service::TaxTagService;
 pub use tax_template_row_service::TaxTemplateRowService;
+pub use tax_template_service::TaxTemplateService;
+pub use tax_transaction_service::TaxTransactionService;
 pub use withholding_category_service::WithholdingCategoryService;
 // <<< CUSTOM
-pub use tax_engine::{TaxEngine, TaxError, TaxLine};
+pub use tax_engine::{
+    DocumentTaxLine, DocumentTaxRequest, DocumentTaxRequestLine, DocumentTaxResult, DocumentType,
+    TaxEngine, TaxError, TaxLine,
+};
+pub use tax_rounding::{distribute_delta_smoothly, round2, RoundingMethod};
 pub use tax_write_service::{
-    NewCategory, NewTemplate, NewTemplateRow, NewWithholding, TaxWriteService,
+    NewCategory, NewCompanySettings, NewRepartitionLine, NewRepartitionSplit, NewTag, NewTemplate,
+    NewTemplateRow, NewWithholding, ReplaceRepartitionFamily, TaxWriteService,
 };
 // END CUSTOM

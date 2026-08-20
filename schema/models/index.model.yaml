@@ -70,5 +70,7 @@ shared_types:
 imports:
   - tax_category.model.yaml
   - tax_template.model.yaml
+  - company_tax_settings.model.yaml
+  - tax_repartition.model.yaml
   - withholding_category.model.yaml
   - tax_compliance.model.yaml

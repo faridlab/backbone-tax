@@ -5,8 +5,8 @@
 //! This trait defines the repository contract for the TaxCategory aggregate.
 //! Implementation is in the infrastructure layer.
 
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::domain::entity::{TaxCategory, TaxKind, TaxStatus};
@@ -54,7 +54,11 @@ pub struct TaxCategoryFilter {
 impl TaxCategoryFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some() || self.code.is_some() || self.name.is_some() || self.tax_kind.is_some() || self.status.is_some()
+        self.company_id.is_some()
+            || self.code.is_some()
+            || self.name.is_some()
+            || self.tax_kind.is_some()
+            || self.status.is_some()
     }
 }
 
@@ -64,7 +68,6 @@ impl TaxCategoryFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait TaxCategoryRepository: Send + Sync {
-
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -89,10 +92,15 @@ pub trait TaxCategoryRepository: Send + Sync {
     // =========================================================================
 
     /// List tax_category with pagination
-    async fn list(&self, params: TaxCategoryPaginationParams) -> Result<TaxCategoryPaginatedResult>;
+    async fn list(&self, params: TaxCategoryPaginationParams)
+        -> Result<TaxCategoryPaginatedResult>;
 
     /// List tax_category with pagination and filters
-    async fn list_with_filters(&self, params: TaxCategoryPaginationParams, filters: TaxCategoryFilter) -> Result<TaxCategoryPaginatedResult>;
+    async fn list_with_filters(
+        &self,
+        params: TaxCategoryPaginationParams,
+        filters: TaxCategoryFilter,
+    ) -> Result<TaxCategoryPaginatedResult>;
 
     /// Count all tax_category entities
     async fn count(&self) -> Result<u64>;
@@ -114,7 +122,10 @@ pub trait TaxCategoryRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<TaxCategory>>;
 
     /// List soft-deleted tax_category entities
-    async fn list_deleted(&self, params: TaxCategoryPaginationParams) -> Result<TaxCategoryPaginatedResult>;
+    async fn list_deleted(
+        &self,
+        params: TaxCategoryPaginationParams,
+    ) -> Result<TaxCategoryPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;

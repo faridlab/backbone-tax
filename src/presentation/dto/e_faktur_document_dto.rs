@@ -5,9 +5,9 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc, NaiveDate};
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -16,8 +16,8 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
-use crate::domain::entity::EFakturDocument;
 use crate::domain::entity::AuditMetadata;
+use crate::domain::entity::EFakturDocument;
 use crate::domain::entity::EFakturStatus;
 
 // =============================================================================
@@ -33,10 +33,16 @@ use crate::domain::entity::EFakturStatus;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateEFakturDocumentDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "tax_transaction_id")]
     pub tax_transaction_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 20)))]
@@ -58,7 +64,11 @@ pub struct CreateEFakturDocumentDto {
     #[serde(alias = "assignment_date")]
     pub assignment_date: NaiveDate,
     pub status: EFakturStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "replaces_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "replaces_id"
+    )]
     pub replaces_id: Option<Uuid>,
 }
 
@@ -75,10 +85,16 @@ pub struct CreateEFakturDocumentDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateEFakturDocumentDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "company_id")]
     pub company_id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(alias = "tax_transaction_id")]
     pub tax_transaction_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 20)))]
@@ -100,7 +116,11 @@ pub struct UpdateEFakturDocumentDto {
     #[serde(alias = "assignment_date")]
     pub assignment_date: NaiveDate,
     pub status: EFakturStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "replaces_id")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "replaces_id"
+    )]
     pub replaces_id: Option<Uuid>,
 }
 
@@ -117,10 +137,16 @@ pub struct UpdateEFakturDocumentDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchEFakturDocumentDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
     pub company_id: Option<Uuid>,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     #[serde(skip_serializing_if = "Option::is_none", alias = "tax_transaction_id")]
     pub tax_transaction_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 20)))]
@@ -153,7 +179,16 @@ pub struct PatchEFakturDocumentDto {
 impl PatchEFakturDocumentDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some() || self.tax_transaction_id.is_some() || self.number.is_some() || self.transaction_code.is_some() || self.taxpayer_segment.is_some() || self.period.is_some() || self.sequence.is_some() || self.assignment_date.is_some() || self.status.is_some() || self.replaces_id.is_some()
+        self.company_id.is_some()
+            || self.tax_transaction_id.is_some()
+            || self.number.is_some()
+            || self.transaction_code.is_some()
+            || self.taxpayer_segment.is_some()
+            || self.period.is_some()
+            || self.sequence.is_some()
+            || self.assignment_date.is_some()
+            || self.status.is_some()
+            || self.replaces_id.is_some()
     }
 }
 
@@ -169,11 +204,20 @@ impl PatchEFakturDocumentDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct EFakturDocumentResponseDto {
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub company_id: Uuid,
-    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
+    #[cfg_attr(
+        feature = "openapi",
+        schema(example = "550e8400-e29b-41d4-a716-446655440000")
+    )]
     pub tax_transaction_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub number: String,
@@ -222,7 +266,12 @@ pub struct EFakturDocumentListResponseDto {
 
 impl EFakturDocumentListResponseDto {
     /// Create a new list response from items and pagination info
-    pub fn new(items: Vec<EFakturDocumentResponseDto>, total: u64, page: u32, per_page: u32) -> Self {
+    pub fn new(
+        items: Vec<EFakturDocumentResponseDto>,
+        total: u64,
+        page: u32,
+        per_page: u32,
+    ) -> Self {
         let total_pages = if per_page > 0 {
             ((total as f64) / (per_page as f64)).ceil() as u32
         } else {

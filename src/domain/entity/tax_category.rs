@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
+use super::AuditMetadata;
 use super::TaxKind;
 use super::TaxStatus;
-use super::AuditMetadata;
 
 /// Strongly-typed ID for TaxCategory
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,9 +13,15 @@ use super::AuditMetadata;
 pub struct TaxCategoryId(pub Uuid);
 
 impl TaxCategoryId {
-    pub fn new(id: Uuid) -> Self { Self(id) }
-    pub fn generate() -> Self { Self(Uuid::new_v4()) }
-    pub fn into_inner(self) -> Uuid { self.0 }
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+    pub fn into_inner(self) -> Uuid {
+        self.0
+    }
 }
 
 impl std::fmt::Display for TaxCategoryId {
@@ -32,20 +38,28 @@ impl std::str::FromStr for TaxCategoryId {
 }
 
 impl From<Uuid> for TaxCategoryId {
-    fn from(id: Uuid) -> Self { Self(id) }
+    fn from(id: Uuid) -> Self {
+        Self(id)
+    }
 }
 
 impl From<TaxCategoryId> for Uuid {
-    fn from(id: TaxCategoryId) -> Self { id.0 }
+    fn from(id: TaxCategoryId) -> Self {
+        id.0
+    }
 }
 
 impl AsRef<Uuid> for TaxCategoryId {
-    fn as_ref(&self) -> &Uuid { &self.0 }
+    fn as_ref(&self) -> &Uuid {
+        &self.0
+    }
 }
 
 impl std::ops::Deref for TaxCategoryId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -64,11 +78,17 @@ pub struct TaxCategory {
 impl TaxCategory {
     /// Create a builder for TaxCategory
     pub fn builder() -> TaxCategoryBuilder {
-        TaxCategoryBuilder::default()
+        <TaxCategoryBuilder as Default>::default()
     }
 
     /// Create a new TaxCategory with required fields
-    pub fn new(company_id: Uuid, code: String, name: String, tax_kind: TaxKind, status: TaxStatus) -> Self {
+    pub fn new(
+        company_id: Uuid,
+        code: String,
+        name: String,
+        tax_kind: TaxKind,
+        status: TaxStatus,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             company_id,
@@ -135,7 +155,6 @@ impl TaxCategory {
         &self.status
     }
 
-
     // ==========================================================
     // Partial Update
     // ==========================================================
@@ -145,19 +164,29 @@ impl TaxCategory {
         for (key, value) in fields {
             match key.as_str() {
                 "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.company_id = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.company_id = v;
+                    }
                 }
                 "code" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.code = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.code = v;
+                    }
                 }
                 "name" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.name = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.name = v;
+                    }
                 }
                 "tax_kind" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.tax_kind = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.tax_kind = v;
+                    }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
+                    if let Ok(v) = serde_json::from_value(value) {
+                        self.status = v;
+                    }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -274,7 +303,9 @@ impl TaxCategoryBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<TaxCategory, String> {
-        let company_id = self.company_id.ok_or_else(|| "company_id is required".to_string())?;
+        let company_id = self
+            .company_id
+            .ok_or_else(|| "company_id is required".to_string())?;
         let code = self.code.ok_or_else(|| "code is required".to_string())?;
         let name = self.name.ok_or_else(|| "name is required".to_string())?;
 
@@ -283,8 +314,8 @@ impl TaxCategoryBuilder {
             company_id,
             code,
             name,
-            tax_kind: self.tax_kind.unwrap_or(TaxKind::default()),
-            status: self.status.unwrap_or(TaxStatus::default()),
+            tax_kind: self.tax_kind.unwrap_or_default(),
+            status: self.status.unwrap_or_default(),
             metadata: AuditMetadata::default(),
         })
     }

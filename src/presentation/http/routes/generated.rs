@@ -9,20 +9,26 @@ use axum::Router;
 use std::sync::Arc;
 
 use super::{
+    company_tax_settings_handler::create_company_tax_settings_routes,
     tax_category_handler::create_tax_category_routes,
     tax_transaction_handler::create_tax_transaction_routes,
     e_faktur_document_handler::create_e_faktur_document_routes,
     tax_filing_period_handler::create_tax_filing_period_routes,
+    tax_tag_handler::create_tax_tag_routes,
+    tax_repartition_line_handler::create_tax_repartition_line_routes,
     tax_template_handler::create_tax_template_routes,
     tax_template_row_handler::create_tax_template_row_routes,
     withholding_category_handler::create_withholding_category_routes,
 };
 
 use crate::application::service::{
+    CompanyTaxSettingsService,
     TaxCategoryService,
     TaxTransactionService,
     EFakturDocumentService,
     TaxFilingPeriodService,
+    TaxTagService,
+    TaxRepartitionLineService,
     TaxTemplateService,
     TaxTemplateRowService,
     WithholdingCategoryService,
@@ -30,10 +36,13 @@ use crate::application::service::{
 
 /// Services collection for all CRUD endpoints
 pub struct HttpServices {
+    pub company_tax_settings: Arc<CompanyTaxSettingsService>,
     pub tax_category: Arc<TaxCategoryService>,
     pub tax_transaction: Arc<TaxTransactionService>,
     pub e_faktur_document: Arc<EFakturDocumentService>,
     pub tax_filing_period: Arc<TaxFilingPeriodService>,
+    pub tax_tag: Arc<TaxTagService>,
+    pub tax_repartition_line: Arc<TaxRepartitionLineService>,
     pub tax_template: Arc<TaxTemplateService>,
     pub tax_template_row: Arc<TaxTemplateRowService>,
     pub withholding_category: Arc<WithholdingCategoryService>,
@@ -56,6 +65,8 @@ pub struct HttpServices {
 /// 12. GET /api/v1/{collection}/:id/deleted - Get deleted by ID
 pub fn configure_routes(services: HttpServices) -> Router {
     Router::new()
+        // CompanyTaxSettings routes (12 Backbone endpoints)
+        .merge(create_company_tax_settings_routes(services.company_tax_settings))
         // TaxCategory routes (12 Backbone endpoints)
         .merge(create_tax_category_routes(services.tax_category))
         // TaxTransaction routes (12 Backbone endpoints)
@@ -64,6 +75,10 @@ pub fn configure_routes(services: HttpServices) -> Router {
         .merge(create_e_faktur_document_routes(services.e_faktur_document))
         // TaxFilingPeriod routes (12 Backbone endpoints)
         .merge(create_tax_filing_period_routes(services.tax_filing_period))
+        // TaxTag routes (12 Backbone endpoints)
+        .merge(create_tax_tag_routes(services.tax_tag))
+        // TaxRepartitionLine routes (12 Backbone endpoints)
+        .merge(create_tax_repartition_line_routes(services.tax_repartition_line))
         // TaxTemplate routes (12 Backbone endpoints)
         .merge(create_tax_template_routes(services.tax_template))
         // TaxTemplateRow routes (12 Backbone endpoints)
@@ -75,6 +90,10 @@ pub fn configure_routes(services: HttpServices) -> Router {
 /// Create an individual entity's routes (for modular configuration)
 pub mod individual {
     use super::*;
+
+    pub fn company_tax_settings_routes(service: Arc<CompanyTaxSettingsService>) -> Router {
+        create_company_tax_settings_routes(service)
+    }
 
     pub fn tax_category_routes(service: Arc<TaxCategoryService>) -> Router {
         create_tax_category_routes(service)
@@ -90,6 +109,14 @@ pub mod individual {
 
     pub fn tax_filing_period_routes(service: Arc<TaxFilingPeriodService>) -> Router {
         create_tax_filing_period_routes(service)
+    }
+
+    pub fn tax_tag_routes(service: Arc<TaxTagService>) -> Router {
+        create_tax_tag_routes(service)
+    }
+
+    pub fn tax_repartition_line_routes(service: Arc<TaxRepartitionLineService>) -> Router {
+        create_tax_repartition_line_routes(service)
     }
 
     pub fn tax_template_routes(service: Arc<TaxTemplateService>) -> Router {

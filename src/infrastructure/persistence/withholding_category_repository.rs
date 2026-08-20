@@ -27,8 +27,11 @@ pub struct WithholdingCategoryRepository(
 );
 
 impl std::ops::Deref for WithholdingCategoryRepository {
-    type Target = backbone_orm::GenericCrudRepository<WithholdingCategory, backbone_orm::SoftDelete>;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    type Target =
+        backbone_orm::GenericCrudRepository<WithholdingCategory, backbone_orm::SoftDelete>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl WithholdingCategoryRepository {
@@ -73,7 +76,10 @@ impl WithholdingCategoryRepository {
                      && daterange($3, COALESCE($4, 'infinity'::date), '[]')
                LIMIT 1"#,
         )
-        .bind(company_id).bind(code).bind(effective_from).bind(effective_to)
+        .bind(company_id)
+        .bind(code)
+        .bind(effective_from)
+        .bind(effective_to)
         .fetch_optional(pool)
         .await?;
         Ok(overlap)
@@ -99,4 +105,8 @@ impl WithholdingCategoryRepository {
     }
 }
 
-backbone_core::impl_crud_repository!(WithholdingCategoryRepository, WithholdingCategory, soft_delete);
+backbone_core::impl_crud_repository!(
+    WithholdingCategoryRepository,
+    WithholdingCategory,
+    soft_delete
+);

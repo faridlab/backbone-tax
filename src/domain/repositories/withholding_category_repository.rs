@@ -5,11 +5,11 @@
 //! This trait defines the repository contract for the WithholdingCategory aggregate.
 //! Implementation is in the infrastructure layer.
 
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::domain::entity::{WithholdingCategory, TaxStatus};
+use crate::domain::entity::{TaxStatus, WithholdingCategory};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]
@@ -54,7 +54,11 @@ pub struct WithholdingCategoryFilter {
 impl WithholdingCategoryFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some() || self.code.is_some() || self.name.is_some() || self.account_id.is_some() || self.status.is_some()
+        self.company_id.is_some()
+            || self.code.is_some()
+            || self.name.is_some()
+            || self.account_id.is_some()
+            || self.status.is_some()
     }
 }
 
@@ -64,7 +68,6 @@ impl WithholdingCategoryFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait WithholdingCategoryRepository: Send + Sync {
-
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -79,7 +82,11 @@ pub trait WithholdingCategoryRepository: Send + Sync {
     async fn find_all(&self) -> Result<Vec<WithholdingCategory>>;
 
     /// Update withholding_category by ID
-    async fn update(&self, id: &str, entity: &WithholdingCategory) -> Result<Option<WithholdingCategory>>;
+    async fn update(
+        &self,
+        id: &str,
+        entity: &WithholdingCategory,
+    ) -> Result<Option<WithholdingCategory>>;
 
     /// Delete withholding_category by ID
     async fn delete(&self, id: &str) -> Result<bool>;
@@ -89,10 +96,17 @@ pub trait WithholdingCategoryRepository: Send + Sync {
     // =========================================================================
 
     /// List withholding_category with pagination
-    async fn list(&self, params: WithholdingCategoryPaginationParams) -> Result<WithholdingCategoryPaginatedResult>;
+    async fn list(
+        &self,
+        params: WithholdingCategoryPaginationParams,
+    ) -> Result<WithholdingCategoryPaginatedResult>;
 
     /// List withholding_category with pagination and filters
-    async fn list_with_filters(&self, params: WithholdingCategoryPaginationParams, filters: WithholdingCategoryFilter) -> Result<WithholdingCategoryPaginatedResult>;
+    async fn list_with_filters(
+        &self,
+        params: WithholdingCategoryPaginationParams,
+        filters: WithholdingCategoryFilter,
+    ) -> Result<WithholdingCategoryPaginatedResult>;
 
     /// Count all withholding_category entities
     async fn count(&self) -> Result<u64>;
@@ -114,7 +128,10 @@ pub trait WithholdingCategoryRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<WithholdingCategory>>;
 
     /// List soft-deleted withholding_category entities
-    async fn list_deleted(&self, params: WithholdingCategoryPaginationParams) -> Result<WithholdingCategoryPaginatedResult>;
+    async fn list_deleted(
+        &self,
+        params: WithholdingCategoryPaginationParams,
+    ) -> Result<WithholdingCategoryPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;
@@ -124,7 +141,8 @@ pub trait WithholdingCategoryRepository: Send + Sync {
     // =========================================================================
 
     /// Bulk save withholding_category entities
-    async fn bulk_save(&self, entities: &[WithholdingCategory]) -> Result<Vec<WithholdingCategory>>;
+    async fn bulk_save(&self, entities: &[WithholdingCategory])
+        -> Result<Vec<WithholdingCategory>>;
 
     /// Bulk delete by IDs
     async fn bulk_delete(&self, ids: &[&str]) -> Result<u64>;
