@@ -49,44 +49,49 @@ pub struct NewTaxCategoryRow<'a> {
 
 /// Tax-category SQL. Lives here (not in the service) per the module's 4-layer rule.
 impl TaxCategoryRepository {
-    /// Existence probe filtered by the caller's company. Defense-in-depth on top of the RLS fence:
-    /// a missed request scope returns no rows (fail-closed). `None` here means "no matching row";
-    /// the service treats `None` as `CategoryNotFound`.
+    /// Existence probe filtered by the caller's company. Runs through the scoped-execute helper so
+    /// the RLS fence sees `app.company_id`; the explicit `company_id` bind is defense-in-depth on
+    /// top. `None` here means "no matching row"; the service treats `None` as `CategoryNotFound`.
     pub async fn find_by_id_in_company(
         &self,
         pool: &PgPool,
         id: Uuid,
         company_id: Uuid,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let found: Option<Uuid> = sqlx::query_scalar(
-            r#"SELECT id FROM tax.tax_categories
-               WHERE id = $1 AND company_id = $2 AND (metadata->>'deleted_at') IS NULL"#,
+        let found = backbone_orm::company_scope::fetch_optional_scalar_scoped(
+            pool,
+            sqlx::query_scalar(
+                r#"SELECT id FROM tax.tax_categories
+                   WHERE id = $1 AND company_id = $2 AND (metadata->>'deleted_at') IS NULL"#,
+            )
+            .bind(id)
+            .bind(company_id),
         )
-        .bind(id)
-        .bind(company_id)
-        .fetch_optional(pool)
         .await?;
         Ok(found)
     }
 
-    /// Insert a new active tax category. The caller has already established the request scope via
-    /// `with_company_scope`; the explicit `company_id` bind is defense-in-depth on top of the RLS
-    /// fence. The `$5::tax_kind` cast mirrors the original hand-written SQL exactly.
+    /// Insert a new active tax category, scoped so the RLS WITH CHECK sees `app.company_id`. A raw
+    /// `.execute(pool)` ignores the request company task-local and the fence REJECTS the insert
+    /// (surfaces as a 500 to the caller); the scoped helper binds the company for this statement.
+    /// The `$5::tax_kind` cast mirrors the original hand-written SQL exactly.
     pub async fn insert(
         &self,
         pool: &PgPool,
         r: &NewTaxCategoryRow<'_>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            r#"INSERT INTO tax.tax_categories (id, company_id, code, name, tax_kind, status)
-               VALUES ($1,$2,$3,$4,$5::tax_kind,'active'::tax_status)"#,
+        backbone_orm::company_scope::execute_scoped(
+            pool,
+            sqlx::query(
+                r#"INSERT INTO tax.tax_categories (id, company_id, code, name, tax_kind, status)
+                   VALUES ($1,$2,$3,$4,$5::tax_kind,'active'::tax_status)"#,
+            )
+            .bind(r.id)
+            .bind(r.company_id)
+            .bind(r.code)
+            .bind(r.name)
+            .bind(r.tax_kind),
         )
-        .bind(r.id)
-        .bind(r.company_id)
-        .bind(r.code)
-        .bind(r.name)
-        .bind(r.tax_kind)
-        .execute(pool)
         .await?;
         Ok(())
     }

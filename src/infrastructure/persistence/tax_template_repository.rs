@@ -57,28 +57,32 @@ pub struct NewTaxTemplateRow<'a> {
 /// Tax-template SQL. Lives here (not in the service) per the module's 4-layer rule.
 impl TaxTemplateRepository {
     /// Existence probe filtered by the caller's company. Used by `add_row` to confirm the parent
-    /// template exists in this tenant before appending a row. Defense-in-depth on top of the RLS
-    /// fence: a missed request scope returns no rows (fail-closed).
+    /// template exists in this tenant before appending a row. Runs through the scoped-execute
+    /// helper so the RLS fence sees `app.company_id`; the explicit `company_id` bind is
+    /// defense-in-depth on top.
     pub async fn find_by_id_in_company(
         &self,
         pool: &PgPool,
         id: Uuid,
         company_id: Uuid,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let found: Option<Uuid> = sqlx::query_scalar(
-            r#"SELECT id FROM tax.tax_templates
-               WHERE id = $1 AND company_id = $2 AND (metadata->>'deleted_at') IS NULL"#,
+        let found = backbone_orm::company_scope::fetch_optional_scalar_scoped(
+            pool,
+            sqlx::query_scalar(
+                r#"SELECT id FROM tax.tax_templates
+                   WHERE id = $1 AND company_id = $2 AND (metadata->>'deleted_at') IS NULL"#,
+            )
+            .bind(id)
+            .bind(company_id),
         )
-        .bind(id)
-        .bind(company_id)
-        .fetch_optional(pool)
         .await?;
         Ok(found)
     }
 
     /// Name-collision probe filtered by the caller's company + template type —
     /// the friendly duplicate-name pre-check (the DB also enforces it with a
-    /// partial unique index for raw SQL writers).
+    /// partial unique index for raw SQL writers). Runs through the scoped-execute
+    /// helper so the RLS fence sees `app.company_id`.
     pub async fn find_by_name_in_company(
         &self,
         pool: &PgPool,
@@ -86,15 +90,17 @@ impl TaxTemplateRepository {
         template_type: &str,
         name: &str,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let found: Option<Uuid> = sqlx::query_scalar(
-            r#"SELECT id FROM tax.tax_templates
-               WHERE company_id = $1 AND template_type::text = $2 AND name = $3
-                 AND (metadata->>'deleted_at') IS NULL"#,
+        let found = backbone_orm::company_scope::fetch_optional_scalar_scoped(
+            pool,
+            sqlx::query_scalar(
+                r#"SELECT id FROM tax.tax_templates
+                   WHERE company_id = $1 AND template_type::text = $2 AND name = $3
+                     AND (metadata->>'deleted_at') IS NULL"#,
+            )
+            .bind(company_id)
+            .bind(template_type)
+            .bind(name),
         )
-        .bind(company_id)
-        .bind(template_type)
-        .bind(name)
-        .fetch_optional(pool)
         .await?;
         Ok(found)
     }

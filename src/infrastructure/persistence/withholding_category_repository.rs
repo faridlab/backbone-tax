@@ -69,38 +69,44 @@ impl WithholdingCategoryRepository {
         effective_from: NaiveDate,
         effective_to: Option<NaiveDate>,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let overlap: Option<Uuid> = sqlx::query_scalar(
-            r#"SELECT id FROM tax.withholding_categories
-               WHERE company_id=$1 AND code=$2 AND (metadata->>'deleted_at') IS NULL
-                 AND daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]')
-                     && daterange($3, COALESCE($4, 'infinity'::date), '[]')
-               LIMIT 1"#,
+        let overlap = backbone_orm::company_scope::fetch_optional_scalar_scoped(
+            pool,
+            sqlx::query_scalar(
+                r#"SELECT id FROM tax.withholding_categories
+                   WHERE company_id=$1 AND code=$2 AND (metadata->>'deleted_at') IS NULL
+                     AND daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]')
+                         && daterange($3, COALESCE($4, 'infinity'::date), '[]')
+                   LIMIT 1"#,
+            )
+            .bind(company_id)
+            .bind(code)
+            .bind(effective_from)
+            .bind(effective_to),
         )
-        .bind(company_id)
-        .bind(code)
-        .bind(effective_from)
-        .bind(effective_to)
-        .fetch_optional(pool)
         .await?;
         Ok(overlap)
     }
 
-    /// Insert a new active withholding category. The caller has already established the request
-    /// scope via `with_company_scope`; the explicit `company_id` bind is defense-in-depth on top of
-    /// the RLS fence.
+    /// Insert a new active withholding category, scoped so the RLS WITH CHECK sees
+    /// `app.company_id`. A raw `.execute(pool)` ignores the request company task-local and the
+    /// fence REJECTS the insert (surfaces as a 500 to the caller); the scoped helper binds the
+    /// company for this statement.
     pub async fn insert(
         &self,
         pool: &PgPool,
         r: &NewWithholdingCategoryRow<'_>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            r#"INSERT INTO tax.withholding_categories
-                (id, company_id, code, name, rate, threshold_amount, account_id, effective_from, effective_to, status)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active'::tax_status)"#,
+        backbone_orm::company_scope::execute_scoped(
+            pool,
+            sqlx::query(
+                r#"INSERT INTO tax.withholding_categories
+                    (id, company_id, code, name, rate, threshold_amount, account_id, effective_from, effective_to, status)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active'::tax_status)"#,
+            )
+            .bind(r.id).bind(r.company_id).bind(r.code).bind(r.name).bind(r.rate).bind(r.threshold_amount)
+            .bind(r.account_id).bind(r.effective_from).bind(r.effective_to),
         )
-        .bind(r.id).bind(r.company_id).bind(r.code).bind(r.name).bind(r.rate).bind(r.threshold_amount)
-        .bind(r.account_id).bind(r.effective_from).bind(r.effective_to)
-        .execute(pool).await?;
+        .await?;
         Ok(())
     }
 }
