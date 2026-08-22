@@ -8,14 +8,19 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::State, http::StatusCode, response::IntoResponse, routing::get, routing::post, Json,
-    Router,
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::get,
+    routing::post,
+    Json, Router,
 };
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::application::service::efaktur_service::{EFakturService, TaxComplianceError};
 use crate::application::service::tax_engine::{
     DocumentTaxLine, DocumentTaxRequest, DocumentTaxRequestLine, DocumentType, TaxEngine, TaxError,
     TaxLine,
@@ -54,6 +59,21 @@ fn err_response(e: TaxError) -> axum::response::Response {
         .into_response()
 }
 
+/// The compliance engine's refusals map onto the same error-envelope shape (`code()` /
+/// `http_status()`), so the e-Faktur surface answers with codes callers can branch on —
+/// `period_not_open`, `period_not_finalized`, `efaktur_not_found`, … — not opaque 500s.
+fn compliance_err_response(e: TaxComplianceError) -> axum::response::Response {
+    let status = StatusCode::from_u16(e.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    (
+        status,
+        Json(ErrorBody {
+            error: e.code(),
+            message: e.to_string(),
+        }),
+    )
+        .into_response()
+}
+
 // ── Tenant consistency ────────────────────────────────────────────────────────
 //
 // Every body or query below names the caller's `companyId`, and the write service binds that value
@@ -64,7 +84,9 @@ fn err_response(e: TaxError) -> axum::response::Response {
 // internal hosts) the check is skipped — the module keeps its standalone shape.
 fn tenant_guard(requested: Uuid) -> Option<axum::response::Response> {
     match backbone_orm::current_company() {
-        Some(authenticated) if authenticated != requested => Some(err_response(TaxError::CompanyMismatch)),
+        Some(authenticated) if authenticated != requested => {
+            Some(err_response(TaxError::CompanyMismatch))
+        }
         _ => None,
     }
 }
@@ -641,6 +663,228 @@ async fn resolve_withholding(
     }
 }
 
+// ── e-Faktur documents + masa-pajak filing lifecycle ──────────────────────────
+//
+// Kebab-case bases under /e-faktur and /filing-periods — deliberately NOT the generated
+// snake_case CRUD bases (`/e_faktur_documents`, `/tax_filing_periods`), which stay unmounted:
+// generic mutation over the numbering records would break the gapless invariant. The verbs here
+// are lifecycle transitions only; hosts gate them behind a role (the surface never binds a role
+// itself — that is a composition decision).
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EFakturDocumentQuery {
+    company_id: Uuid,
+    /// Masa pajak start (YYYY-MM-DD, the first day of the month).
+    period: NaiveDate,
+    /// Optional status filter: `assigned` | `confirmed` | `voided`.
+    #[serde(default)]
+    status: Option<String>,
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EFakturDocumentOut {
+    id: Uuid,
+    tax_transaction_id: Uuid,
+    number: String,
+    transaction_code: String,
+    taxpayer_segment: String,
+    period: NaiveDate,
+    sequence: i32,
+    assignment_date: NaiveDate,
+    status: String,
+}
+impl From<crate::infrastructure::persistence::EFakturDocumentRow> for EFakturDocumentOut {
+    fn from(d: crate::infrastructure::persistence::EFakturDocumentRow) -> Self {
+        Self {
+            id: d.id,
+            tax_transaction_id: d.tax_transaction_id,
+            number: d.number,
+            transaction_code: d.transaction_code,
+            taxpayer_segment: d.taxpayer_segment,
+            period: d.period,
+            sequence: d.sequence,
+            assignment_date: d.assignment_date,
+            status: d.status,
+        }
+    }
+}
+async fn list_efaktur_documents(
+    State(svc): State<Arc<EFakturService>>,
+    axum::extract::Query(q): axum::extract::Query<EFakturDocumentQuery>,
+) -> axum::response::Response {
+    if let Some(r) = tenant_guard(q.company_id) {
+        return r;
+    }
+    match svc
+        .list_period_documents(q.company_id, q.period, q.status.as_deref())
+        .await
+    {
+        Ok(docs) => {
+            let out: Vec<EFakturDocumentOut> = docs.into_iter().map(Into::into).collect();
+            (StatusCode::OK, Json(out)).into_response()
+        }
+        Err(e) => compliance_err_response(e),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CompanyBody {
+    company_id: Uuid,
+}
+async fn confirm_efaktur(
+    State(svc): State<Arc<EFakturService>>,
+    Path(id): Path<Uuid>,
+    Json(b): Json<CompanyBody>,
+) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
+    match svc.confirm_efaktur(b.company_id, id).await {
+        Ok(doc) => (StatusCode::OK, Json(EFakturDocumentOut::from(doc))).into_response(),
+        Err(e) => compliance_err_response(e),
+    }
+}
+async fn void_efaktur(
+    State(svc): State<Arc<EFakturService>>,
+    Path(id): Path<Uuid>,
+    Json(b): Json<CompanyBody>,
+) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
+    match svc.void_efaktur(b.company_id, id).await {
+        Ok(doc) => (StatusCode::OK, Json(EFakturDocumentOut::from(doc))).into_response(),
+        Err(e) => compliance_err_response(e),
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FilingPeriodOut {
+    id: Uuid,
+    period: NaiveDate,
+    status: String,
+    next_sequence: i32,
+    output_total: Decimal,
+    input_total: Decimal,
+    withholding_total: Decimal,
+}
+impl From<crate::infrastructure::persistence::FilingPeriodRow> for FilingPeriodOut {
+    fn from(p: crate::infrastructure::persistence::FilingPeriodRow) -> Self {
+        Self {
+            id: p.id,
+            period: p.period,
+            status: p.status,
+            next_sequence: p.next_sequence,
+            output_total: p.output_total,
+            input_total: p.input_total,
+            withholding_total: p.withholding_total,
+        }
+    }
+}
+async fn list_filing_periods(
+    State(svc): State<Arc<EFakturService>>,
+    axum::extract::Query(q): axum::extract::Query<CompanyIdQuery>,
+) -> axum::response::Response {
+    if let Some(r) = tenant_guard(q.company_id) {
+        return r;
+    }
+    match svc.list_filing_periods(q.company_id).await {
+        Ok(periods) => {
+            let out: Vec<FilingPeriodOut> = periods.into_iter().map(Into::into).collect();
+            (StatusCode::OK, Json(out)).into_response()
+        }
+        Err(e) => compliance_err_response(e),
+    }
+}
+
+fn parse_period(p: &str) -> Option<NaiveDate> {
+    // Accept only a real masa-pajak start: YYYY-MM-01. Anything else is a client error.
+    if !p.ends_with("-01") {
+        return None;
+    }
+    p.parse::<NaiveDate>().ok()
+}
+async fn finalize_filing_period(
+    State(svc): State<Arc<EFakturService>>,
+    Path(period): Path<String>,
+    Json(b): Json<CompanyBody>,
+) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
+    let Some(period) = parse_period(&period) else {
+        return err_response(TaxError::InvalidValue(
+            "period must be the masa pajak start date (YYYY-MM-01)".into(),
+        ));
+    };
+    match svc.finalize_period(b.company_id, period).await {
+        Ok(row) => (StatusCode::OK, Json(FilingPeriodOut::from(row))).into_response(),
+        Err(e) => compliance_err_response(e),
+    }
+}
+async fn file_filing_period(
+    State(svc): State<Arc<EFakturService>>,
+    Path(period): Path<String>,
+    Json(b): Json<CompanyBody>,
+) -> axum::response::Response {
+    if let Some(r) = tenant_guard(b.company_id) {
+        return r;
+    }
+    let Some(period) = parse_period(&period) else {
+        return err_response(TaxError::InvalidValue(
+            "period must be the masa pajak start date (YYYY-MM-01)".into(),
+        ));
+    };
+    match svc.file_period(b.company_id, period).await {
+        Ok(row) => (StatusCode::OK, Json(FilingPeriodOut::from(row))).into_response(),
+        Err(e) => compliance_err_response(e),
+    }
+}
+
+/// One export row: the document joined to its transaction's invoice projection and totals. The
+/// host's CSV verb joins buyer identity + per-line detail from billing on top of this.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EFakturExportRowOut {
+    document: EFakturDocumentOut,
+    invoice_ref: Uuid,
+    posting_date: NaiveDate,
+    taxable_base: Decimal,
+    output_total: Decimal,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EFakturExportQuery {
+    company_id: Uuid,
+    period: NaiveDate,
+}
+async fn list_efaktur_export_rows(
+    State(svc): State<Arc<EFakturService>>,
+    axum::extract::Query(q): axum::extract::Query<EFakturExportQuery>,
+) -> axum::response::Response {
+    if let Some(r) = tenant_guard(q.company_id) {
+        return r;
+    }
+    match svc.export_rows(q.company_id, q.period).await {
+        Ok(rows) => {
+            let out: Vec<EFakturExportRowOut> = rows
+                .into_iter()
+                .map(|r| EFakturExportRowOut {
+                    document: EFakturDocumentOut::from(r.document),
+                    invoice_ref: r.invoice_ref,
+                    posting_date: r.posting_date,
+                    taxable_base: r.taxable_base,
+                    output_total: r.output_total,
+                })
+                .collect();
+            (StatusCode::OK, Json(out)).into_response()
+        }
+        Err(e) => compliance_err_response(e),
+    }
+}
+
 fn create_tax_write_routes(svc: Arc<TaxWriteService>) -> Router {
     Router::new()
         .route("/tax-categories", post(create_category))
@@ -669,7 +913,23 @@ fn create_tax_compute_routes(engine: Arc<TaxEngine>) -> Router {
         .with_state(engine)
 }
 
-/// Mount the tax module: read config + validated create + the compute engine.
+fn create_efaktur_routes(svc: Arc<EFakturService>) -> Router {
+    Router::new()
+        .route("/e-faktur/documents", get(list_efaktur_documents))
+        .route("/e-faktur/documents/:id/confirm", post(confirm_efaktur))
+        .route("/e-faktur/documents/:id/void", post(void_efaktur))
+        .route("/e-faktur/export-rows", get(list_efaktur_export_rows))
+        .route("/filing-periods", get(list_filing_periods))
+        .route(
+            "/filing-periods/:period/finalize",
+            post(finalize_filing_period),
+        )
+        .route("/filing-periods/:period/file", post(file_filing_period))
+        .with_state(svc)
+}
+
+/// Mount the tax module: read config + validated create + the compute engine + the e-Faktur
+/// document / masa-pajak filing lifecycle.
 /// **Prefer this over `TaxModule::all_crud_routes()` for any real deployment.**
 pub fn create_guarded_tax_routes(m: &TaxModule) -> Router {
     Router::new()
@@ -687,4 +947,5 @@ pub fn create_guarded_tax_routes(m: &TaxModule) -> Router {
         ))
         .merge(create_tax_write_routes(m.tax_write_service.clone()))
         .merge(create_tax_compute_routes(m.tax_engine.clone()))
+        .merge(create_efaktur_routes(m.efaktur_service.clone()))
 }

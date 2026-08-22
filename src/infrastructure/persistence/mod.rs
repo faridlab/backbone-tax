@@ -43,9 +43,11 @@ pub use backbone_orm::repository::{
 // `user_owned` in metaphor.codegen.yaml — see tax_write_service.rs / efaktur_service.rs, which
 // orchestrate them.
 pub use company_tax_settings_repository::CompanyTaxSettingsRecord;
-pub use e_faktur_document_repository::NewEFakturDocumentRow;
+pub use e_faktur_document_repository::{
+    EFakturDocumentRow, EFakturExportRow, NewEFakturDocumentRow,
+};
 pub use tax_category_repository::NewTaxCategoryRow;
-pub use tax_filing_period_repository::AllocatedSequence;
+pub use tax_filing_period_repository::{AllocatedSequence, FilingPeriodRow};
 pub use tax_repartition_line_repository::{NewTaxRepartitionLineRecord, RepartitionLineRecord};
 pub use tax_tag_repository::NewTaxTagRow;
 pub use tax_template_repository::NewTaxTemplateRow;

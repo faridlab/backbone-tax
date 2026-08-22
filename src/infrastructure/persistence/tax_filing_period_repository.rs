@@ -9,6 +9,7 @@
 //! All standard CRUD methods are available via `Deref`.
 
 use chrono::NaiveDate;
+use rust_decimal::Decimal;
 use sqlx::{PgConnection, PgPool, Row};
 use uuid::Uuid;
 
@@ -46,6 +47,20 @@ pub struct AllocatedSequence {
     pub seg: String,
 }
 
+/// A filing period's state as the lifecycle verbs read it back: the CAS outcome, the aggregate
+/// totals, and the allocator cursor. `status` is the DB enum text (`open` | `finalized` | `filed`).
+#[derive(Debug, Clone)]
+pub struct FilingPeriodRow {
+    pub id: Uuid,
+    pub company_id: Uuid,
+    pub period: NaiveDate,
+    pub status: String,
+    pub next_sequence: i32,
+    pub output_total: Decimal,
+    pub input_total: Decimal,
+    pub withholding_total: Decimal,
+}
+
 /// Tax-filing-period SQL. Lives here (not in the service) per the module's 4-layer rule.
 impl TaxFilingPeriodRepository {
     /// Ensure an open `TaxFilingPeriod` row exists for `(company, period)`. Idempotent — if a row
@@ -73,7 +88,8 @@ impl TaxFilingPeriodRepository {
         Ok(())
     }
 
-    /// Atomically allocate the next gapless sequence number for `(company, period)`.
+    /// Atomically allocate the next gapless sequence number for `(company, period)` — only while
+    /// the period is OPEN.
     ///
     /// The `UPDATE … SET next_sequence = next_sequence + 1 … RETURNING next_sequence - 1` is the
     /// exactly-once allocator: Postgres takes a row-level lock on the matched period row, so
@@ -83,26 +99,188 @@ impl TaxFilingPeriodRepository {
     /// bound the company on `conn`; the `WHERE company_id = $1` filter is defense-in-depth on top
     /// of the RLS fence. The `(metadata->>'deleted_at') IS NULL` predicate preserves the original
     /// skip-soft-deleted behavior verbatim.
+    ///
+    /// Returns `Ok(None)` when the UPDATE matched zero rows: the period row does not exist, or it
+    /// is no longer `open`. Finalizing a masa pajak is the regulatory close of the numbering range
+    /// — a finalized or filed period must never hand out a new number, so the status predicate is
+    /// part of the allocator itself, not just a service-layer check.
     pub async fn allocate_sequence(
         &self,
         conn: &mut PgConnection,
         company_id: Uuid,
         period: NaiveDate,
-    ) -> Result<AllocatedSequence, sqlx::Error> {
+    ) -> Result<Option<AllocatedSequence>, sqlx::Error> {
         let row = sqlx::query(
             r#"UPDATE tax.tax_filing_periods
                  SET next_sequence = next_sequence + 1
                WHERE company_id = $1 AND period = $2 AND (metadata->>'deleted_at') IS NULL
+                 AND status = 'open'::tax_filing_status
                RETURNING next_sequence - 1 AS seq, COALESCE(taxpayer_segment, '000') AS seg"#,
         )
         .bind(company_id)
         .bind(period)
-        .fetch_one(conn)
+        .fetch_optional(conn)
         .await?;
-        Ok(AllocatedSequence {
+        Ok(row.map(|row| AllocatedSequence {
             seq: row.get("seq"),
             seg: row.get("seg"),
-        })
+        }))
+    }
+
+    /// Read one filing period row by `(company, period)`. `Ok(None)` = no such live period.
+    /// ID + company filtered; the caller wraps the call in the company scope the fence requires.
+    pub async fn find_by_company_period(
+        &self,
+        conn: &mut PgConnection,
+        company_id: Uuid,
+        period: NaiveDate,
+    ) -> Result<Option<FilingPeriodRow>, sqlx::Error> {
+        let row = sqlx::query(
+            r#"SELECT id, company_id, period, status::text AS status, next_sequence,
+                      output_total, input_total, withholding_total
+               FROM tax.tax_filing_periods
+               WHERE company_id = $1 AND period = $2 AND (metadata->>'deleted_at') IS NULL"#,
+        )
+        .bind(company_id)
+        .bind(period)
+        .fetch_optional(conn)
+        .await?;
+        Ok(row.map(|r| FilingPeriodRow {
+            id: r.get("id"),
+            company_id: r.get("company_id"),
+            period: r.get("period"),
+            status: r.get("status"),
+            next_sequence: r.get("next_sequence"),
+            output_total: r.get("output_total"),
+            input_total: r.get("input_total"),
+            withholding_total: r.get("withholding_total"),
+        }))
+    }
+
+    /// Finalize a masa pajak: CAS `open → finalized`, writing the aggregate VAT totals (Σ of the
+    /// month's tax transactions, computed in the same statement so the totals and the flip are one
+    /// fact) into the period row.
+    ///
+    /// Returns the flipped row, or `Ok(None)` when the UPDATE matched zero rows — the caller reads
+    /// the period back to distinguish "already finalized" (idempotent success) from "not open /
+    /// missing" (refusal). The caller has already bound the company on `conn`.
+    pub async fn finalize_open(
+        &self,
+        conn: &mut PgConnection,
+        company_id: Uuid,
+        period: NaiveDate,
+    ) -> Result<Option<FilingPeriodRow>, sqlx::Error> {
+        let row = sqlx::query(
+            r#"WITH agg AS (
+                   SELECT COALESCE(SUM(output_total), 0) AS o,
+                          COALESCE(SUM(input_total), 0) AS i,
+                          COALESCE(SUM(withholding_total), 0) AS w
+                   FROM tax.tax_transactions
+                   WHERE company_id = $1
+                     AND posting_date >= $2
+                     AND posting_date < $2 + INTERVAL '1 month'
+                     AND (metadata->>'deleted_at') IS NULL
+               )
+               UPDATE tax.tax_filing_periods p
+                 SET status = 'finalized'::tax_filing_status,
+                     output_total = agg.o,
+                     input_total = agg.i,
+                     withholding_total = agg.w
+               FROM agg
+               WHERE p.company_id = $1 AND p.period = $2
+                 AND p.status = 'open'::tax_filing_status
+                 AND (p.metadata->>'deleted_at') IS NULL
+               RETURNING p.id, p.company_id, p.period, p.status::text AS status,
+                         p.next_sequence, p.output_total, p.input_total, p.withholding_total"#,
+        )
+        .bind(company_id)
+        .bind(period)
+        .fetch_optional(conn)
+        .await?;
+        Ok(row.map(|r| FilingPeriodRow {
+            id: r.get("id"),
+            company_id: r.get("company_id"),
+            period: r.get("period"),
+            status: r.get("status"),
+            next_sequence: r.get("next_sequence"),
+            output_total: r.get("output_total"),
+            input_total: r.get("input_total"),
+            withholding_total: r.get("withholding_total"),
+        }))
+    }
+
+    /// File a finalized masa pajak: CAS `finalized → filed`, stamping the filing timestamp into
+    /// the audit metadata (the `filed_at` key rides `metadata.jsonb`; the existing audit trigger
+    /// maintains `updated_at` on the same UPDATE). Filed is terminal — no verb transitions out.
+    ///
+    /// Returns the flipped row, or `Ok(None)` when the UPDATE matched zero rows — the caller reads
+    /// the period back to distinguish "already filed" (idempotent success) from "still open" (the
+    /// caller refuses: file only after finalize) and "missing".
+    pub async fn file_finalized(
+        &self,
+        conn: &mut PgConnection,
+        company_id: Uuid,
+        period: NaiveDate,
+    ) -> Result<Option<FilingPeriodRow>, sqlx::Error> {
+        let row = sqlx::query(
+            r#"UPDATE tax.tax_filing_periods
+                 SET status = 'filed'::tax_filing_status,
+                     metadata = jsonb_set(metadata, '{filed_at}', to_jsonb(NOW()))
+               WHERE company_id = $1 AND period = $2
+                 AND status = 'finalized'::tax_filing_status
+                 AND (metadata->>'deleted_at') IS NULL
+               RETURNING id, company_id, period, status::text AS status, next_sequence,
+                         output_total, input_total, withholding_total"#,
+        )
+        .bind(company_id)
+        .bind(period)
+        .fetch_optional(conn)
+        .await?;
+        Ok(row.map(|r| FilingPeriodRow {
+            id: r.get("id"),
+            company_id: r.get("company_id"),
+            period: r.get("period"),
+            status: r.get("status"),
+            next_sequence: r.get("next_sequence"),
+            output_total: r.get("output_total"),
+            input_total: r.get("input_total"),
+            withholding_total: r.get("withholding_total"),
+        }))
+    }
+
+    /// List a company's filing periods oldest-first (the operator's SPT overview read). Rides the
+    /// ambient company scope (the caller wraps in `with_company_scope` / the request scope), same
+    /// fence posture as the other pool reads.
+    pub async fn list_for_company(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+    ) -> Result<Vec<FilingPeriodRow>, sqlx::Error> {
+        let rows = backbone_orm::company_scope::fetch_all_rows_scoped(
+            pool,
+            sqlx::query(
+                r#"SELECT id, company_id, period, status::text AS status, next_sequence,
+                          output_total, input_total, withholding_total
+                   FROM tax.tax_filing_periods
+                   WHERE company_id = $1 AND (metadata->>'deleted_at') IS NULL
+                   ORDER BY period"#,
+            )
+            .bind(company_id),
+        )
+        .await?;
+        Ok(rows
+            .iter()
+            .map(|r| FilingPeriodRow {
+                id: r.get("id"),
+                company_id: r.get("company_id"),
+                period: r.get("period"),
+                status: r.get("status"),
+                next_sequence: r.get("next_sequence"),
+                output_total: r.get("output_total"),
+                input_total: r.get("input_total"),
+                withholding_total: r.get("withholding_total"),
+            })
+            .collect())
     }
 }
 

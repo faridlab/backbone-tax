@@ -9,13 +9,42 @@
 //! All standard CRUD methods are available via `Deref`.
 
 use chrono::NaiveDate;
-use sqlx::{PgConnection, PgPool};
+use rust_decimal::Decimal;
+use sqlx::{PgConnection, PgPool, Row};
 use uuid::Uuid;
 
 use crate::domain::entity::EFakturDocument;
 
 /// Table name for EFakturDocument entities
 pub const TABLE_NAME: &str = "tax.efaktur_documents";
+
+/// One e-Faktur document row as the listing/export reads see it. `status` is the DB enum text
+/// (`assigned` | `confirmed` | `voided`).
+#[derive(Debug, Clone)]
+pub struct EFakturDocumentRow {
+    pub id: Uuid,
+    pub company_id: Uuid,
+    pub tax_transaction_id: Uuid,
+    pub number: String,
+    pub transaction_code: String,
+    pub taxpayer_segment: String,
+    pub period: NaiveDate,
+    pub sequence: i32,
+    pub assignment_date: NaiveDate,
+    pub status: String,
+}
+
+/// One export row: an e-Faktur document joined to its tax transaction's invoice projection and
+/// totals. The DJP CSV consumer (the composing host) joins buyer identity + per-line detail from
+/// billing at export time — tax only owns what this row carries.
+#[derive(Debug, Clone)]
+pub struct EFakturExportRow {
+    pub document: EFakturDocumentRow,
+    pub invoice_ref: Uuid,
+    pub posting_date: NaiveDate,
+    pub taxable_base: Decimal,
+    pub output_total: Decimal,
+}
 
 /// Repository for EFakturDocument entities.
 ///
@@ -98,6 +127,150 @@ impl EFakturDocumentRepository {
         .execute(conn)
         .await?;
         Ok(())
+    }
+
+    /// Confirm an assigned e-Faktur (the operator / downstream-system acknowledgement): CAS
+    /// `assigned → confirmed`. Returns the number of rows flipped — `0` means the document is not
+    /// in `assigned` (the caller reads the row back to distinguish an idempotent re-confirm from a
+    /// refusal). The caller has already bound the company on `conn`.
+    pub async fn confirm_on(
+        &self,
+        conn: &mut PgConnection,
+        efaktur_id: Uuid,
+    ) -> Result<u64, sqlx::Error> {
+        let done = sqlx::query(
+            r#"UPDATE tax.efaktur_documents
+                 SET status = 'confirmed'::e_faktur_status
+               WHERE id = $1 AND status = 'assigned'::e_faktur_status"#,
+        )
+        .bind(efaktur_id)
+        .execute(conn)
+        .await?;
+        Ok(done.rows_affected())
+    }
+
+    /// Read one document row by id, on a caller-provided connection with the company already
+    /// bound (the id is globally unique; the bound company is the fence defense-in-depth).
+    /// `Ok(None)` = no such live document.
+    pub async fn find_on(
+        &self,
+        conn: &mut PgConnection,
+        efaktur_id: Uuid,
+    ) -> Result<Option<EFakturDocumentRow>, sqlx::Error> {
+        let row = sqlx::query(
+            r#"SELECT id, company_id, tax_transaction_id, number, transaction_code,
+                      taxpayer_segment, period, sequence, assignment_date, status::text AS status
+               FROM tax.efaktur_documents
+               WHERE id = $1 AND (metadata->>'deleted_at') IS NULL"#,
+        )
+        .bind(efaktur_id)
+        .fetch_optional(conn)
+        .await?;
+        Ok(row.map(|r| EFakturDocumentRow {
+            id: r.get("id"),
+            company_id: r.get("company_id"),
+            tax_transaction_id: r.get("tax_transaction_id"),
+            number: r.get("number"),
+            transaction_code: r.get("transaction_code"),
+            taxpayer_segment: r.get("taxpayer_segment"),
+            period: r.get("period"),
+            sequence: r.get("sequence"),
+            assignment_date: r.get("assignment_date"),
+            status: r.get("status"),
+        }))
+    }
+
+    /// List a company's e-Faktur documents for one masa pajak, sequence-ascending (the numbering
+    /// order the DJP CSV emits). `status` filters by the DB enum text when given. Rides the
+    /// ambient company scope (the caller wraps), same fence posture as the other pool reads.
+    pub async fn list_for_period(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        period: NaiveDate,
+        status: Option<&str>,
+    ) -> Result<Vec<EFakturDocumentRow>, sqlx::Error> {
+        let rows = backbone_orm::company_scope::fetch_all_rows_scoped(
+            pool,
+            sqlx::query(
+                r#"SELECT id, company_id, tax_transaction_id, number, transaction_code,
+                          taxpayer_segment, period, sequence, assignment_date, status::text AS status
+                   FROM tax.efaktur_documents
+                   WHERE company_id = $1 AND period = $2 AND (metadata->>'deleted_at') IS NULL
+                     AND ($3::text IS NULL OR status::text = $3)
+                   ORDER BY sequence"#,
+            )
+            .bind(company_id)
+            .bind(period)
+            .bind(status),
+        )
+        .await?;
+        Ok(rows
+            .iter()
+            .map(|r| EFakturDocumentRow {
+                id: r.get("id"),
+                company_id: r.get("company_id"),
+                tax_transaction_id: r.get("tax_transaction_id"),
+                number: r.get("number"),
+                transaction_code: r.get("transaction_code"),
+                taxpayer_segment: r.get("taxpayer_segment"),
+                period: r.get("period"),
+                sequence: r.get("sequence"),
+                assignment_date: r.get("assignment_date"),
+                status: r.get("status"),
+            })
+            .collect())
+    }
+
+    /// The DJP export projection: every live document of the masa pajak joined to its tax
+    /// transaction's invoice reference, posting date, and output totals, sequence-ascending. The
+    /// composing host joins buyer identity and per-line detail from billing on top of this read —
+    /// tax never reads billing directly (zero cargo edges; the events already delivered the
+    /// numbers).
+    pub async fn list_export_rows(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        period: NaiveDate,
+    ) -> Result<Vec<EFakturExportRow>, sqlx::Error> {
+        let rows = backbone_orm::company_scope::fetch_all_rows_scoped(
+            pool,
+            sqlx::query(
+                r#"SELECT d.id, d.company_id, d.tax_transaction_id, d.number, d.transaction_code,
+                          d.taxpayer_segment, d.period, d.sequence, d.assignment_date,
+                          d.status::text AS status,
+                          t.invoice_ref, t.posting_date, t.taxable_base, t.output_total
+                   FROM tax.efaktur_documents d
+                   JOIN tax.tax_transactions t ON t.id = d.tax_transaction_id
+                   WHERE d.company_id = $1 AND d.period = $2
+                     AND (d.metadata->>'deleted_at') IS NULL
+                   ORDER BY d.sequence"#,
+            )
+            .bind(company_id)
+            .bind(period),
+        )
+        .await?;
+        Ok(rows
+            .iter()
+            .map(|r| EFakturExportRow {
+                document: EFakturDocumentRow {
+                    id: r.get("id"),
+                    company_id: r.get("company_id"),
+                    tax_transaction_id: r.get("tax_transaction_id"),
+                    number: r.get("number"),
+                    transaction_code: r.get("transaction_code"),
+                    taxpayer_segment: r.get("taxpayer_segment"),
+                    period: r.get("period"),
+                    sequence: r.get("sequence"),
+                    assignment_date: r.get("assignment_date"),
+                    status: r.get("status"),
+                },
+                invoice_ref: r.get("invoice_ref"),
+                posting_date: r.get("posting_date"),
+                taxable_base: r.get("taxable_base"),
+                output_total: r.get("output_total"),
+            })
+            .collect())
     }
 }
 

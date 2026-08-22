@@ -142,6 +142,29 @@ impl TaxTransactionRepository {
         .await?;
         Ok(id.flatten())
     }
+
+    /// Find the live tax transaction id for a given invoice, if one exists. The idempotency probe
+    /// the recording path runs BEFORE the filing-period guard: a re-delivery of an event whose
+    /// transaction landed before the period closed must stay a committed no-op, never a refusal.
+    pub async fn find_id_by_invoice(
+        &self,
+        conn: &mut PgConnection,
+        company_id: Uuid,
+        invoice_ref: Uuid,
+        invoice_kind: &str,
+    ) -> Result<Option<Uuid>, sqlx::Error> {
+        let id: Option<Uuid> = sqlx::query_scalar(
+            r#"SELECT id FROM tax.tax_transactions
+               WHERE company_id = $1 AND invoice_ref = $2 AND invoice_kind = $3::invoice_kind
+                 AND (metadata->>'deleted_at') IS NULL"#,
+        )
+        .bind(company_id)
+        .bind(invoice_ref)
+        .bind(invoice_kind)
+        .fetch_optional(conn)
+        .await?;
+        Ok(id)
+    }
 }
 
 backbone_core::impl_crud_repository!(TaxTransactionRepository, TaxTransaction, soft_delete);
