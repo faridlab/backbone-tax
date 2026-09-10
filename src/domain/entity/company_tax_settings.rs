@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::AuditMetadata;
-use super::TaxExigibility;
 use super::TaxRoundingMethod;
+use super::TaxExigibility;
+use super::AuditMetadata;
 
 /// Strongly-typed ID for CompanyTaxSettings
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,15 +13,9 @@ use super::TaxRoundingMethod;
 pub struct CompanyTaxSettingsId(pub Uuid);
 
 impl CompanyTaxSettingsId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for CompanyTaxSettingsId {
@@ -38,34 +32,25 @@ impl std::str::FromStr for CompanyTaxSettingsId {
 }
 
 impl From<Uuid> for CompanyTaxSettingsId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<CompanyTaxSettingsId> for Uuid {
-    fn from(id: CompanyTaxSettingsId) -> Self {
-        id.0
-    }
+    fn from(id: CompanyTaxSettingsId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for CompanyTaxSettingsId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for CompanyTaxSettingsId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CompanyTaxSettings {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub rounding_method: TaxRoundingMethod,
     pub default_exigibility: TaxExigibility,
     pub cash_basis_transition_account_id: Option<Uuid>,
@@ -81,14 +66,9 @@ impl CompanyTaxSettings {
     }
 
     /// Create a new CompanyTaxSettings with required fields
-    pub fn new(
-        company_id: Uuid,
-        rounding_method: TaxRoundingMethod,
-        default_exigibility: TaxExigibility,
-    ) -> Self {
+    pub fn new(rounding_method: TaxRoundingMethod, default_exigibility: TaxExigibility) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id,
             rounding_method,
             default_exigibility,
             cash_basis_transition_account_id: None,
@@ -146,6 +126,7 @@ impl CompanyTaxSettings {
         self.metadata.deleted_by.as_ref()
     }
 
+
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -164,25 +145,14 @@ impl CompanyTaxSettings {
     pub fn apply_patch(&mut self, fields: std::collections::HashMap<String, serde_json::Value>) {
         for (key, value) in fields {
             match key.as_str() {
-                "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.company_id = v;
-                    }
-                }
                 "rounding_method" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.rounding_method = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.rounding_method = v; }
                 }
                 "default_exigibility" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.default_exigibility = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.default_exigibility = v; }
                 }
                 "cash_basis_transition_account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.cash_basis_transition_account_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.cash_basis_transition_account_id = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -238,26 +208,13 @@ impl backbone_orm::EntityRepoMeta for CompanyTaxSettings {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
-        m.insert("company_id".to_string(), "uuid".to_string());
-        m.insert(
-            "cash_basis_transition_account_id".to_string(),
-            "uuid".to_string(),
-        );
-        m.insert(
-            "rounding_method".to_string(),
-            "tax_rounding_method".to_string(),
-        );
-        m.insert(
-            "default_exigibility".to_string(),
-            "tax_exigibility".to_string(),
-        );
+        m.insert("cash_basis_transition_account_id".to_string(), "uuid".to_string());
+        m.insert("rounding_method".to_string(), "tax_rounding_method".to_string());
+        m.insert("default_exigibility".to_string(), "tax_exigibility".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
         &[]
-    }
-    fn company_field() -> Option<&'static str> {
-        Some("company_id")
     }
 }
 
@@ -267,19 +224,12 @@ impl backbone_orm::EntityRepoMeta for CompanyTaxSettings {
 /// System fields (id, metadata, timestamps) are auto-initialized.
 #[derive(Debug, Clone, Default)]
 pub struct CompanyTaxSettingsBuilder {
-    company_id: Option<Uuid>,
     rounding_method: Option<TaxRoundingMethod>,
     default_exigibility: Option<TaxExigibility>,
     cash_basis_transition_account_id: Option<Uuid>,
 }
 
 impl CompanyTaxSettingsBuilder {
-    /// Set the company_id field (required)
-    pub fn company_id(mut self, value: Uuid) -> Self {
-        self.company_id = Some(value);
-        self
-    }
-
     /// Set the rounding_method field (default: `TaxRoundingMethod::default()`)
     pub fn rounding_method(mut self, value: TaxRoundingMethod) -> Self {
         self.rounding_method = Some(value);
@@ -302,13 +252,9 @@ impl CompanyTaxSettingsBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<CompanyTaxSettings, String> {
-        let company_id = self
-            .company_id
-            .ok_or_else(|| "company_id is required".to_string())?;
 
         Ok(CompanyTaxSettings {
             id: Uuid::new_v4(),
-            company_id,
             rounding_method: self.rounding_method.unwrap_or_default(),
             default_exigibility: self.default_exigibility.unwrap_or_default(),
             cash_basis_transition_account_id: self.cash_basis_transition_account_id,

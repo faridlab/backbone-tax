@@ -5,11 +5,11 @@
 //! These DTOs are the ONLY types other modules should use.
 //! They are decoupled from internal domain entities.
 
-use crate::domain::entity::*;
-use chrono::{DateTime, NaiveDate, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc, NaiveDate};
+use rust_decimal::Decimal;
+use crate::domain::entity::*;
 
 // ============================================================================
 // COMPANYTAXSETTINGS TYPES
@@ -49,7 +49,6 @@ impl From<CompanyTaxSettingsId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompanyTaxSettingsDto {
     pub id: CompanyTaxSettingsId,
-    pub company_id: Uuid,
     pub rounding_method: TaxRoundingMethod,
     pub default_exigibility: TaxExigibility,
     pub cash_basis_transition_account_id: Option<Uuid>,
@@ -106,7 +105,6 @@ impl From<TaxCategoryId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxCategoryDto {
     pub id: TaxCategoryId,
-    pub company_id: Uuid,
     pub code: String,
     pub name: String,
     pub tax_kind: TaxKind,
@@ -166,7 +164,6 @@ impl From<TaxTransactionId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxTransactionDto {
     pub id: TaxTransactionId,
-    pub company_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: InvoiceKind,
     pub posting_date: NaiveDate,
@@ -232,7 +229,6 @@ impl From<EFakturDocumentId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EFakturDocumentDto {
     pub id: EFakturDocumentId,
-    pub company_id: Uuid,
     pub tax_transaction_id: Uuid,
     pub number: String,
     pub transaction_code: String,
@@ -296,7 +292,6 @@ impl From<TaxFilingPeriodId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxFilingPeriodDto {
     pub id: TaxFilingPeriodId,
-    pub company_id: Uuid,
     pub period: NaiveDate,
     pub npwp: Option<String>,
     pub taxpayer_segment: Option<String>,
@@ -359,7 +354,6 @@ impl From<TaxTagId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxTagDto {
     pub id: TaxTagId,
-    pub company_id: Uuid,
     pub code: String,
     pub name: String,
     pub metadata: serde_json::Value,
@@ -416,7 +410,6 @@ impl From<TaxRepartitionLineId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxRepartitionLineDto {
     pub id: TaxRepartitionLineId,
-    pub company_id: Uuid,
     pub template_id: Uuid,
     pub document_type: RepartitionDocumentType,
     pub repartition_type: RepartitionType,
@@ -478,7 +471,6 @@ impl From<TaxTemplateId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxTemplateDto {
     pub id: TaxTemplateId,
-    pub company_id: Uuid,
     pub code: String,
     pub name: String,
     pub template_type: TemplateType,
@@ -542,7 +534,6 @@ impl From<TaxTemplateRowId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxTemplateRowDto {
     pub id: TaxTemplateRowId,
-    pub company_id: Uuid,
     pub template_id: Uuid,
     pub charge_type: ChargeType,
     pub rate: Decimal,
@@ -605,7 +596,6 @@ impl From<WithholdingCategoryId> for Uuid {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WithholdingCategoryDto {
     pub id: WithholdingCategoryId,
-    pub company_id: Uuid,
     pub code: String,
     pub name: String,
     pub rate: Decimal,

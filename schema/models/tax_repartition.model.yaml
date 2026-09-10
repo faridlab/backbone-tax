@@ -22,15 +22,10 @@ models:
         attributes: ["@id", "@default(uuid)"]
         description: "Unique tag identifier"
 
-      company_id:
-        type: uuid
-        attributes: ["@required", "@exclude_from_foreign_key_check"]
-        description: "Owning tenant # logical FK to organization.Company.id (no hard SQL FK — RLS is the fence, ADR-0010 B1)"
-
       code:
         type: string
         attributes: ["@required", "@max(40)"]
-        description: "Short unique code (report key)"
+        description: "Short code, unique within the owning org unit (report key)"
 
       name:
         type: string
@@ -43,9 +38,9 @@ models:
         description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
 
     indexes:
-      - type: unique
-        fields: [company_id, code]
-        where: "deleted_at IS NULL"
+      # No tenancy indexes (ADR-0029): the module ships no scoping column. The
+      # per-unit tag-code unique is POSTURE and is owned by the composing
+      # service's tenancy decorator.
 
   - name: TaxRepartitionLine
     collection: tax_repartition_lines
@@ -56,11 +51,6 @@ models:
         type: uuid
         attributes: ["@id", "@default(uuid)"]
         description: "Unique repartition line identifier"
-
-      company_id:
-        type: uuid
-        attributes: ["@required", "@exclude_from_foreign_key_check"]
-        description: "Owning tenant (denormalized from the template for RLS) # logical FK to organization.Company.id (no hard SQL FK — RLS is the fence, ADR-0010 B1)"
 
       template_id:
         type: uuid

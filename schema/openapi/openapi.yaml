@@ -3699,15 +3699,11 @@ components:
       type: object
       required:
         - id
-        - company_id
         - rounding_method
         - default_exigibility
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         rounding_method:
@@ -3737,14 +3733,10 @@ components:
     CreateCompanyTaxSettingsRequest:
       type: object
       required:
-        - company_id
         - rounding_method
         - default_exigibility
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         rounding_method:
           type: string
         default_exigibility:
@@ -3759,14 +3751,10 @@ components:
     UpdateCompanyTaxSettingsRequest:
       type: object
       required:
-        - company_id
         - rounding_method
         - default_exigibility
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         rounding_method:
           type: string
         default_exigibility:
@@ -3781,9 +3769,6 @@ components:
     PatchCompanyTaxSettingsRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         rounding_method:
           type: string
         default_exigibility:
@@ -3809,7 +3794,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - code
         - name
         - tax_kind
@@ -3817,9 +3801,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         code:
@@ -3851,16 +3832,12 @@ components:
     CreateTaxCategoryRequest:
       type: object
       required:
-        - company_id
         - code
         - name
         - tax_kind
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -3877,16 +3854,12 @@ components:
     UpdateTaxCategoryRequest:
       type: object
       required:
-        - company_id
         - code
         - name
         - tax_kind
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -3903,9 +3876,6 @@ components:
     PatchTaxCategoryRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -3933,7 +3903,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - invoice_ref
         - invoice_kind
         - posting_date
@@ -3947,9 +3916,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         invoice_ref:
@@ -3998,7 +3964,6 @@ components:
     CreateTaxTransactionRequest:
       type: object
       required:
-        - company_id
         - invoice_ref
         - invoice_kind
         - posting_date
@@ -4011,9 +3976,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         invoice_ref:
           type: string
           format: uuid
@@ -4047,7 +4009,6 @@ components:
     UpdateTaxTransactionRequest:
       type: object
       required:
-        - company_id
         - invoice_ref
         - invoice_kind
         - posting_date
@@ -4060,9 +4021,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         invoice_ref:
           type: string
           format: uuid
@@ -4096,9 +4054,6 @@ components:
     PatchTaxTransactionRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         invoice_ref:
           type: string
           format: uuid
@@ -4143,7 +4098,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - tax_transaction_id
         - number
         - transaction_code
@@ -4155,9 +4109,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         tax_transaction_id:
@@ -4206,7 +4157,6 @@ components:
     CreateEFakturDocumentRequest:
       type: object
       required:
-        - company_id
         - tax_transaction_id
         - number
         - transaction_code
@@ -4217,9 +4167,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         tax_transaction_id:
           type: string
           format: uuid
@@ -4253,7 +4200,6 @@ components:
     UpdateEFakturDocumentRequest:
       type: object
       required:
-        - company_id
         - tax_transaction_id
         - number
         - transaction_code
@@ -4264,9 +4210,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         tax_transaction_id:
           type: string
           format: uuid
@@ -4300,9 +4243,6 @@ components:
     PatchEFakturDocumentRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         tax_transaction_id:
           type: string
           format: uuid
@@ -4347,7 +4287,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - period
         - next_sequence
         - output_total
@@ -4357,9 +4296,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         period:
@@ -4403,7 +4339,6 @@ components:
     CreateTaxFilingPeriodRequest:
       type: object
       required:
-        - company_id
         - period
         - next_sequence
         - output_total
@@ -4412,9 +4347,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         period:
           type: string
           format: date
@@ -4443,7 +4375,6 @@ components:
     UpdateTaxFilingPeriodRequest:
       type: object
       required:
-        - company_id
         - period
         - next_sequence
         - output_total
@@ -4452,9 +4383,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         period:
           type: string
           format: date
@@ -4483,9 +4411,6 @@ components:
     PatchTaxFilingPeriodRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         period:
           type: string
           format: date
@@ -4525,15 +4450,11 @@ components:
       type: object
       required:
         - id
-        - company_id
         - code
         - name
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         code:
@@ -4561,14 +4482,10 @@ components:
     CreateTaxTagRequest:
       type: object
       required:
-        - company_id
         - code
         - name
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -4581,14 +4498,10 @@ components:
     UpdateTaxTagRequest:
       type: object
       required:
-        - company_id
         - code
         - name
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -4601,9 +4514,6 @@ components:
     PatchTaxTagRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -4627,7 +4537,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - template_id
         - document_type
         - repartition_type
@@ -4637,9 +4546,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         template_id:
@@ -4683,7 +4589,6 @@ components:
     CreateTaxRepartitionLineRequest:
       type: object
       required:
-        - company_id
         - template_id
         - document_type
         - repartition_type
@@ -4692,9 +4597,6 @@ components:
         - sort_order
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         template_id:
           type: string
           format: uuid
@@ -4723,7 +4625,6 @@ components:
     UpdateTaxRepartitionLineRequest:
       type: object
       required:
-        - company_id
         - template_id
         - document_type
         - repartition_type
@@ -4732,9 +4633,6 @@ components:
         - sort_order
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         template_id:
           type: string
           format: uuid
@@ -4763,9 +4661,6 @@ components:
     PatchTaxRepartitionLineRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         template_id:
           type: string
           format: uuid
@@ -4805,7 +4700,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - code
         - name
         - template_type
@@ -4815,9 +4709,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         code:
@@ -4861,7 +4752,6 @@ components:
     CreateTaxTemplateRequest:
       type: object
       required:
-        - company_id
         - code
         - name
         - template_type
@@ -4870,9 +4760,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -4901,7 +4788,6 @@ components:
     UpdateTaxTemplateRequest:
       type: object
       required:
-        - company_id
         - code
         - name
         - template_type
@@ -4910,9 +4796,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -4941,9 +4824,6 @@ components:
     PatchTaxTemplateRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -4983,7 +4863,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - template_id
         - charge_type
         - rate
@@ -4993,9 +4872,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         template_id:
@@ -5044,7 +4920,6 @@ components:
     CreateTaxTemplateRowRequest:
       type: object
       required:
-        - company_id
         - template_id
         - charge_type
         - rate
@@ -5053,9 +4928,6 @@ components:
         - sort_order
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         template_id:
           type: string
           format: uuid
@@ -5089,7 +4961,6 @@ components:
     UpdateTaxTemplateRowRequest:
       type: object
       required:
-        - company_id
         - template_id
         - charge_type
         - rate
@@ -5098,9 +4969,6 @@ components:
         - sort_order
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         template_id:
           type: string
           format: uuid
@@ -5134,9 +5002,6 @@ components:
     PatchTaxTemplateRowRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         template_id:
           type: string
           format: uuid
@@ -5181,7 +5046,6 @@ components:
       type: object
       required:
         - id
-        - company_id
         - code
         - name
         - rate
@@ -5191,9 +5055,6 @@ components:
         - metadata
       properties:
         id:
-          type: string
-          format: uuid
-        company_id:
           type: string
           format: uuid
         code:
@@ -5238,7 +5099,6 @@ components:
     CreateWithholdingCategoryRequest:
       type: object
       required:
-        - company_id
         - code
         - name
         - rate
@@ -5247,9 +5107,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -5279,7 +5136,6 @@ components:
     UpdateWithholdingCategoryRequest:
       type: object
       required:
-        - company_id
         - code
         - name
         - rate
@@ -5288,9 +5144,6 @@ components:
         - status
         - metadata
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40
@@ -5320,9 +5173,6 @@ components:
     PatchWithholdingCategoryRequest:
       type: object
       properties:
-        company_id:
-          type: string
-          format: uuid
         code:
           type: string
           maxLength: 40

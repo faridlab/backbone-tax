@@ -7,7 +7,6 @@
 //! Thin newtype over `backbone_orm::GenericCrudRepository<TaxRepartitionLine, backbone_orm::SoftDelete>`.
 //! All standard CRUD methods are available via `Deref`.
 
-use backbone_orm::company_scope;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -20,7 +19,6 @@ pub const TABLE_NAME: &str = "tax.tax_repartition_lines";
 /// The exact row a validated repartition-line insert writes.
 pub struct NewTaxRepartitionLineRecord<'a> {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub template_id: Uuid,
     pub document_type: &'a str,
     pub repartition_type: &'a str,
@@ -64,14 +62,17 @@ impl TaxRepartitionLineRepository {
     }
 }
 
-/// Repartition SQL. Lives here (not in the service) per the module's 4-layer rule.
+/// Repartition SQL. Lives here (not in the service) per the module's 4-layer rule. Every
+/// statement runs on a caller-provided executor — under a decorated host the transaction was
+/// bound to the ambient request org scope, so the composing service's row-level fences govern
+/// these reads and writes; unfenced deployments see the whole table.
 impl TaxRepartitionLineRepository {
     fn insert_sql() -> &'static str {
         r#"INSERT INTO tax.tax_repartition_lines
-               (id, company_id, template_id, document_type, repartition_type,
+               (id, template_id, document_type, repartition_type,
                 factor_percent, account_id, tag_ids, sort_order, description)
-           VALUES ($1, $2, $3, $4::repartition_document_type, $5::repartition_type,
-                   $6, $7, $8, $9, $10)"#
+           VALUES ($1, $2, $3::repartition_document_type, $4::repartition_type,
+                   $5, $6, $7, $8, $9)"#
     }
 
     fn bind_insert<'q>(
@@ -79,7 +80,6 @@ impl TaxRepartitionLineRepository {
         r: &'q NewTaxRepartitionLineRecord<'_>,
     ) -> sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments> {
         q.bind(r.id)
-            .bind(r.company_id)
             .bind(r.template_id)
             .bind(r.document_type)
             .bind(r.repartition_type)
@@ -90,10 +90,9 @@ impl TaxRepartitionLineRepository {
             .bind(r.description)
     }
 
-    /// Insert one repartition line on an already-bound transaction connection —
-    /// used by `create_template`'s auto-seed, which must land the template and
-    /// both seed families atomically so the deferred family-validation trigger
-    /// only ever sees a complete state.
+    /// Insert one repartition line on any executor — used everywhere (template auto-seed, family
+    /// replacement, standalone adds) so each verb's inserts stay inside its own transaction and
+    /// the deferred family-validation trigger only ever sees complete states.
     pub async fn insert_on(
         conn: &mut sqlx::PgConnection,
         r: &NewTaxRepartitionLineRecord<'_>,
@@ -102,18 +101,6 @@ impl TaxRepartitionLineRepository {
             .execute(&mut *conn)
             .await?;
         Ok(())
-    }
-
-    /// Insert one repartition line as a single company-scoped statement
-    /// (RLS fence): for the standalone `add_repartition_line` verb.
-    pub async fn insert_scoped(
-        &self,
-        pool: &PgPool,
-        r: &NewTaxRepartitionLineRecord<'_>,
-    ) -> Result<(), sqlx::Error> {
-        company_scope::execute_scoped(pool, Self::bind_insert(sqlx::query(Self::insert_sql()), r))
-            .await
-            .map(|_| ())
     }
 
     /// Soft-delete every live line of one (template, document_type) family on
@@ -162,26 +149,22 @@ impl TaxRepartitionLineRepository {
         Ok(n)
     }
 
-    /// All live repartition lines of a template (both families), ordered for
-    /// display. Company-scoped (RLS fence).
+    /// All live repartition lines of a template (both families), ordered for display.
     pub async fn find_for_template(
         &self,
-        pool: &PgPool,
+        conn: &mut sqlx::PgConnection,
         template_id: Uuid,
     ) -> Result<Vec<RepartitionLineRecord>, sqlx::Error> {
-        let rows: Vec<(Uuid, String, String, Decimal, Option<Uuid>, i32)> =
-            company_scope::fetch_all_scoped(
-                pool,
-                sqlx::query_as(
-                    r#"SELECT id, document_type::text, repartition_type::text, factor_percent,
-                              account_id, sort_order
-                       FROM tax.tax_repartition_lines
-                       WHERE template_id = $1 AND (metadata->>'deleted_at') IS NULL
-                       ORDER BY document_type::text, repartition_type::text, sort_order"#,
-                )
-                .bind(template_id),
-            )
-            .await?;
+        let rows: Vec<(Uuid, String, String, Decimal, Option<Uuid>, i32)> = sqlx::query_as(
+            r#"SELECT id, document_type::text, repartition_type::text, factor_percent,
+                      account_id, sort_order
+               FROM tax.tax_repartition_lines
+               WHERE template_id = $1 AND (metadata->>'deleted_at') IS NULL
+               ORDER BY document_type::text, repartition_type::text, sort_order"#,
+        )
+        .bind(template_id)
+        .fetch_all(conn)
+        .await?;
         Ok(rows
             .into_iter()
             .map(

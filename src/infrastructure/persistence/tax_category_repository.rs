@@ -41,57 +41,65 @@ impl TaxCategoryRepository {
 /// The exact row a validated tax-category insert writes.
 pub struct NewTaxCategoryRow<'a> {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub code: &'a str,
     pub name: &'a str,
     pub tax_kind: &'a str,
 }
 
-/// Tax-category SQL. Lives here (not in the service) per the module's 4-layer rule.
+/// Tax-category SQL. Lives here (not in the service) per the module's 4-layer rule. Every
+/// statement runs on a caller-provided executor — under a decorated host the transaction was
+/// bound to the ambient request org scope, so the composing service's row-level fences govern
+/// these reads and writes; unfenced deployments see the whole table.
 impl TaxCategoryRepository {
-    /// Existence probe filtered by the caller's company. Runs through the scoped-execute helper so
-    /// the RLS fence sees `app.company_id`; the explicit `company_id` bind is defense-in-depth on
-    /// top. `None` here means "no matching row"; the service treats `None` as `CategoryNotFound`.
-    pub async fn find_by_id_in_company(
+    /// Existence probe by id. `None` = no live row (the service treats it as `CategoryNotFound`).
+    pub async fn find_by_id_on(
         &self,
-        pool: &PgPool,
+        conn: &mut sqlx::PgConnection,
         id: Uuid,
-        company_id: Uuid,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let found = backbone_orm::company_scope::fetch_optional_scalar_scoped(
-            pool,
-            sqlx::query_scalar(
-                r#"SELECT id FROM tax.tax_categories
-                   WHERE id = $1 AND company_id = $2 AND (metadata->>'deleted_at') IS NULL"#,
-            )
-            .bind(id)
-            .bind(company_id),
+        let found = sqlx::query_scalar(
+            r#"SELECT id FROM tax.tax_categories
+               WHERE id = $1 AND (metadata->>'deleted_at') IS NULL"#,
         )
+        .bind(id)
+        .fetch_optional(conn)
         .await?;
         Ok(found)
     }
 
-    /// Insert a new active tax category, scoped so the RLS WITH CHECK sees `app.company_id`. A raw
-    /// `.execute(pool)` ignores the request company task-local and the fence REJECTS the insert
-    /// (surfaces as a 500 to the caller); the scoped helper binds the company for this statement.
-    /// The `$5::tax_kind` cast mirrors the original hand-written SQL exactly.
-    pub async fn insert(
+    /// Existence probe by code — the friendly duplicate-code pre-check. Under a decorated host
+    /// the composing service's per-unit unique is the raw-SQL backstop; on a bare deployment
+    /// this probe alone guards the insert.
+    pub async fn find_by_code_on(
         &self,
-        pool: &PgPool,
-        r: &NewTaxCategoryRow<'_>,
-    ) -> Result<(), sqlx::Error> {
-        backbone_orm::company_scope::execute_scoped(
-            pool,
-            sqlx::query(
-                r#"INSERT INTO tax.tax_categories (id, company_id, code, name, tax_kind, status)
-                   VALUES ($1,$2,$3,$4,$5::tax_kind,'active'::tax_status)"#,
-            )
-            .bind(r.id)
-            .bind(r.company_id)
-            .bind(r.code)
-            .bind(r.name)
-            .bind(r.tax_kind),
+        conn: &mut sqlx::PgConnection,
+        code: &str,
+    ) -> Result<Option<Uuid>, sqlx::Error> {
+        let found = sqlx::query_scalar(
+            r#"SELECT id FROM tax.tax_categories
+               WHERE code = $1 AND (metadata->>'deleted_at') IS NULL"#,
         )
+        .bind(code)
+        .fetch_optional(conn)
+        .await?;
+        Ok(found)
+    }
+
+    /// Insert a new active tax category on any executor — a bound transaction connection or the
+    /// pool directly. The `$4::tax_kind` cast mirrors the original hand-written SQL exactly.
+    pub async fn insert_on<'e, E>(executor: E, r: &NewTaxCategoryRow<'_>) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+    {
+        sqlx::query(
+            r#"INSERT INTO tax.tax_categories (id, code, name, tax_kind, status)
+               VALUES ($1,$2,$3,$4::tax_kind,'active'::tax_status)"#,
+        )
+        .bind(r.id)
+        .bind(r.code)
+        .bind(r.name)
+        .bind(r.tax_kind)
+        .execute(executor)
         .await?;
         Ok(())
     }

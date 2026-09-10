@@ -1,11 +1,11 @@
-use chrono::{DateTime, NaiveDate, Utc};
-use rust_decimal::Decimal;
+use chrono::{DateTime, Utc, NaiveDate};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use rust_decimal::Decimal;
 
-use super::AuditMetadata;
 use super::TaxFilingStatus;
+use super::AuditMetadata;
 
 /// Strongly-typed ID for TaxFilingPeriod
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,15 +13,9 @@ use super::TaxFilingStatus;
 pub struct TaxFilingPeriodId(pub Uuid);
 
 impl TaxFilingPeriodId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for TaxFilingPeriodId {
@@ -38,34 +32,25 @@ impl std::str::FromStr for TaxFilingPeriodId {
 }
 
 impl From<Uuid> for TaxFilingPeriodId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<TaxFilingPeriodId> for Uuid {
-    fn from(id: TaxFilingPeriodId) -> Self {
-        id.0
-    }
+    fn from(id: TaxFilingPeriodId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for TaxFilingPeriodId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for TaxFilingPeriodId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TaxFilingPeriod {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub period: NaiveDate,
     pub npwp: Option<String>,
     pub taxpayer_segment: Option<String>,
@@ -86,18 +71,9 @@ impl TaxFilingPeriod {
     }
 
     /// Create a new TaxFilingPeriod with required fields
-    pub fn new(
-        company_id: Uuid,
-        period: NaiveDate,
-        next_sequence: i32,
-        output_total: Decimal,
-        input_total: Decimal,
-        withholding_total: Decimal,
-        status: TaxFilingStatus,
-    ) -> Self {
+    pub fn new(period: NaiveDate, next_sequence: i32, output_total: Decimal, input_total: Decimal, withholding_total: Decimal, status: TaxFilingStatus) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id,
             period,
             npwp: None,
             taxpayer_segment: None,
@@ -165,6 +141,7 @@ impl TaxFilingPeriod {
         &self.status
     }
 
+
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -189,50 +166,29 @@ impl TaxFilingPeriod {
     pub fn apply_patch(&mut self, fields: std::collections::HashMap<String, serde_json::Value>) {
         for (key, value) in fields {
             match key.as_str() {
-                "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.company_id = v;
-                    }
-                }
                 "period" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.period = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.period = v; }
                 }
                 "npwp" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.npwp = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.npwp = v; }
                 }
                 "taxpayer_segment" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.taxpayer_segment = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.taxpayer_segment = v; }
                 }
                 "next_sequence" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.next_sequence = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.next_sequence = v; }
                 }
                 "output_total" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.output_total = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.output_total = v; }
                 }
                 "input_total" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.input_total = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.input_total = v; }
                 }
                 "withholding_total" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.withholding_total = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.withholding_total = v; }
                 }
                 "status" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.status = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.status = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -288,15 +244,11 @@ impl backbone_orm::EntityRepoMeta for TaxFilingPeriod {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
-        m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "tax_filing_status".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
         &[]
-    }
-    fn company_field() -> Option<&'static str> {
-        Some("company_id")
     }
 }
 
@@ -306,7 +258,6 @@ impl backbone_orm::EntityRepoMeta for TaxFilingPeriod {
 /// System fields (id, metadata, timestamps) are auto-initialized.
 #[derive(Debug, Clone, Default)]
 pub struct TaxFilingPeriodBuilder {
-    company_id: Option<Uuid>,
     period: Option<NaiveDate>,
     npwp: Option<String>,
     taxpayer_segment: Option<String>,
@@ -318,12 +269,6 @@ pub struct TaxFilingPeriodBuilder {
 }
 
 impl TaxFilingPeriodBuilder {
-    /// Set the company_id field (required)
-    pub fn company_id(mut self, value: Uuid) -> Self {
-        self.company_id = Some(value);
-        self
-    }
-
     /// Set the period field (required)
     pub fn period(mut self, value: NaiveDate) -> Self {
         self.period = Some(value);
@@ -376,16 +321,10 @@ impl TaxFilingPeriodBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<TaxFilingPeriod, String> {
-        let company_id = self
-            .company_id
-            .ok_or_else(|| "company_id is required".to_string())?;
-        let period = self
-            .period
-            .ok_or_else(|| "period is required".to_string())?;
+        let period = self.period.ok_or_else(|| "period is required".to_string())?;
 
         Ok(TaxFilingPeriod {
             id: Uuid::new_v4(),
-            company_id,
             period,
             npwp: self.npwp,
             taxpayer_segment: self.taxpayer_segment,

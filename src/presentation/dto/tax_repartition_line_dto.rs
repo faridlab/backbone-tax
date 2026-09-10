@@ -5,10 +5,10 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
-use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc};
+use rust_decimal::Decimal;
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -17,10 +17,10 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
+use crate::domain::entity::TaxRepartitionLine;
 use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::RepartitionDocumentType;
 use crate::domain::entity::RepartitionType;
-use crate::domain::entity::TaxRepartitionLine;
 
 // =============================================================================
 // Create DTO
@@ -35,16 +35,7 @@ use crate::domain::entity::TaxRepartitionLine;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateTaxRepartitionLineDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "template_id")]
     pub template_id: Uuid,
     #[serde(alias = "document_type")]
@@ -78,16 +69,7 @@ pub struct CreateTaxRepartitionLineDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateTaxRepartitionLineDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(alias = "template_id")]
     pub template_id: Uuid,
     #[serde(alias = "document_type")]
@@ -121,16 +103,7 @@ pub struct UpdateTaxRepartitionLineDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchTaxRepartitionLineDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
-    pub company_id: Option<Uuid>,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     #[serde(skip_serializing_if = "Option::is_none", alias = "template_id")]
     pub template_id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none", alias = "document_type")]
@@ -154,15 +127,7 @@ pub struct PatchTaxRepartitionLineDto {
 impl PatchTaxRepartitionLineDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some()
-            || self.template_id.is_some()
-            || self.document_type.is_some()
-            || self.repartition_type.is_some()
-            || self.factor_percent.is_some()
-            || self.account_id.is_some()
-            || self.tag_ids.is_some()
-            || self.sort_order.is_some()
-            || self.description.is_some()
+        self.template_id.is_some() || self.document_type.is_some() || self.repartition_type.is_some() || self.factor_percent.is_some() || self.account_id.is_some() || self.tag_ids.is_some() || self.sort_order.is_some() || self.description.is_some()
     }
 }
 
@@ -178,20 +143,9 @@ impl PatchTaxRepartitionLineDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct TaxRepartitionLineResponseDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    pub company_id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub template_id: Uuid,
     pub document_type: RepartitionDocumentType,
     pub repartition_type: RepartitionType,
@@ -234,12 +188,7 @@ pub struct TaxRepartitionLineListResponseDto {
 
 impl TaxRepartitionLineListResponseDto {
     /// Create a new list response from items and pagination info
-    pub fn new(
-        items: Vec<TaxRepartitionLineResponseDto>,
-        total: u64,
-        page: u32,
-        per_page: u32,
-    ) -> Self {
+    pub fn new(items: Vec<TaxRepartitionLineResponseDto>, total: u64, page: u32, per_page: u32) -> Self {
         let total_pages = if per_page > 0 {
             ((total as f64) / (per_page as f64)).ceil() as u32
         } else {
@@ -263,9 +212,9 @@ impl TaxRepartitionLineListResponseDto {
 #[serde(rename_all = "camelCase")]
 pub struct TaxRepartitionLineSummaryDto {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub template_id: Uuid,
     pub document_type: RepartitionDocumentType,
+    pub repartition_type: RepartitionType,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -277,7 +226,6 @@ impl From<TaxRepartitionLine> for TaxRepartitionLineResponseDto {
     fn from(entity: TaxRepartitionLine) -> Self {
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             template_id: entity.template_id,
             document_type: entity.document_type,
             repartition_type: entity.repartition_type,
@@ -296,9 +244,9 @@ impl From<TaxRepartitionLine> for TaxRepartitionLineSummaryDto {
         let created_at = backbone_core::PersistentEntity::created_at(&entity);
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             template_id: entity.template_id,
             document_type: entity.document_type,
+            repartition_type: entity.repartition_type,
             created_at,
         }
     }
@@ -308,7 +256,6 @@ impl From<CreateTaxRepartitionLineDto> for TaxRepartitionLine {
     fn from(dto: CreateTaxRepartitionLineDto) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id: dto.company_id,
             template_id: dto.template_id,
             document_type: dto.document_type,
             repartition_type: dto.repartition_type,
@@ -326,7 +273,6 @@ impl From<&TaxRepartitionLine> for TaxRepartitionLineResponseDto {
     fn from(entity: &TaxRepartitionLine) -> Self {
         Self {
             id: entity.id.clone(),
-            company_id: entity.company_id.clone(),
             template_id: entity.template_id.clone(),
             document_type: entity.document_type.clone(),
             repartition_type: entity.repartition_type.clone(),
@@ -347,11 +293,7 @@ impl backbone_core::FromCreateDto<CreateTaxRepartitionLineDto> for TaxRepartitio
 }
 
 impl backbone_core::ApplyUpdateDto<UpdateTaxRepartitionLineDto> for TaxRepartitionLine {
-    fn apply_update(
-        mut self,
-        dto: UpdateTaxRepartitionLineDto,
-    ) -> backbone_core::ServiceResult<Self> {
-        self.company_id = dto.company_id;
+    fn apply_update(mut self, dto: UpdateTaxRepartitionLineDto) -> backbone_core::ServiceResult<Self> {
         self.template_id = dto.template_id;
         self.document_type = dto.document_type;
         self.repartition_type = dto.repartition_type;

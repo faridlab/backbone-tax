@@ -5,9 +5,8 @@
 //! This trait defines the repository contract for the TaxTag aggregate.
 //! Implementation is in the infrastructure layer.
 
-use anyhow::Result;
 use async_trait::async_trait;
-use uuid::Uuid;
+use anyhow::Result;
 
 use crate::domain::entity::TaxTag;
 
@@ -44,7 +43,6 @@ pub struct TaxTagPaginatedResult {
 /// Filter parameters for list queries
 #[derive(Debug, Clone, Default)]
 pub struct TaxTagFilter {
-    pub company_id: Option<Uuid>,
     pub code: Option<String>,
     pub name: Option<String>,
 }
@@ -52,7 +50,7 @@ pub struct TaxTagFilter {
 impl TaxTagFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some() || self.code.is_some() || self.name.is_some()
+        self.code.is_some() || self.name.is_some()
     }
 }
 
@@ -62,6 +60,7 @@ impl TaxTagFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait TaxTagRepository: Send + Sync {
+
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -89,11 +88,7 @@ pub trait TaxTagRepository: Send + Sync {
     async fn list(&self, params: TaxTagPaginationParams) -> Result<TaxTagPaginatedResult>;
 
     /// List tax_tag with pagination and filters
-    async fn list_with_filters(
-        &self,
-        params: TaxTagPaginationParams,
-        filters: TaxTagFilter,
-    ) -> Result<TaxTagPaginatedResult>;
+    async fn list_with_filters(&self, params: TaxTagPaginationParams, filters: TaxTagFilter) -> Result<TaxTagPaginatedResult>;
 
     /// Count all tax_tag entities
     async fn count(&self) -> Result<u64>;

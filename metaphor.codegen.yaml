@@ -59,6 +59,9 @@ user_owned:
   # Repair migration: converges databases where the pre-hardening enum guards
   # were suppressed by a sibling module's same-named enum in a shared database.
   - "migrations/20260820120000_repair_shared_db_enum_collision.*"
+  # Hand-authored migration: the tenancy strip — its ordering guard is
+  # hand-authored logic, not schema-derived emission.
+  - "migrations/20260910153000_strip_tenancy.*"
 
   # Hand-authored module documentation.
   - "docs/**"

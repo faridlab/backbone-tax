@@ -44,7 +44,6 @@ impl WithholdingCategoryRepository {
 /// The exact row a validated withholding-category insert writes.
 pub struct NewWithholdingCategoryRow<'a> {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub code: &'a str,
     pub name: &'a str,
     pub rate: Decimal,
@@ -54,58 +53,62 @@ pub struct NewWithholdingCategoryRow<'a> {
     pub effective_to: Option<NaiveDate>,
 }
 
-/// Withholding-category SQL. Lives here (not in the service) per the module's 4-layer rule.
+/// Withholding-category SQL. Lives here (not in the service) per the module's 4-layer rule. Every
+/// statement runs on a caller-provided executor — under a decorated host the transaction was
+/// bound to the ambient request org scope, so the composing service's row-level fences govern
+/// these reads and writes; unfenced deployments see the whole table.
 impl WithholdingCategoryRepository {
-    /// Probe for an overlapping effective window for `code` within this tenant (council 2026-07-03)
-    /// — so `resolve_withholding` always has exactly one applicable rate on any date. The DB-level
-    /// EXCLUDE (reshaped per-company by ADR-0010 B1) also enforces this; this probe gives the
-    /// service a tidy error message before the constraint fires. The `daterange && daterange`
-    /// predicate and the `'infinity'::date` COALESCE are preserved verbatim.
+    /// Probe for an overlapping effective window for `code` (council 2026-07-03) — so
+    /// `resolve_withholding` always has exactly one applicable rate on any date. The module-level
+    /// EXCLUDE constraint (`excl_withholding_no_overlap`, a domain invariant that survives the
+    /// tenancy strip tenant-free) also enforces this; this probe gives the service a tidy error
+    /// message before the constraint fires. The `daterange && daterange` predicate and the
+    /// `'infinity'::date` COALESCE are preserved verbatim.
     pub async fn find_overlap(
         &self,
-        pool: &PgPool,
-        company_id: Uuid,
+        conn: &mut sqlx::PgConnection,
         code: &str,
         effective_from: NaiveDate,
         effective_to: Option<NaiveDate>,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let overlap = backbone_orm::company_scope::fetch_optional_scalar_scoped(
-            pool,
-            sqlx::query_scalar(
-                r#"SELECT id FROM tax.withholding_categories
-                   WHERE company_id=$1 AND code=$2 AND (metadata->>'deleted_at') IS NULL
-                     AND daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]')
-                         && daterange($3, COALESCE($4, 'infinity'::date), '[]')
-                   LIMIT 1"#,
-            )
-            .bind(company_id)
-            .bind(code)
-            .bind(effective_from)
-            .bind(effective_to),
+        let overlap = sqlx::query_scalar(
+            r#"SELECT id FROM tax.withholding_categories
+               WHERE code=$1 AND (metadata->>'deleted_at') IS NULL
+                 AND daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]')
+                     && daterange($2, COALESCE($3, 'infinity'::date), '[]')
+               LIMIT 1"#,
         )
+        .bind(code)
+        .bind(effective_from)
+        .bind(effective_to)
+        .fetch_optional(conn)
         .await?;
         Ok(overlap)
     }
 
-    /// Insert a new active withholding category, scoped so the RLS WITH CHECK sees
-    /// `app.company_id`. A raw `.execute(pool)` ignores the request company task-local and the
-    /// fence REJECTS the insert (surfaces as a 500 to the caller); the scoped helper binds the
-    /// company for this statement.
-    pub async fn insert(
-        &self,
-        pool: &PgPool,
+    /// Insert a new active withholding category on any executor. The `'active'::tax_status`
+    /// literal mirrors the original hand-written SQL exactly.
+    pub async fn insert_on<'e, E>(
+        executor: E,
         r: &NewWithholdingCategoryRow<'_>,
-    ) -> Result<(), sqlx::Error> {
-        backbone_orm::company_scope::execute_scoped(
-            pool,
-            sqlx::query(
-                r#"INSERT INTO tax.withholding_categories
-                    (id, company_id, code, name, rate, threshold_amount, account_id, effective_from, effective_to, status)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'active'::tax_status)"#,
-            )
-            .bind(r.id).bind(r.company_id).bind(r.code).bind(r.name).bind(r.rate).bind(r.threshold_amount)
-            .bind(r.account_id).bind(r.effective_from).bind(r.effective_to),
+    ) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+    {
+        sqlx::query(
+            r#"INSERT INTO tax.withholding_categories
+                (id, code, name, rate, threshold_amount, account_id, effective_from, effective_to, status)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'active'::tax_status)"#,
         )
+        .bind(r.id)
+        .bind(r.code)
+        .bind(r.name)
+        .bind(r.rate)
+        .bind(r.threshold_amount)
+        .bind(r.account_id)
+        .bind(r.effective_from)
+        .bind(r.effective_to)
+        .execute(executor)
         .await?;
         Ok(())
     }

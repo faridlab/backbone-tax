@@ -5,19 +5,17 @@
 //! Returns an `EntityValidator<TaxRepartitionLine>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
-use crate::domain::entity::TaxRepartitionLine;
-use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
+use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
 use backbone_core::{NonNegative, OptionalNotBlank};
+use crate::domain::entity::TaxRepartitionLine;
 
 /// Validator type alias for TaxRepartitionLine entities.
 pub type TaxRepartitionLineValidator = EntityValidator<TaxRepartitionLine>;
 
 /// Build a validator for TaxRepartitionLine with all schema-defined field rules.
 pub fn tax_repartition_line_validator() -> TaxRepartitionLineValidator {
-    EntityValidator::new().rule(OptionalNotBlank::new(
-        "description",
-        |e: &TaxRepartitionLine| e.description.as_deref(),
-    ))
+    EntityValidator::new()
+        .rule(OptionalNotBlank::new("description", |e: &TaxRepartitionLine| e.description.as_deref()))
     // <<< CUSTOM RULES
     // END CUSTOM RULES
 }

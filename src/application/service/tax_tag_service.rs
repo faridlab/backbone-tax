@@ -7,9 +7,9 @@
 
 use backbone_core::GenericCrudService;
 
+use crate::presentation::dto::{CreateTaxTagDto, UpdateTaxTagDto};
 use crate::domain::entity::TaxTag;
 use crate::infrastructure::persistence::TaxTagRepository;
-use crate::presentation::dto::{CreateTaxTagDto, UpdateTaxTagDto};
 
 /// Application service for TaxTag entities.
 ///
@@ -25,8 +25,12 @@ use crate::presentation::dto::{CreateTaxTagDto, UpdateTaxTagDto};
 ///     // add domain-specific dependencies here
 /// }
 /// ```
-pub type TaxTagService =
-    GenericCrudService<TaxTag, CreateTaxTagDto, UpdateTaxTagDto, TaxTagRepository>;
+pub type TaxTagService = GenericCrudService<
+    TaxTag,
+    CreateTaxTagDto,
+    UpdateTaxTagDto,
+    TaxTagRepository,
+>;
 
 // <<< CUSTOM
 // END CUSTOM

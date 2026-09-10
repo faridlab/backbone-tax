@@ -5,11 +5,11 @@
 //! This trait defines the repository contract for the TaxRepartitionLine aggregate.
 //! Implementation is in the infrastructure layer.
 
-use anyhow::Result;
 use async_trait::async_trait;
+use anyhow::Result;
 use uuid::Uuid;
 
-use crate::domain::entity::{RepartitionDocumentType, RepartitionType, TaxRepartitionLine};
+use crate::domain::entity::{TaxRepartitionLine, RepartitionDocumentType, RepartitionType};
 
 /// Pagination parameters for list queries
 #[derive(Debug, Clone, Default)]
@@ -44,7 +44,6 @@ pub struct TaxRepartitionLinePaginatedResult {
 /// Filter parameters for list queries
 #[derive(Debug, Clone, Default)]
 pub struct TaxRepartitionLineFilter {
-    pub company_id: Option<Uuid>,
     pub template_id: Option<Uuid>,
     pub document_type: Option<RepartitionDocumentType>,
     pub repartition_type: Option<RepartitionType>,
@@ -55,12 +54,7 @@ pub struct TaxRepartitionLineFilter {
 impl TaxRepartitionLineFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some()
-            || self.template_id.is_some()
-            || self.document_type.is_some()
-            || self.repartition_type.is_some()
-            || self.account_id.is_some()
-            || self.description.is_some()
+        self.template_id.is_some() || self.document_type.is_some() || self.repartition_type.is_some() || self.account_id.is_some() || self.description.is_some()
     }
 }
 
@@ -70,6 +64,7 @@ impl TaxRepartitionLineFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait TaxRepartitionLineRepository: Send + Sync {
+
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -84,11 +79,7 @@ pub trait TaxRepartitionLineRepository: Send + Sync {
     async fn find_all(&self) -> Result<Vec<TaxRepartitionLine>>;
 
     /// Update tax_repartition_line by ID
-    async fn update(
-        &self,
-        id: &str,
-        entity: &TaxRepartitionLine,
-    ) -> Result<Option<TaxRepartitionLine>>;
+    async fn update(&self, id: &str, entity: &TaxRepartitionLine) -> Result<Option<TaxRepartitionLine>>;
 
     /// Delete tax_repartition_line by ID
     async fn delete(&self, id: &str) -> Result<bool>;
@@ -98,17 +89,10 @@ pub trait TaxRepartitionLineRepository: Send + Sync {
     // =========================================================================
 
     /// List tax_repartition_line with pagination
-    async fn list(
-        &self,
-        params: TaxRepartitionLinePaginationParams,
-    ) -> Result<TaxRepartitionLinePaginatedResult>;
+    async fn list(&self, params: TaxRepartitionLinePaginationParams) -> Result<TaxRepartitionLinePaginatedResult>;
 
     /// List tax_repartition_line with pagination and filters
-    async fn list_with_filters(
-        &self,
-        params: TaxRepartitionLinePaginationParams,
-        filters: TaxRepartitionLineFilter,
-    ) -> Result<TaxRepartitionLinePaginatedResult>;
+    async fn list_with_filters(&self, params: TaxRepartitionLinePaginationParams, filters: TaxRepartitionLineFilter) -> Result<TaxRepartitionLinePaginatedResult>;
 
     /// Count all tax_repartition_line entities
     async fn count(&self) -> Result<u64>;
@@ -130,10 +114,7 @@ pub trait TaxRepartitionLineRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<TaxRepartitionLine>>;
 
     /// List soft-deleted tax_repartition_line entities
-    async fn list_deleted(
-        &self,
-        params: TaxRepartitionLinePaginationParams,
-    ) -> Result<TaxRepartitionLinePaginatedResult>;
+    async fn list_deleted(&self, params: TaxRepartitionLinePaginationParams) -> Result<TaxRepartitionLinePaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;

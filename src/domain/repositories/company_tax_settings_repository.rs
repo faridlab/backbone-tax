@@ -5,8 +5,8 @@
 //! This trait defines the repository contract for the CompanyTaxSettings aggregate.
 //! Implementation is in the infrastructure layer.
 
-use anyhow::Result;
 use async_trait::async_trait;
+use anyhow::Result;
 use uuid::Uuid;
 
 use crate::domain::entity::{CompanyTaxSettings, TaxExigibility, TaxRoundingMethod};
@@ -44,7 +44,6 @@ pub struct CompanyTaxSettingsPaginatedResult {
 /// Filter parameters for list queries
 #[derive(Debug, Clone, Default)]
 pub struct CompanyTaxSettingsFilter {
-    pub company_id: Option<Uuid>,
     pub rounding_method: Option<TaxRoundingMethod>,
     pub default_exigibility: Option<TaxExigibility>,
     pub cash_basis_transition_account_id: Option<Uuid>,
@@ -53,10 +52,7 @@ pub struct CompanyTaxSettingsFilter {
 impl CompanyTaxSettingsFilter {
     /// Check if any filter is set
     pub fn has_filters(&self) -> bool {
-        self.company_id.is_some()
-            || self.rounding_method.is_some()
-            || self.default_exigibility.is_some()
-            || self.cash_basis_transition_account_id.is_some()
+        self.rounding_method.is_some() || self.default_exigibility.is_some() || self.cash_basis_transition_account_id.is_some()
     }
 }
 
@@ -66,6 +62,7 @@ impl CompanyTaxSettingsFilter {
 /// Implementations should be in the infrastructure layer.
 #[async_trait]
 pub trait CompanyTaxSettingsRepository: Send + Sync {
+
     // =========================================================================
     // Core CRUD Operations
     // =========================================================================
@@ -80,11 +77,7 @@ pub trait CompanyTaxSettingsRepository: Send + Sync {
     async fn find_all(&self) -> Result<Vec<CompanyTaxSettings>>;
 
     /// Update company_tax_settings by ID
-    async fn update(
-        &self,
-        id: &str,
-        entity: &CompanyTaxSettings,
-    ) -> Result<Option<CompanyTaxSettings>>;
+    async fn update(&self, id: &str, entity: &CompanyTaxSettings) -> Result<Option<CompanyTaxSettings>>;
 
     /// Delete company_tax_settings by ID
     async fn delete(&self, id: &str) -> Result<bool>;
@@ -94,17 +87,10 @@ pub trait CompanyTaxSettingsRepository: Send + Sync {
     // =========================================================================
 
     /// List company_tax_settings with pagination
-    async fn list(
-        &self,
-        params: CompanyTaxSettingsPaginationParams,
-    ) -> Result<CompanyTaxSettingsPaginatedResult>;
+    async fn list(&self, params: CompanyTaxSettingsPaginationParams) -> Result<CompanyTaxSettingsPaginatedResult>;
 
     /// List company_tax_settings with pagination and filters
-    async fn list_with_filters(
-        &self,
-        params: CompanyTaxSettingsPaginationParams,
-        filters: CompanyTaxSettingsFilter,
-    ) -> Result<CompanyTaxSettingsPaginatedResult>;
+    async fn list_with_filters(&self, params: CompanyTaxSettingsPaginationParams, filters: CompanyTaxSettingsFilter) -> Result<CompanyTaxSettingsPaginatedResult>;
 
     /// Count all company_tax_settings entities
     async fn count(&self) -> Result<u64>;
@@ -126,10 +112,7 @@ pub trait CompanyTaxSettingsRepository: Send + Sync {
     async fn restore(&self, id: &str) -> Result<Option<CompanyTaxSettings>>;
 
     /// List soft-deleted company_tax_settings entities
-    async fn list_deleted(
-        &self,
-        params: CompanyTaxSettingsPaginationParams,
-    ) -> Result<CompanyTaxSettingsPaginatedResult>;
+    async fn list_deleted(&self, params: CompanyTaxSettingsPaginationParams) -> Result<CompanyTaxSettingsPaginatedResult>;
 
     /// Empty trash (permanently delete all soft-deleted entities)
     async fn empty_trash(&self) -> Result<u64>;

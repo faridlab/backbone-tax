@@ -18,12 +18,12 @@
 #![allow(unused_imports)]
 
 // Generated modules
-pub mod application;
 pub mod domain;
-pub mod exports;
 pub mod infrastructure;
+pub mod application;
 pub mod presentation;
 pub mod seeders;
+pub mod exports;
 
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
@@ -33,14 +33,14 @@ pub use infrastructure::persistence::*;
 
 // Re-exports - Application services
 pub use application::service::CompanyTaxSettingsService;
-pub use application::service::EFakturDocumentService;
 pub use application::service::TaxCategoryService;
-pub use application::service::TaxFilingPeriodService;
-pub use application::service::TaxRepartitionLineService;
-pub use application::service::TaxTagService;
-pub use application::service::TaxTemplateRowService;
-pub use application::service::TaxTemplateService;
 pub use application::service::TaxTransactionService;
+pub use application::service::EFakturDocumentService;
+pub use application::service::TaxFilingPeriodService;
+pub use application::service::TaxTagService;
+pub use application::service::TaxRepartitionLineService;
+pub use application::service::TaxTemplateService;
+pub use application::service::TaxTemplateRowService;
 pub use application::service::WithholdingCategoryService;
 
 // <<< CUSTOM
@@ -59,9 +59,9 @@ pub use application::service::{distribute_delta_smoothly, round2, RoundingMethod
 pub use application::service::{EFakturService, PostedForTax, TaxComplianceError};
 pub use presentation::http::create_guarded_tax_routes;
 // END CUSTOM
+use std::sync::Arc;
 use axum::Router;
 use sqlx::PgPool;
-use std::sync::Arc;
 
 /// Tax module configuration
 ///
@@ -86,7 +86,7 @@ pub struct TaxModule {
     pub(crate) tax_template_service: Arc<TaxTemplateService>,
     pub(crate) tax_template_row_service: Arc<TaxTemplateRowService>,
     pub(crate) withholding_category_service: Arc<WithholdingCategoryService>,
-    // <<< CUSTOM
+    // <<< CUSTOM FIELDS
     /// The region-neutral tax engine (compute tax lines). Public so producing
     /// modules (billing/selling/buying) can call it in-process and attach the
     /// returned lines to their own AccountingPost (FSD: "tax contributes lines,
@@ -114,42 +114,29 @@ impl TaxModule {
     /// real deployment; use this only in trusted/admin/seeding contexts.
     pub fn all_crud_routes(&self) -> Router {
         use presentation::http::{
-            create_company_tax_settings_routes, create_e_faktur_document_routes,
-            create_tax_category_routes, create_tax_filing_period_routes,
-            create_tax_repartition_line_routes, create_tax_tag_routes, create_tax_template_routes,
-            create_tax_template_row_routes, create_tax_transaction_routes,
+            create_company_tax_settings_routes,
+            create_tax_category_routes,
+            create_tax_transaction_routes,
+            create_e_faktur_document_routes,
+            create_tax_filing_period_routes,
+            create_tax_tag_routes,
+            create_tax_repartition_line_routes,
+            create_tax_template_routes,
+            create_tax_template_row_routes,
             create_withholding_category_routes,
         };
 
         Router::new()
-            .merge(create_company_tax_settings_routes(
-                self.company_tax_settings_service.clone(),
-            ))
-            .merge(create_tax_category_routes(
-                self.tax_category_service.clone(),
-            ))
-            .merge(create_tax_transaction_routes(
-                self.tax_transaction_service.clone(),
-            ))
-            .merge(create_e_faktur_document_routes(
-                self.e_faktur_document_service.clone(),
-            ))
-            .merge(create_tax_filing_period_routes(
-                self.tax_filing_period_service.clone(),
-            ))
+            .merge(create_company_tax_settings_routes(self.company_tax_settings_service.clone()))
+            .merge(create_tax_category_routes(self.tax_category_service.clone()))
+            .merge(create_tax_transaction_routes(self.tax_transaction_service.clone()))
+            .merge(create_e_faktur_document_routes(self.e_faktur_document_service.clone()))
+            .merge(create_tax_filing_period_routes(self.tax_filing_period_service.clone()))
             .merge(create_tax_tag_routes(self.tax_tag_service.clone()))
-            .merge(create_tax_repartition_line_routes(
-                self.tax_repartition_line_service.clone(),
-            ))
-            .merge(create_tax_template_routes(
-                self.tax_template_service.clone(),
-            ))
-            .merge(create_tax_template_row_routes(
-                self.tax_template_row_service.clone(),
-            ))
-            .merge(create_withholding_category_routes(
-                self.withholding_category_service.clone(),
-            ))
+            .merge(create_tax_repartition_line_routes(self.tax_repartition_line_service.clone()))
+            .merge(create_tax_template_routes(self.tax_template_service.clone()))
+            .merge(create_tax_template_row_routes(self.tax_template_row_service.clone()))
+            .merge(create_withholding_category_routes(self.withholding_category_service.clone()))
     }
 
     /// Deprecated alias for [`Self::all_crud_routes`]. `routes()` reads like
@@ -157,9 +144,7 @@ impl TaxModule {
     /// mount exposes unguarded writes. Compose a guarded router (read + validated
     /// writes) for production, or call `all_crud_routes()` to opt into the full
     /// unguarded surface explicitly.
-    #[deprecated(
-        note = "mounts unvalidated generic CRUD; prefer readonly_routes() + validated writes, or all_crud_routes() for the full/unguarded surface"
-    )]
+    #[deprecated(note = "mounts unvalidated generic CRUD; prefer readonly_routes() + validated writes, or all_crud_routes() for the full/unguarded surface")]
     pub fn routes(&self) -> Router {
         self.all_crud_routes()
     }
@@ -171,42 +156,29 @@ impl TaxModule {
     /// merge validated write routes (or a write service's HTTP layer) onto it.
     pub fn readonly_routes(&self) -> Router {
         use presentation::http::{
-            create_company_tax_settings_read_routes, create_e_faktur_document_read_routes,
-            create_tax_category_read_routes, create_tax_filing_period_read_routes,
-            create_tax_repartition_line_read_routes, create_tax_tag_read_routes,
-            create_tax_template_read_routes, create_tax_template_row_read_routes,
-            create_tax_transaction_read_routes, create_withholding_category_read_routes,
+            create_company_tax_settings_read_routes,
+            create_tax_category_read_routes,
+            create_tax_transaction_read_routes,
+            create_e_faktur_document_read_routes,
+            create_tax_filing_period_read_routes,
+            create_tax_tag_read_routes,
+            create_tax_repartition_line_read_routes,
+            create_tax_template_read_routes,
+            create_tax_template_row_read_routes,
+            create_withholding_category_read_routes,
         };
 
         Router::new()
-            .merge(create_company_tax_settings_read_routes(
-                self.company_tax_settings_service.clone(),
-            ))
-            .merge(create_tax_category_read_routes(
-                self.tax_category_service.clone(),
-            ))
-            .merge(create_tax_transaction_read_routes(
-                self.tax_transaction_service.clone(),
-            ))
-            .merge(create_e_faktur_document_read_routes(
-                self.e_faktur_document_service.clone(),
-            ))
-            .merge(create_tax_filing_period_read_routes(
-                self.tax_filing_period_service.clone(),
-            ))
+            .merge(create_company_tax_settings_read_routes(self.company_tax_settings_service.clone()))
+            .merge(create_tax_category_read_routes(self.tax_category_service.clone()))
+            .merge(create_tax_transaction_read_routes(self.tax_transaction_service.clone()))
+            .merge(create_e_faktur_document_read_routes(self.e_faktur_document_service.clone()))
+            .merge(create_tax_filing_period_read_routes(self.tax_filing_period_service.clone()))
             .merge(create_tax_tag_read_routes(self.tax_tag_service.clone()))
-            .merge(create_tax_repartition_line_read_routes(
-                self.tax_repartition_line_service.clone(),
-            ))
-            .merge(create_tax_template_read_routes(
-                self.tax_template_service.clone(),
-            ))
-            .merge(create_tax_template_row_read_routes(
-                self.tax_template_row_service.clone(),
-            ))
-            .merge(create_withholding_category_read_routes(
-                self.withholding_category_service.clone(),
-            ))
+            .merge(create_tax_repartition_line_read_routes(self.tax_repartition_line_service.clone()))
+            .merge(create_tax_template_read_routes(self.tax_template_service.clone()))
+            .merge(create_tax_template_row_read_routes(self.tax_template_row_service.clone()))
+            .merge(create_withholding_category_read_routes(self.withholding_category_service.clone()))
     }
 
     // <<< CUSTOM METHODS
@@ -221,7 +193,9 @@ pub struct TaxModuleBuilder {
 impl TaxModuleBuilder {
     /// Create a new builder
     pub fn new() -> Self {
-        Self { db_pool: None }
+        Self {
+            db_pool: None,
+        }
     }
 
     /// Set the database connection pool
@@ -235,72 +209,48 @@ impl TaxModuleBuilder {
 
     /// Build the module with configured dependencies
     pub fn build(self) -> anyhow::Result<TaxModule> {
-        let db_pool = self
-            .db_pool
+        let db_pool = self.db_pool
             .ok_or_else(|| anyhow::anyhow!("Database pool not configured"))?;
 
         // CompanyTaxSettings service
-        let company_tax_settings_repository =
-            Arc::new(CompanyTaxSettingsRepository::new(db_pool.clone()));
-        let company_tax_settings_service = Arc::new(CompanyTaxSettingsService::with_repository(
-            company_tax_settings_repository.clone(),
-        ));
+        let company_tax_settings_repository = Arc::new(CompanyTaxSettingsRepository::new(db_pool.clone()));
+        let company_tax_settings_service = Arc::new(CompanyTaxSettingsService::with_repository(company_tax_settings_repository.clone()));
 
         // TaxCategory service
         let tax_category_repository = Arc::new(TaxCategoryRepository::new(db_pool.clone()));
-        let tax_category_service = Arc::new(TaxCategoryService::with_repository(
-            tax_category_repository.clone(),
-        ));
+        let tax_category_service = Arc::new(TaxCategoryService::with_repository(tax_category_repository.clone()));
 
         // TaxTransaction service
         let tax_transaction_repository = Arc::new(TaxTransactionRepository::new(db_pool.clone()));
-        let tax_transaction_service = Arc::new(TaxTransactionService::with_repository(
-            tax_transaction_repository.clone(),
-        ));
+        let tax_transaction_service = Arc::new(TaxTransactionService::with_repository(tax_transaction_repository.clone()));
 
         // EFakturDocument service
-        let e_faktur_document_repository =
-            Arc::new(EFakturDocumentRepository::new(db_pool.clone()));
-        let e_faktur_document_service = Arc::new(EFakturDocumentService::with_repository(
-            e_faktur_document_repository.clone(),
-        ));
+        let e_faktur_document_repository = Arc::new(EFakturDocumentRepository::new(db_pool.clone()));
+        let e_faktur_document_service = Arc::new(EFakturDocumentService::with_repository(e_faktur_document_repository.clone()));
 
         // TaxFilingPeriod service
-        let tax_filing_period_repository =
-            Arc::new(TaxFilingPeriodRepository::new(db_pool.clone()));
-        let tax_filing_period_service = Arc::new(TaxFilingPeriodService::with_repository(
-            tax_filing_period_repository.clone(),
-        ));
+        let tax_filing_period_repository = Arc::new(TaxFilingPeriodRepository::new(db_pool.clone()));
+        let tax_filing_period_service = Arc::new(TaxFilingPeriodService::with_repository(tax_filing_period_repository.clone()));
 
         // TaxTag service
         let tax_tag_repository = Arc::new(TaxTagRepository::new(db_pool.clone()));
         let tax_tag_service = Arc::new(TaxTagService::with_repository(tax_tag_repository.clone()));
 
         // TaxRepartitionLine service
-        let tax_repartition_line_repository =
-            Arc::new(TaxRepartitionLineRepository::new(db_pool.clone()));
-        let tax_repartition_line_service = Arc::new(TaxRepartitionLineService::with_repository(
-            tax_repartition_line_repository.clone(),
-        ));
+        let tax_repartition_line_repository = Arc::new(TaxRepartitionLineRepository::new(db_pool.clone()));
+        let tax_repartition_line_service = Arc::new(TaxRepartitionLineService::with_repository(tax_repartition_line_repository.clone()));
 
         // TaxTemplate service
         let tax_template_repository = Arc::new(TaxTemplateRepository::new(db_pool.clone()));
-        let tax_template_service = Arc::new(TaxTemplateService::with_repository(
-            tax_template_repository.clone(),
-        ));
+        let tax_template_service = Arc::new(TaxTemplateService::with_repository(tax_template_repository.clone()));
 
         // TaxTemplateRow service
         let tax_template_row_repository = Arc::new(TaxTemplateRowRepository::new(db_pool.clone()));
-        let tax_template_row_service = Arc::new(TaxTemplateRowService::with_repository(
-            tax_template_row_repository.clone(),
-        ));
+        let tax_template_row_service = Arc::new(TaxTemplateRowService::with_repository(tax_template_row_repository.clone()));
 
         // WithholdingCategory service
-        let withholding_category_repository =
-            Arc::new(WithholdingCategoryRepository::new(db_pool.clone()));
-        let withholding_category_service = Arc::new(WithholdingCategoryService::with_repository(
-            withholding_category_repository.clone(),
-        ));
+        let withholding_category_repository = Arc::new(WithholdingCategoryRepository::new(db_pool.clone()));
+        let withholding_category_service = Arc::new(WithholdingCategoryService::with_repository(withholding_category_repository.clone()));
 
         // <<< CUSTOM
         let tax_engine = Arc::new(TaxEngine::new(db_pool.clone()));

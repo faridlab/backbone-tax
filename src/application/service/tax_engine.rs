@@ -3,13 +3,19 @@
 //! attaches the returned lines to an `AccountingPost`. Indonesia rates/rules are seeded data
 //! (deferred); this is the transcribed engine that consumes them. See docs/erp/tax-compliance.md.
 //!
-//! Tenant-scoped read path (ADR-0010 Decision B1): every SELECT runs through
-//! `company_scope::{fetch_all_scoped, fetch_optional_scoped, fetch_optional_scalar_scoped}` so the
-//! ADR-0008 RLS fence on `tax.tax_*` sees `app.company_id` and returns the caller's rows. A missed
-//! scope fails loud as `NoCompanyScope` (not a misleading `NoEffectiveRate`); a correct scope with
-//! no effective row still returns `NoEffectiveRate`/`CategoryNotFound` as before.
+//! Tenancy: none, by design (ADR-0029). The module carries no scoping column; the COMPOSING
+//! service's tenancy decorator installs org_unit_id + the row-level fences. Every read therefore
+//! runs on a transaction that relays the AMBIENT request org scope
+//! (`backbone_orm::org_scope::bind_org_scope_on`), so a decorated deployment's fences govern
+//! which rows the engine can see; a deployment that runs unfenced gets an unfenced engine.
+//! The per-line verbs (`calculate`, `resolve_withholding`) carry no company input and fail loud
+//! as `NoCompanyScope` when no scope is bound — never a misleading `NoEffectiveRate`.
+//! The document verb keys its legacy twin on the request's `company_id` (see
+//! [`DocumentTaxRequest`]): when no ambient scope is bound — an unstripped consumer calling
+//! in-process — the engine constructs the single-company scope from it; when one IS bound, the
+//! ambient fence wins and the named company can never widen it.
 
-use backbone_orm::company_scope;
+use backbone_orm::org_scope;
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
@@ -27,7 +33,7 @@ pub enum TaxError {
     InvalidDateRange,
     NegativeBase,
     DuplicateCode(String),
-    /// A live template of the same type already carries this display name in the company.
+    /// A live template of the same type already carries this display name in the unit.
     DuplicateName(String),
     /// A caller-supplied enum label or pairing is not one of the accepted values.
     InvalidValue(String),
@@ -43,15 +49,11 @@ pub enum TaxError {
     /// non-reconcilable one dead-ends the deferral. Raised by the write path (the engine never
     /// reads across schemas).
     CabaTransitionNotReconcilable(Uuid),
-    /// A read/compute path needed the caller's company but the request scope was unset
-    /// (missing `with_company_scope` / `with_request_scope` middleware). Distinct from
-    /// `NoEffectiveRate`/`CategoryNotFound` so operators can tell a missed scope from a genuine
-    /// "no row applies on this date" (ADR-0010 B1).
+    /// A read/compute path with no company input needed the ambient org scope but none was
+    /// bound (the composing service's org middleware did not wrap this request/call). Distinct
+    /// from `NoEffectiveRate`/`CategoryNotFound` so operators can tell a missed scope from a
+    /// genuine "no row applies on this date".
     NoCompanyScope,
-    /// The request names a company other than the one the caller's token scoped the request to.
-    /// The named company would ride the RLS bind in the write path, so a mismatched value would
-    /// let an authenticated tenant shape another company's tax configuration.
-    CompanyMismatch,
     Db(sqlx::Error),
 }
 impl TaxError {
@@ -69,16 +71,14 @@ impl TaxError {
             TaxError::InclusiveUnsupported => "inclusive_cumulative_unsupported",
             TaxError::RepartitionInvalid(_) => "repartition_invalid",
             TaxError::CabaTransitionNotReconcilable(_) => "caba_transition_not_reconcilable",
-            TaxError::NoCompanyScope => "no_company_scope",
-            TaxError::CompanyMismatch => "company_mismatch",
+            TaxError::NoCompanyScope => "no_org_scope",
             TaxError::Db(_) => "internal_error",
         }
     }
     pub fn http_status(&self) -> u16 {
         match self {
             TaxError::Db(_) => 500,
-            TaxError::NoCompanyScope => 401,
-            TaxError::CompanyMismatch => 403,
+            TaxError::NoCompanyScope => 500,
             _ => 422,
         }
     }
@@ -125,6 +125,19 @@ pub struct TaxEngine {
     db_pool: PgPool,
 }
 
+/// One transaction with the AMBIENT request org scope relayed onto it, when the composing
+/// service bound one. The decorator-installed row-level fences evaluate for every statement
+/// of the verb. Transaction-local (`set_config(..., true)`): nothing leaks onto a pooled
+/// connection reused by the next request. Unfenced deployments have no ambient scope and
+/// skip the bind entirely.
+async fn scoped_tx(pool: &PgPool) -> Result<sqlx::Transaction<'static, sqlx::Postgres>, TaxError> {
+    let mut tx = pool.begin().await?;
+    if let Some(scope) = org_scope::current_org_scope() {
+        org_scope::bind_org_scope_on(&mut tx, &scope).await?;
+    }
+    Ok(tx)
+}
+
 impl TaxEngine {
     pub fn new(db_pool: PgPool) -> Self {
         Self { db_pool }
@@ -138,11 +151,10 @@ impl TaxEngine {
     /// If the template `is_inclusive`, the base is treated as already containing the tax and the
     /// tax is extracted (base is the tax-inclusive gross). Withholding rows produce negative lines.
     ///
-    /// **Tenant-scoped read path (ADR-0010 B1).** Both the template lookup and the row fetch run
-    /// through the scoped execute helpers so the RLS fence sees `app.company_id`. The caller's
-    /// company is read from the ambient request scope (`with_company_scope` /
-    /// `with_request_scope`); if no scope is set the engine fails loud as `NoCompanyScope`
-    /// instead of the misleading `NoEffectiveRate`.
+    /// **Scoped read path (ADR-0029).** Both the template lookup and the row fetch run on a
+    /// transaction carrying the ambient org scope, so a decorated deployment's RLS fences
+    /// evaluate. No scope bound → fail loud as `NoCompanyScope` instead of the misleading
+    /// `NoEffectiveRate` an unfenced SELECT would produce.
     pub async fn calculate(
         &self,
         template_id: Uuid,
@@ -152,44 +164,42 @@ impl TaxEngine {
         if base_amount < Decimal::ZERO {
             return Err(TaxError::NegativeBase);
         }
-        if company_scope::current_company().is_none() {
-            // Fail loud on a missed scope rather than returning NoEffectiveRate from the fenced
+        if org_scope::current_org_scope().is_none() {
+            // Fail loud on a missed scope rather than returning NoEffectiveRate from the unfenced
             // SELECT (which would be indistinguishable from a genuine "no row applies").
             return Err(TaxError::NoCompanyScope);
         }
+        let mut tx = scoped_tx(&self.db_pool).await?;
 
-        let inclusive: Option<bool> = company_scope::fetch_optional_scalar_scoped(
-            &self.db_pool,
+        let inclusive: Option<bool> =
             sqlx::query_scalar(
                 "SELECT is_inclusive FROM tax.tax_templates \
                  WHERE id=$1 AND (metadata->>'deleted_at') IS NULL",
             )
-            .bind(template_id),
-        )
-        .await?;
+            .bind(template_id)
+            .fetch_optional(&mut *tx)
+            .await?;
         let inclusive = inclusive.ok_or(TaxError::TemplateNotFound(template_id))?;
 
         // Exactly ONE row per sort_order — the newest-effective whose window contains the date.
         // `DISTINCT ON (sort_order)` makes overlapping effective windows deterministic (never a
         // double-charge on the read path); `add_row` also rejects overlaps at write time and an
         // EXCLUDE constraint forbids them in the DB (council 2026-07-03).
-        let rows: Vec<(i32, String, Decimal, Option<Uuid>, bool, Option<String>)> =
-            company_scope::fetch_all_scoped(
-                &self.db_pool,
-                sqlx::query_as(
-                    r#"SELECT DISTINCT ON (sort_order)
-                           sort_order, charge_type::text, rate, account_id, is_withholding, description
-                       FROM tax.tax_template_rows
-                       WHERE template_id=$1
-                         AND (metadata->>'deleted_at') IS NULL
-                         AND effective_from <= $2
-                         AND (effective_to IS NULL OR effective_to >= $2)
-                       ORDER BY sort_order, effective_from DESC"#,
-                )
-                .bind(template_id)
-                .bind(on_date),
-            )
-            .await?;
+        let rows: Vec<(i32, String, Decimal, Option<Uuid>, bool, Option<String>)> = sqlx::query_as(
+            r#"SELECT DISTINCT ON (sort_order)
+                   sort_order, charge_type::text, rate, account_id, is_withholding, description
+               FROM tax.tax_template_rows
+               WHERE template_id=$1
+                 AND (metadata->>'deleted_at') IS NULL
+                 AND effective_from <= $2
+                 AND (effective_to IS NULL OR effective_to >= $2)
+               ORDER BY sort_order, effective_from DESC"#,
+        )
+        .bind(template_id)
+        .bind(on_date)
+        .fetch_all(&mut *tx)
+        .await?;
+        tx.commit().await?;
         if rows.is_empty() {
             return Err(TaxError::NoEffectiveRate(template_id));
         }
@@ -272,7 +282,7 @@ impl TaxEngine {
 
     /// Resolve a withholding line for `category_id` on `base_amount` — `None` if under threshold.
     ///
-    /// **Tenant-scoped read path (ADR-0010 B1).** Same fence/scope rules as `calculate`.
+    /// **Scoped read path (ADR-0029).** Same fence/scope rules as `calculate`.
     pub async fn resolve_withholding(
         &self,
         category_id: Uuid,
@@ -282,23 +292,22 @@ impl TaxEngine {
         if base_amount < Decimal::ZERO {
             return Err(TaxError::NegativeBase);
         }
-        if company_scope::current_company().is_none() {
+        if org_scope::current_org_scope().is_none() {
             return Err(TaxError::NoCompanyScope);
         }
-        let row: Option<(Decimal, Decimal, Option<Uuid>, Option<String>)> =
-            company_scope::fetch_optional_scoped(
-                &self.db_pool,
-                sqlx::query_as(
-                    r#"SELECT rate, threshold_amount, account_id, name
-                       FROM tax.withholding_categories
-                       WHERE id=$1 AND (metadata->>'deleted_at') IS NULL
-                         AND effective_from <= $2 AND (effective_to IS NULL OR effective_to >= $2)
-                       ORDER BY effective_from DESC LIMIT 1"#,
-                )
-                .bind(category_id)
-                .bind(on_date),
-            )
-            .await?;
+        let mut tx = scoped_tx(&self.db_pool).await?;
+        let row: Option<(Decimal, Decimal, Option<Uuid>, Option<String>)> = sqlx::query_as(
+            r#"SELECT rate, threshold_amount, account_id, name
+               FROM tax.withholding_categories
+               WHERE id=$1 AND (metadata->>'deleted_at') IS NULL
+                 AND effective_from <= $2 AND (effective_to IS NULL OR effective_to >= $2)
+               ORDER BY effective_from DESC LIMIT 1"#,
+        )
+        .bind(category_id)
+        .bind(on_date)
+        .fetch_optional(&mut *tx)
+        .await?;
+        tx.commit().await?;
         let (rate, threshold, account_id, name) =
             row.ok_or(TaxError::CategoryNotFound(category_id))?;
         if base_amount < threshold {
@@ -316,7 +325,7 @@ impl TaxEngine {
 }
 
 // ---------------------------------------------------------------------------
-// Document-grade calculation: per-company rounding policy, repartition
+// Document-grade calculation: per-unit rounding policy, repartition
 // routing, and cash-basis (deferred) exigibility.
 // ---------------------------------------------------------------------------
 
@@ -357,6 +366,13 @@ pub struct DocumentTaxRequestLine {
     pub unit_price: Decimal,
 }
 
+/// The document computation request. `company_id` is the LEGACY TWIN input (ADR-0029): tax
+/// itself is tenant-agnostic and scopes every read to the ambient org scope when the composing
+/// service bound one — but unstripped consumers (billing composes this engine at invoice
+/// creation) call in-process with no ambient scope, and key their call on one company id. The
+/// engine constructs the documented single-company scope from that value, failing closed via
+/// the org tree if the id is not a company unit. Under a decorated host the ambient scope wins:
+/// the named company can never widen the fence.
 #[derive(Debug, Clone)]
 pub struct DocumentTaxRequest {
     pub company_id: Uuid,
@@ -412,7 +428,7 @@ pub struct DocumentTaxResult {
 }
 
 /// Template posture needed for document computation. `tax_exigibility` is
-/// materialized on the row at create time (a later company posture change never
+/// materialized on the row at create time (a later posture change never
 /// rewrites existing templates).
 struct TemplateMeta {
     is_inclusive: bool,
@@ -524,35 +540,38 @@ fn redistribute_rounded(raws: &[Decimal]) -> Vec<Decimal> {
 }
 
 impl TaxEngine {
-    /// The company's rounding policy (`tax.company_tax_settings`; absent row ⇒
+    /// The owning unit's rounding policy (`tax.company_tax_settings`; absent row ⇒
     /// the safe default `round_globally`). Fails loud on DB errors — a missing
-    /// table means un-migrated, not "no policy".
-    async fn company_rounding_method(&self, company_id: Uuid) -> Result<RoundingMethod, TaxError> {
-        let label: Option<String> = company_scope::fetch_optional_scalar_scoped(
-            &self.db_pool,
+    /// table means un-migrated, not "no policy". Runs on the caller's scoped
+    /// transaction: the fence, not a predicate, picks the row.
+    async fn rounding_method_on(
+        conn: &mut sqlx::PgConnection,
+    ) -> Result<RoundingMethod, TaxError> {
+        let label: Option<String> =
             sqlx::query_scalar(
                 "SELECT rounding_method::text FROM tax.company_tax_settings \
-                 WHERE company_id=$1 AND (metadata->>'deleted_at') IS NULL",
+                 WHERE (metadata->>'deleted_at') IS NULL \
+                 ORDER BY id LIMIT 1",
             )
-            .bind(company_id),
-        )
-        .await?;
+            .fetch_optional(&mut *conn)
+            .await?;
         Ok(label
             .as_deref()
             .and_then(RoundingMethod::from_db)
             .unwrap_or(RoundingMethod::RoundGlobally))
     }
 
-    async fn template_meta(&self, template_id: Uuid) -> Result<TemplateMeta, TaxError> {
-        let row: Option<(bool, String, Option<Uuid>)> = company_scope::fetch_optional_scoped(
-            &self.db_pool,
-            sqlx::query_as(
-                "SELECT is_inclusive, tax_exigibility::text, cash_basis_transition_account_id \
-                 FROM tax.tax_templates \
-                 WHERE id=$1 AND (metadata->>'deleted_at') IS NULL",
-            )
-            .bind(template_id),
+    async fn template_meta_on(
+        conn: &mut sqlx::PgConnection,
+        template_id: Uuid,
+    ) -> Result<TemplateMeta, TaxError> {
+        let row: Option<(bool, String, Option<Uuid>)> = sqlx::query_as(
+            "SELECT is_inclusive, tax_exigibility::text, cash_basis_transition_account_id \
+             FROM tax.tax_templates \
+             WHERE id=$1 AND (metadata->>'deleted_at') IS NULL",
         )
+        .bind(template_id)
+        .fetch_optional(&mut *conn)
         .await?;
         let (is_inclusive, exigibility, transition_account_id) =
             row.ok_or(TaxError::TemplateNotFound(template_id))?;
@@ -565,26 +584,24 @@ impl TaxEngine {
 
     /// The template's effective rows on `on_date` (the per-line `calculate`'s
     /// fetch, factored out for the document path).
-    async fn fetch_effective_rows(
-        &self,
+    async fn fetch_effective_rows_on(
+        conn: &mut sqlx::PgConnection,
         template_id: Uuid,
         on_date: NaiveDate,
     ) -> Result<Vec<EffectiveRow>, TaxError> {
-        let rows: Vec<EffectiveRow> = company_scope::fetch_all_scoped(
-            &self.db_pool,
-            sqlx::query_as(
-                r#"SELECT DISTINCT ON (sort_order)
-                       sort_order, charge_type::text, rate, account_id, is_withholding, description
-                   FROM tax.tax_template_rows
-                   WHERE template_id=$1
-                     AND (metadata->>'deleted_at') IS NULL
-                     AND effective_from <= $2
-                     AND (effective_to IS NULL OR effective_to >= $2)
-                   ORDER BY sort_order, effective_from DESC"#,
-            )
-            .bind(template_id)
-            .bind(on_date),
+        let rows: Vec<EffectiveRow> = sqlx::query_as(
+            r#"SELECT DISTINCT ON (sort_order)
+                   sort_order, charge_type::text, rate, account_id, is_withholding, description
+               FROM tax.tax_template_rows
+               WHERE template_id=$1
+                 AND (metadata->>'deleted_at') IS NULL
+                 AND effective_from <= $2
+                 AND (effective_to IS NULL OR effective_to >= $2)
+               ORDER BY sort_order, effective_from DESC"#,
         )
+        .bind(template_id)
+        .bind(on_date)
+        .fetch_all(&mut *conn)
         .await?;
         Ok(rows)
     }
@@ -592,24 +609,22 @@ impl TaxEngine {
     /// Resolve the repartition family for `document_type`. `None` ⇒ the template
     /// predates repartition: callers fall back to routing 100% of each component
     /// to the template row's own `account_id`.
-    async fn repartition_for(
-        &self,
+    async fn repartition_for_on(
+        conn: &mut sqlx::PgConnection,
         template_id: Uuid,
         document_type: DocumentType,
     ) -> Result<Option<ResolvedRepartition>, TaxError> {
         let rows: Vec<(Uuid, String, Decimal, Option<Uuid>, Vec<Uuid>, Option<String>)> =
-            company_scope::fetch_all_scoped(
-                &self.db_pool,
-                sqlx::query_as(
-                    r#"SELECT id, repartition_type::text, factor_percent, account_id, tag_ids, description
-                       FROM tax.tax_repartition_lines
-                       WHERE template_id=$1 AND document_type::text=$2
-                         AND (metadata->>'deleted_at') IS NULL
-                       ORDER BY sort_order"#,
-                )
-                .bind(template_id)
-                .bind(document_type.as_db()),
+            sqlx::query_as(
+                r#"SELECT id, repartition_type::text, factor_percent, account_id, tag_ids, description
+                   FROM tax.tax_repartition_lines
+                   WHERE template_id=$1 AND document_type::text=$2
+                     AND (metadata->>'deleted_at') IS NULL
+                   ORDER BY sort_order"#,
             )
+            .bind(template_id)
+            .bind(document_type.as_db())
+            .fetch_all(&mut *conn)
             .await?;
         if rows.is_empty() {
             return Ok(None); // legacy template: no repartition rows at all
@@ -639,7 +654,7 @@ impl TaxEngine {
         }))
     }
 
-    /// Compute the tax lines for a whole document under the company's rounding
+    /// Compute the tax lines for a whole document under the owning unit's rounding
     /// policy, with repartition routing and cash-basis deferral resolution.
     ///
     /// - Bases are the raw `quantity × unit_price` products — never rounded
@@ -660,21 +675,32 @@ impl TaxEngine {
     ///   `real_account_id`; the flip to the real account is the reconciliation
     ///   seam's job, not the engine's.
     ///
-    /// **Tenant-scoped read path (ADR-0010 B1)** — same fence/scope rules as
-    /// `calculate`.
+    /// **Scoped read path (ADR-0029)** — same fence/scope rules as `calculate`,
+    /// except the legacy twin: with no ambient scope bound, the request's
+    /// `company_id` (see [`DocumentTaxRequest`]) constructs the single-company
+    /// scope; with one bound, the ambient fence wins.
     pub async fn calculate_document(
         &self,
         req: &DocumentTaxRequest,
     ) -> Result<DocumentTaxResult, TaxError> {
-        if company_scope::current_company().is_none() {
-            return Err(TaxError::NoCompanyScope);
-        }
         for l in &req.lines {
             if l.quantity < Decimal::ZERO || l.unit_price < Decimal::ZERO {
                 return Err(TaxError::NegativeBase);
             }
         }
-        let method = self.company_rounding_method(req.company_id).await?;
+        let mut tx = self.db_pool.begin().await?;
+        if let Some(scope) = org_scope::current_org_scope() {
+            // Ambient fence wins: the named company can never widen it under a decorated host.
+            org_scope::bind_org_scope_on(&mut tx, &scope).await?;
+        } else {
+            // No ambient scope (an unstripped consumer calling in-process): construct the
+            // documented legacy twin from the request's company id. Fails closed if the id
+            // does not resolve to a company unit in the org tree.
+            let scope = org_scope::OrgScope::for_company_unit(req.company_id);
+            org_scope::bind_org_scope_on(&mut tx, &scope).await?;
+        }
+
+        let method = Self::rounding_method_on(&mut tx).await?;
 
         // Group input lines by template (first-appearance order preserved) so
         // the global rounding aggregates per template across its lines.
@@ -693,12 +719,12 @@ impl TaxEngine {
 
         for tid in group_order {
             let idxs = &groups[&tid];
-            let meta = self.template_meta(tid).await?;
-            let rows = self.fetch_effective_rows(tid, req.on_date).await?;
+            let meta = Self::template_meta_on(&mut tx, tid).await?;
+            let rows = Self::fetch_effective_rows_on(&mut tx, tid, req.on_date).await?;
             if rows.is_empty() {
                 return Err(TaxError::NoEffectiveRate(tid));
             }
-            let repartition = self.repartition_for(tid, req.document_type).await?;
+            let repartition = Self::repartition_for_on(&mut tx, tid, req.document_type).await?;
             let deferred = meta.exigibility == "on_payment";
 
             let raws: Vec<LineRaw> = idxs
@@ -807,6 +833,7 @@ impl TaxEngine {
                 }
             }
         }
+        tx.commit().await?;
 
         let excluded_total: Decimal = net_amounts.iter().copied().sum();
         let tax_total: Decimal = out_lines.iter().map(|l| l.tax_amount).sum();

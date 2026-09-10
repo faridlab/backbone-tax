@@ -5,10 +5,10 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
-use chrono::{DateTime, NaiveDate, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc, NaiveDate};
+use rust_decimal::Decimal;
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -17,9 +17,9 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
+use crate::domain::entity::WithholdingCategory;
 use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::TaxStatus;
-use crate::domain::entity::WithholdingCategory;
 
 // =============================================================================
 // Create DTO
@@ -34,12 +34,6 @@ use crate::domain::entity::WithholdingCategory;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateWithholdingCategoryDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 40)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub code: String,
@@ -54,11 +48,7 @@ pub struct CreateWithholdingCategoryDto {
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     #[serde(alias = "effective_from")]
     pub effective_from: NaiveDate,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "effective_to"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "effective_to")]
     pub effective_to: Option<NaiveDate>,
     pub status: TaxStatus,
 }
@@ -76,12 +66,6 @@ pub struct CreateWithholdingCategoryDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateWithholdingCategoryDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "validation", validate(length(max = 40)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub code: String,
@@ -96,11 +80,7 @@ pub struct UpdateWithholdingCategoryDto {
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     #[serde(alias = "effective_from")]
     pub effective_from: NaiveDate,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "effective_to"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "effective_to")]
     pub effective_to: Option<NaiveDate>,
     pub status: TaxStatus,
 }
@@ -118,12 +98,6 @@ pub struct UpdateWithholdingCategoryDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchWithholdingCategoryDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
-    pub company_id: Option<Uuid>,
     #[cfg_attr(feature = "validation", validate(length(max = 40)))]
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -150,15 +124,7 @@ pub struct PatchWithholdingCategoryDto {
 impl PatchWithholdingCategoryDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some()
-            || self.code.is_some()
-            || self.name.is_some()
-            || self.rate.is_some()
-            || self.threshold_amount.is_some()
-            || self.account_id.is_some()
-            || self.effective_from.is_some()
-            || self.effective_to.is_some()
-            || self.status.is_some()
+        self.code.is_some() || self.name.is_some() || self.rate.is_some() || self.threshold_amount.is_some() || self.account_id.is_some() || self.effective_from.is_some() || self.effective_to.is_some() || self.status.is_some()
     }
 }
 
@@ -174,16 +140,8 @@ impl PatchWithholdingCategoryDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct WithholdingCategoryResponseDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
     pub code: String,
     #[cfg_attr(feature = "openapi", schema(example = "example"))]
@@ -228,12 +186,7 @@ pub struct WithholdingCategoryListResponseDto {
 
 impl WithholdingCategoryListResponseDto {
     /// Create a new list response from items and pagination info
-    pub fn new(
-        items: Vec<WithholdingCategoryResponseDto>,
-        total: u64,
-        page: u32,
-        per_page: u32,
-    ) -> Self {
+    pub fn new(items: Vec<WithholdingCategoryResponseDto>, total: u64, page: u32, per_page: u32) -> Self {
         let total_pages = if per_page > 0 {
             ((total as f64) / (per_page as f64)).ceil() as u32
         } else {
@@ -257,9 +210,9 @@ impl WithholdingCategoryListResponseDto {
 #[serde(rename_all = "camelCase")]
 pub struct WithholdingCategorySummaryDto {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub code: String,
     pub name: String,
+    pub rate: Decimal,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -271,7 +224,6 @@ impl From<WithholdingCategory> for WithholdingCategoryResponseDto {
     fn from(entity: WithholdingCategory) -> Self {
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             code: entity.code,
             name: entity.name,
             rate: entity.rate,
@@ -290,9 +242,9 @@ impl From<WithholdingCategory> for WithholdingCategorySummaryDto {
         let created_at = backbone_core::PersistentEntity::created_at(&entity);
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             code: entity.code,
             name: entity.name,
+            rate: entity.rate,
             created_at,
         }
     }
@@ -302,7 +254,6 @@ impl From<CreateWithholdingCategoryDto> for WithholdingCategory {
     fn from(dto: CreateWithholdingCategoryDto) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id: dto.company_id,
             code: dto.code,
             name: dto.name,
             rate: dto.rate,
@@ -320,7 +271,6 @@ impl From<&WithholdingCategory> for WithholdingCategoryResponseDto {
     fn from(entity: &WithholdingCategory) -> Self {
         Self {
             id: entity.id.clone(),
-            company_id: entity.company_id.clone(),
             code: entity.code.clone(),
             name: entity.name.clone(),
             rate: entity.rate.clone(),
@@ -341,11 +291,7 @@ impl backbone_core::FromCreateDto<CreateWithholdingCategoryDto> for WithholdingC
 }
 
 impl backbone_core::ApplyUpdateDto<UpdateWithholdingCategoryDto> for WithholdingCategory {
-    fn apply_update(
-        mut self,
-        dto: UpdateWithholdingCategoryDto,
-    ) -> backbone_core::ServiceResult<Self> {
-        self.company_id = dto.company_id;
+    fn apply_update(mut self, dto: UpdateWithholdingCategoryDto) -> backbone_core::ServiceResult<Self> {
         self.code = dto.code;
         self.name = dto.name;
         self.rate = dto.rate;

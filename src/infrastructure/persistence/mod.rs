@@ -5,39 +5,17 @@
 //! Uses backbone-orm's `DatabaseOperations<T>` trait.
 
 mod company_tax_settings_repository;
-mod e_faktur_document_repository;
 mod tax_category_repository;
+mod tax_transaction_repository;
+mod e_faktur_document_repository;
 mod tax_filing_period_repository;
-mod tax_repartition_line_repository;
 mod tax_tag_repository;
+mod tax_repartition_line_repository;
 mod tax_template_repository;
 mod tax_template_row_repository;
-mod tax_transaction_repository;
 mod withholding_category_repository;
 
 // Custom persistence modules
-// <<< CUSTOM
-// END CUSTOM
-
-// Re-exports
-pub use company_tax_settings_repository::CompanyTaxSettingsRepository;
-pub use e_faktur_document_repository::EFakturDocumentRepository;
-pub use tax_category_repository::TaxCategoryRepository;
-pub use tax_filing_period_repository::TaxFilingPeriodRepository;
-pub use tax_repartition_line_repository::TaxRepartitionLineRepository;
-pub use tax_tag_repository::TaxTagRepository;
-pub use tax_template_repository::TaxTemplateRepository;
-pub use tax_template_row_repository::TaxTemplateRowRepository;
-pub use tax_transaction_repository::TaxTransactionRepository;
-pub use withholding_category_repository::WithholdingCategoryRepository;
-
-// Re-export backbone-orm types
-pub use backbone_orm::repository::{
-    DatabaseOperations, FilterCondition, FilterParams, PaginatedResult, PaginationInfo,
-    PaginationParams, PostgresRepository, SortDirection, SortParams,
-};
-
-// Re-export custom persistence types
 // <<< CUSTOM
 // The hand-written tax SQL's parameter/projection types. Every repository listed here is declared
 // `user_owned` in metaphor.codegen.yaml — see tax_write_service.rs / efaktur_service.rs, which
@@ -54,4 +32,27 @@ pub use tax_template_repository::NewTaxTemplateRow;
 pub use tax_template_row_repository::NewTaxTemplateRowRecord;
 pub use tax_transaction_repository::NewTaxTransactionRow;
 pub use withholding_category_repository::NewWithholdingCategoryRow;
+// END CUSTOM
+
+// Re-exports
+pub use company_tax_settings_repository::CompanyTaxSettingsRepository;
+pub use tax_category_repository::TaxCategoryRepository;
+pub use tax_transaction_repository::TaxTransactionRepository;
+pub use e_faktur_document_repository::EFakturDocumentRepository;
+pub use tax_filing_period_repository::TaxFilingPeriodRepository;
+pub use tax_tag_repository::TaxTagRepository;
+pub use tax_repartition_line_repository::TaxRepartitionLineRepository;
+pub use tax_template_repository::TaxTemplateRepository;
+pub use tax_template_row_repository::TaxTemplateRowRepository;
+pub use withholding_category_repository::WithholdingCategoryRepository;
+
+// Re-export backbone-orm types
+pub use backbone_orm::repository::{
+    DatabaseOperations, PostgresRepository,
+    PaginationParams, PaginationInfo, PaginatedResult,
+    FilterParams, FilterCondition, SortParams, SortDirection,
+};
+
+// Re-export custom persistence types
+// <<< CUSTOM
 // END CUSTOM

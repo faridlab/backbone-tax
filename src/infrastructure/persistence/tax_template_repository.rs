@@ -39,12 +39,10 @@ impl TaxTemplateRepository {
 }
 
 /// The exact row a validated tax-template insert writes. `tax_exigibility` and
-/// `cash_basis_transition_account_id` are resolved against the company settings
-/// at create time and MATERIALIZED here — a later company posture change never
-/// rewrites existing templates.
+/// `cash_basis_transition_account_id` are resolved against the owning unit's settings at create
+/// time and MATERIALIZED here — a later posture change never rewrites existing templates.
 pub struct NewTaxTemplateRow<'a> {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub code: &'a str,
     pub name: &'a str,
     pub template_type: &'a str,
@@ -54,98 +52,83 @@ pub struct NewTaxTemplateRow<'a> {
     pub cash_basis_transition_account_id: Option<Uuid>,
 }
 
-/// Tax-template SQL. Lives here (not in the service) per the module's 4-layer rule.
+/// Tax-template SQL. Lives here (not in the service) per the module's 4-layer rule. Every
+/// statement runs on a caller-provided executor — under a decorated host the transaction was
+/// bound to the ambient request org scope, so the composing service's row-level fences govern
+/// these reads and writes; unfenced deployments see the whole table.
 impl TaxTemplateRepository {
-    /// Existence probe filtered by the caller's company. Used by `add_row` to confirm the parent
-    /// template exists in this tenant before appending a row. Runs through the scoped-execute
-    /// helper so the RLS fence sees `app.company_id`; the explicit `company_id` bind is
-    /// defense-in-depth on top.
-    pub async fn find_by_id_in_company(
+    /// Existence probe by id — confirms the parent template exists before appending a row.
+    /// `None` = no live row (the service treats it as `TemplateNotFound`).
+    pub async fn find_by_id_on(
         &self,
-        pool: &PgPool,
+        conn: &mut sqlx::PgConnection,
         id: Uuid,
-        company_id: Uuid,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let found = backbone_orm::company_scope::fetch_optional_scalar_scoped(
-            pool,
-            sqlx::query_scalar(
-                r#"SELECT id FROM tax.tax_templates
-                   WHERE id = $1 AND company_id = $2 AND (metadata->>'deleted_at') IS NULL"#,
-            )
-            .bind(id)
-            .bind(company_id),
+        let found = sqlx::query_scalar(
+            r#"SELECT id FROM tax.tax_templates
+               WHERE id = $1 AND (metadata->>'deleted_at') IS NULL"#,
         )
+        .bind(id)
+        .fetch_optional(conn)
         .await?;
         Ok(found)
     }
 
-    /// Name-collision probe filtered by the caller's company + template type —
-    /// the friendly duplicate-name pre-check (the DB also enforces it with a
-    /// partial unique index for raw SQL writers). Runs through the scoped-execute
-    /// helper so the RLS fence sees `app.company_id`.
-    pub async fn find_by_name_in_company(
+    /// Name-collision probe by template type — the friendly duplicate-name pre-check (under a
+    /// decorated host the composing service's per-unit partial unique index is the raw-SQL
+    /// backstop).
+    pub async fn find_by_name_and_type_on(
         &self,
-        pool: &PgPool,
-        company_id: Uuid,
+        conn: &mut sqlx::PgConnection,
         template_type: &str,
         name: &str,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let found = backbone_orm::company_scope::fetch_optional_scalar_scoped(
-            pool,
-            sqlx::query_scalar(
-                r#"SELECT id FROM tax.tax_templates
-                   WHERE company_id = $1 AND template_type::text = $2 AND name = $3
-                     AND (metadata->>'deleted_at') IS NULL"#,
-            )
-            .bind(company_id)
-            .bind(template_type)
-            .bind(name),
+        let found = sqlx::query_scalar(
+            r#"SELECT id FROM tax.tax_templates
+               WHERE template_type::text = $1 AND name = $2
+                 AND (metadata->>'deleted_at') IS NULL"#,
         )
+        .bind(template_type)
+        .bind(name)
+        .fetch_optional(conn)
         .await?;
         Ok(found)
     }
 
-    /// Code probe filtered by the caller's company. Lets idempotent template
-    /// installation (chart + tax-template setup) skip templates that already
-    /// exist for the tenant instead of tripping the duplicate-code error. Runs
-    /// through the scoped-execute helper so the RLS fence sees `app.company_id`.
-    pub async fn find_by_code_in_company(
+    /// Code probe — lets idempotent template installation (chart + tax-template setup) skip
+    /// templates that already exist for the unit instead of tripping the duplicate-code error.
+    /// Under a decorated host the composing service's per-unit unique is the raw-SQL backstop.
+    pub async fn find_by_code_on(
         &self,
-        pool: &PgPool,
-        company_id: Uuid,
+        conn: &mut sqlx::PgConnection,
         code: &str,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let found = backbone_orm::company_scope::fetch_optional_scalar_scoped(
-            pool,
-            sqlx::query_scalar(
-                r#"SELECT id FROM tax.tax_templates
-                   WHERE company_id = $1 AND code = $2 AND (metadata->>'deleted_at') IS NULL"#,
-            )
-            .bind(company_id)
-            .bind(code),
+        let found = sqlx::query_scalar(
+            r#"SELECT id FROM tax.tax_templates
+               WHERE code = $1 AND (metadata->>'deleted_at') IS NULL"#,
         )
+        .bind(code)
+        .fetch_optional(conn)
         .await?;
         Ok(found)
     }
 
-    /// Insert a new active tax template on any executor — a bound transaction
-    /// connection (so the template and its seeded repartition families land
-    /// atomically) or the pool directly. The caller has already established the
-    /// company scope; the explicit `company_id` bind is defense-in-depth on top
-    /// of the RLS fence.
+    /// Insert a new active tax template on any executor — a bound transaction connection (so the
+    /// template and its seeded repartition families land atomically) or the pool directly.
+    /// The `$4::template_type` cast and `'active'::tax_status` literal mirror the original
+    /// hand-written SQL exactly.
     pub async fn insert_on<'e, E>(executor: E, r: &NewTaxTemplateRow<'_>) -> Result<(), sqlx::Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Postgres>,
     {
         sqlx::query(
             r#"INSERT INTO tax.tax_templates
-                   (id, company_id, code, name, template_type, tax_category_id, is_inclusive,
+                   (id, code, name, template_type, tax_category_id, is_inclusive,
                     status, tax_exigibility, cash_basis_transition_account_id)
-               VALUES ($1,$2,$3,$4,$5::template_type,$6,$7,'active'::tax_status,
-                       $8::tax_exigibility,$9)"#,
+               VALUES ($1,$2,$3,$4::template_type,$5,$6,'active'::tax_status,
+                       $7::tax_exigibility,$8)"#,
         )
         .bind(r.id)
-        .bind(r.company_id)
         .bind(r.code)
         .bind(r.name)
         .bind(r.template_type)

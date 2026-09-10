@@ -13,14 +13,14 @@ use std::env;
 
 // Import seeders
 use backbone_tax::seeders::SeedCompanyTaxSettingsSeeder;
-use backbone_tax::seeders::SeedEFakturDocumentSeeder;
 use backbone_tax::seeders::SeedTaxCategorySeeder;
-use backbone_tax::seeders::SeedTaxFilingPeriodSeeder;
-use backbone_tax::seeders::SeedTaxRepartitionLineSeeder;
-use backbone_tax::seeders::SeedTaxTagSeeder;
-use backbone_tax::seeders::SeedTaxTemplateRowSeeder;
-use backbone_tax::seeders::SeedTaxTemplateSeeder;
 use backbone_tax::seeders::SeedTaxTransactionSeeder;
+use backbone_tax::seeders::SeedEFakturDocumentSeeder;
+use backbone_tax::seeders::SeedTaxFilingPeriodSeeder;
+use backbone_tax::seeders::SeedTaxTagSeeder;
+use backbone_tax::seeders::SeedTaxRepartitionLineSeeder;
+use backbone_tax::seeders::SeedTaxTemplateSeeder;
+use backbone_tax::seeders::SeedTaxTemplateRowSeeder;
 use backbone_tax::seeders::SeedWithholdingCategorySeeder;
 use backbone_tax::seeders::Seeder;
 
@@ -28,14 +28,13 @@ use backbone_tax::seeders::Seeder;
 async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     let force = args.iter().any(|a| a == "--force");
-    let filter: Option<&str> = args
-        .iter()
+    let filter: Option<&str> = args.iter()
         .skip(1)
         .find(|a| !a.starts_with("-"))
         .map(|s| s.as_str());
 
-    let database_url =
-        env::var("DATABASE_URL").map_err(|e| anyhow::anyhow!("DATABASE_URL must be set: {e}"))?;
+    let database_url = env::var("DATABASE_URL")
+        .map_err(|e| anyhow::anyhow!("DATABASE_URL must be set: {e}"))?;
 
     println!("Connecting to database...");
 

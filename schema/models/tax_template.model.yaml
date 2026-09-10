@@ -17,15 +17,10 @@ models:
         attributes: ["@id", "@default(uuid)"]
         description: "Unique template identifier"
 
-      company_id:
-        type: uuid
-        attributes: ["@required", "@exclude_from_foreign_key_check"]
-        description: "Tenant that owns this template # logical FK to organization.Company.id (no hard SQL FK — RLS is the fence, ADR-0010 B1)"
-
       code:
         type: string
         attributes: ["@required", "@max(40)"]
-        description: "Short unique code"
+        description: "Short code, unique within the owning org unit"
 
       name:
         type: string
@@ -50,7 +45,7 @@ models:
       tax_exigibility:
         type: TaxExigibility
         attributes: ["@default(on_invoice)"]
-        description: "When this tax becomes exigible: at post (on_invoice) or when its receivable/payable is reconciled (on_payment, cash basis). Resolved from the company's settings at creation and materialized here so a later company posture change never rewrites history."
+        description: "When this tax becomes exigible: at post (on_invoice) or when its receivable/payable is reconciled (on_payment, cash basis). Resolved from the owning unit's settings at creation and materialized here so a later posture change never rewrites history."
 
       cash_basis_transition_account_id:
         type: uuid?
@@ -81,9 +76,9 @@ models:
         inverse: template
 
     indexes:
-      - type: unique
-        fields: [company_id, code]
-        where: "deleted_at IS NULL"
+      # No tenancy indexes (ADR-0029): the module ships no scoping column. The
+      # per-unit template-code unique is POSTURE and is owned by the composing
+      # service's tenancy decorator.
       - type: index
         fields: [template_type, status]
 
@@ -96,11 +91,6 @@ models:
         type: uuid
         attributes: ["@id", "@default(uuid)"]
         description: "Unique row identifier"
-
-      company_id:
-        type: uuid
-        attributes: ["@required", "@exclude_from_foreign_key_check"]
-        description: "Tenant that owns this row (denormalized from the template for RLS) # logical FK to organization.Company.id (no hard SQL FK — RLS is the fence, ADR-0010 B1)"
 
       template_id:
         type: uuid

@@ -5,8 +5,8 @@
 //! Returns an `EntityValidator<CompanyTaxSettings>` pre-loaded with schema-derived
 //! field rules. Extend in the `// <<< CUSTOM` zone.
 
+use backbone_core::{EntityValidator, ValidationErrors, ValidationError};
 use crate::domain::entity::CompanyTaxSettings;
-use backbone_core::{EntityValidator, ValidationError, ValidationErrors};
 
 /// Validator type alias for CompanyTaxSettings entities.
 pub type CompanyTaxSettingsValidator = EntityValidator<CompanyTaxSettings>;
@@ -16,7 +16,7 @@ pub fn company_tax_settings_validator() -> CompanyTaxSettingsValidator {
     EntityValidator::new()
     // <<< CUSTOM RULES
     // END CUSTOM RULES
-    // No schema-derived rules — add custom rules above.
+        // No schema-derived rules — add custom rules above.
 }
 
 // <<< CUSTOM

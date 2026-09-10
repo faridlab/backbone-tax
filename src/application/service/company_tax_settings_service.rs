@@ -7,9 +7,9 @@
 
 use backbone_core::GenericCrudService;
 
+use crate::presentation::dto::{CreateCompanyTaxSettingsDto, UpdateCompanyTaxSettingsDto};
 use crate::domain::entity::CompanyTaxSettings;
 use crate::infrastructure::persistence::CompanyTaxSettingsRepository;
-use crate::presentation::dto::{CreateCompanyTaxSettingsDto, UpdateCompanyTaxSettingsDto};
 
 /// Application service for CompanyTaxSettings entities.
 ///

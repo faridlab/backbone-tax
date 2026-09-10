@@ -4,6 +4,18 @@
 //! withholding) is read + **validated create**; the engine is exposed as **compute** endpoints
 //! (`POST /tax/calculate`, `POST /tax/withholding`) that return tax LINES — tax never posts to the
 //! GL; the caller attaches the lines to an AccountingPost. Generic mutation is not mounted.
+//!
+//! The route gate is the [`OrgContext`] the composing service's org auth middleware inserts —
+//! every handler extracts it (401 when absent) but never reads it: it is presence-gating only,
+//! never a query predicate.
+//!
+//! Tenancy: none, by design (ADR-0029). No handler threads a tenant key — the services relay the
+//! ambient request org scope onto their transactions, and the composing decorator's row-level
+//! fences decide which rows a caller can see and write. Unfenced deployments get an unfenced
+//! module. The `companyId` fields on the request bodies/queries are the documented LEGACY TWIN
+//! input (kept for wire + in-process-caller compatibility): under a decorated host the ambient
+//! scope wins and the named value can never widen the fence; with no ambient scope the services
+//! construct the single-company scope from it.
 
 use std::sync::Arc;
 
@@ -15,6 +27,7 @@ use axum::{
     routing::post,
     Json, Router,
 };
+use backbone_auth::org::OrgContext;
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -74,27 +87,10 @@ fn compliance_err_response(e: TaxComplianceError) -> axum::response::Response {
         .into_response()
 }
 
-// ── Tenant consistency ────────────────────────────────────────────────────────
-//
-// Every body or query below names the caller's `companyId`, and the write service binds that value
-// into its statements — it would override whatever company the caller's token established. When a
-// host has mounted an ambient company scope (backbone-auth's `company_auth` wraps every request in
-// it), the named company must agree with it, or an authenticated tenant could shape ANY company's
-// tax configuration simply by naming it in the body. With no ambient scope (unit tests, trusted
-// internal hosts) the check is skipped — the module keeps its standalone shape.
-fn tenant_guard(requested: Uuid) -> Option<axum::response::Response> {
-    match backbone_orm::current_company() {
-        Some(authenticated) if authenticated != requested => {
-            Some(err_response(TaxError::CompanyMismatch))
-        }
-        _ => None,
-    }
-}
-
 // ── config writes ──────────────────────────────────────────────────────────────
-// Each create body carries the caller's `companyId` (ADR-0010 B1): the write service binds it
-// into the INSERT and wraps the call in `with_company_scope`. The compute endpoints below read
-// the company from the ambient request scope (set by the deployment's scope middleware).
+// Each create body keeps its `companyId` field as the LEGACY TWIN input; the write service
+// relays the ambient request org scope when one is bound and otherwise constructs the
+// single-company scope from that field. The `_org` extractor is the route gate only.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateCategoryBody {
@@ -106,14 +102,11 @@ struct CreateCategoryBody {
 }
 async fn create_category(
     State(svc): State<Arc<TaxWriteService>>,
+    _org: OrgContext,
     Json(b): Json<CreateCategoryBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     match svc
         .create_category(NewCategory {
-            company_id: b.company_id,
             code: b.code,
             name: b.name,
             tax_kind: b.tax_kind,
@@ -137,7 +130,7 @@ struct CreateTemplateBody {
     tax_category_id: Option<Uuid>,
     #[serde(default)]
     is_inclusive: bool,
-    /// `on_invoice` | `on_payment` — absent ⇒ the company settings default.
+    /// `on_invoice` | `on_payment` — absent ⇒ the owning unit's settings default.
     #[serde(default)]
     tax_exigibility: Option<String>,
     #[serde(default)]
@@ -145,14 +138,11 @@ struct CreateTemplateBody {
 }
 async fn create_template(
     State(svc): State<Arc<TaxWriteService>>,
+    _org: OrgContext,
     Json(b): Json<CreateTemplateBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     match svc
         .create_template(NewTemplate {
-            company_id: b.company_id,
             code: b.code,
             name: b.name,
             template_type: b.template_type,
@@ -180,7 +170,6 @@ struct CompanySettingsBody {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CompanySettingsOut {
-    company_id: Uuid,
     rounding_method: String,
     default_exigibility: String,
     cash_basis_transition_account_id: Option<Uuid>,
@@ -188,7 +177,6 @@ struct CompanySettingsOut {
 impl From<CompanyTaxSettingsRecord> for CompanySettingsOut {
     fn from(s: CompanyTaxSettingsRecord) -> Self {
         Self {
-            company_id: s.company_id,
             rounding_method: s.rounding_method,
             default_exigibility: s.default_exigibility,
             cash_basis_transition_account_id: s.cash_basis_transition_account_id,
@@ -218,12 +206,10 @@ struct RepartitionLineOut {
 }
 async fn list_repartition_lines(
     State(svc): State<Arc<TaxWriteService>>,
+    _org: OrgContext,
     axum::extract::Query(q): axum::extract::Query<RepartitionQuery>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(q.company_id) {
-        return r;
-    }
-    match svc.repartition_lines(q.company_id, q.template_id).await {
+    match svc.repartition_lines(q.template_id).await {
         Ok(lines) => {
             let out: Vec<RepartitionLineOut> = lines
                 .into_iter()
@@ -243,26 +229,21 @@ async fn list_repartition_lines(
 }
 async fn get_company_settings(
     State(svc): State<Arc<TaxWriteService>>,
-    axum::extract::Query(q): axum::extract::Query<CompanyIdQuery>,
+    _org: OrgContext,
+    axum::extract::Query(_q): axum::extract::Query<CompanyIdQuery>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(q.company_id) {
-        return r;
-    }
-    match svc.company_settings(q.company_id).await {
+    match svc.company_settings().await {
         Ok(s) => (StatusCode::OK, Json(s.map(CompanySettingsOut::from))).into_response(),
         Err(e) => err_response(e),
     }
 }
 async fn put_company_settings(
     State(svc): State<Arc<TaxWriteService>>,
+    _org: OrgContext,
     Json(b): Json<CompanySettingsBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     match svc
         .upsert_company_settings(NewCompanySettings {
-            company_id: b.company_id,
             rounding_method: b.rounding_method,
             default_exigibility: b.default_exigibility,
             cash_basis_transition_account_id: b.cash_basis_transition_account_id,
@@ -295,14 +276,11 @@ struct AddRepartitionLineBody {
 }
 async fn add_repartition_line(
     State(svc): State<Arc<TaxWriteService>>,
+    _org: OrgContext,
     Json(b): Json<AddRepartitionLineBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     match svc
         .add_repartition_line(NewRepartitionLine {
-            company_id: b.company_id,
             template_id: b.template_id,
             document_type: b.document_type,
             repartition_type: b.repartition_type,
@@ -350,14 +328,11 @@ struct ReplaceSplitBody {
 /// already sum to 100).
 async fn replace_repartition_family(
     State(svc): State<Arc<TaxWriteService>>,
+    _org: OrgContext,
     Json(b): Json<ReplaceFamilyBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     match svc
         .replace_repartition_family(ReplaceRepartitionFamily {
-            company_id: b.company_id,
             template_id: b.template_id,
             document_type: b.document_type,
             base_tag_ids: b.base_tag_ids,
@@ -390,14 +365,11 @@ struct CreateTagBody {
 }
 async fn create_tag(
     State(svc): State<Arc<TaxWriteService>>,
+    _org: OrgContext,
     Json(b): Json<CreateTagBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     match svc
         .create_tag(NewTag {
-            company_id: b.company_id,
             code: b.code,
             name: b.name,
         })
@@ -430,14 +402,11 @@ struct AddRowBody {
 }
 async fn add_row(
     State(svc): State<Arc<TaxWriteService>>,
+    _org: OrgContext,
     Json(b): Json<AddRowBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     match svc
         .add_row(NewTemplateRow {
-            company_id: b.company_id,
             template_id: b.template_id,
             charge_type: b.charge_type,
             rate: b.rate,
@@ -472,14 +441,11 @@ struct CreateWithholdingBody {
 }
 async fn create_withholding(
     State(svc): State<Arc<TaxWriteService>>,
+    _org: OrgContext,
     Json(b): Json<CreateWithholdingBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     match svc
         .create_withholding(NewWithholding {
-            company_id: b.company_id,
             code: b.code,
             name: b.name,
             rate: b.rate,
@@ -496,6 +462,9 @@ async fn create_withholding(
 }
 
 // ── compute (the seam: returns tax lines, never posts) ──────────────────────────
+// The engine is AMBIENT-scope-only: it fails closed (`no_org_scope`, 500) when the composing
+// service's scope middleware bound no org scope for the request. The `_org` extractor gates the
+// route; the scope middleware supplies the fence.
 #[derive(Debug, Serialize)]
 struct TaxLineOut {
     account_id: Option<Uuid>,
@@ -525,6 +494,7 @@ struct CalculateBody {
 }
 async fn calculate(
     State(engine): State<Arc<TaxEngine>>,
+    _org: OrgContext,
     Json(b): Json<CalculateBody>,
 ) -> axum::response::Response {
     match engine
@@ -581,11 +551,9 @@ struct DocumentTaxResultOut {
 }
 async fn calculate_document(
     State(engine): State<Arc<TaxEngine>>,
+    _org: OrgContext,
     Json(b): Json<DocumentCalculateBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     let doc_type = match DocumentType::from_db(&b.document_type) {
         Some(t) => t,
         None => {
@@ -649,6 +617,7 @@ struct WithholdingBody {
 }
 async fn resolve_withholding(
     State(engine): State<Arc<TaxEngine>>,
+    _org: OrgContext,
     Json(b): Json<WithholdingBody>,
 ) -> axum::response::Response {
     match engine
@@ -710,11 +679,9 @@ impl From<crate::infrastructure::persistence::EFakturDocumentRow> for EFakturDoc
 }
 async fn list_efaktur_documents(
     State(svc): State<Arc<EFakturService>>,
+    _org: OrgContext,
     axum::extract::Query(q): axum::extract::Query<EFakturDocumentQuery>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(q.company_id) {
-        return r;
-    }
     match svc
         .list_period_documents(q.company_id, q.period, q.status.as_deref())
         .await
@@ -734,12 +701,10 @@ struct CompanyBody {
 }
 async fn confirm_efaktur(
     State(svc): State<Arc<EFakturService>>,
+    _org: OrgContext,
     Path(id): Path<Uuid>,
     Json(b): Json<CompanyBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     match svc.confirm_efaktur(b.company_id, id).await {
         Ok(doc) => (StatusCode::OK, Json(EFakturDocumentOut::from(doc))).into_response(),
         Err(e) => compliance_err_response(e),
@@ -747,12 +712,10 @@ async fn confirm_efaktur(
 }
 async fn void_efaktur(
     State(svc): State<Arc<EFakturService>>,
+    _org: OrgContext,
     Path(id): Path<Uuid>,
     Json(b): Json<CompanyBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     match svc.void_efaktur(b.company_id, id).await {
         Ok(doc) => (StatusCode::OK, Json(EFakturDocumentOut::from(doc))).into_response(),
         Err(e) => compliance_err_response(e),
@@ -785,11 +748,9 @@ impl From<crate::infrastructure::persistence::FilingPeriodRow> for FilingPeriodO
 }
 async fn list_filing_periods(
     State(svc): State<Arc<EFakturService>>,
+    _org: OrgContext,
     axum::extract::Query(q): axum::extract::Query<CompanyIdQuery>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(q.company_id) {
-        return r;
-    }
     match svc.list_filing_periods(q.company_id).await {
         Ok(periods) => {
             let out: Vec<FilingPeriodOut> = periods.into_iter().map(Into::into).collect();
@@ -808,12 +769,10 @@ fn parse_period(p: &str) -> Option<NaiveDate> {
 }
 async fn finalize_filing_period(
     State(svc): State<Arc<EFakturService>>,
+    _org: OrgContext,
     Path(period): Path<String>,
     Json(b): Json<CompanyBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     let Some(period) = parse_period(&period) else {
         return err_response(TaxError::InvalidValue(
             "period must be the masa pajak start date (YYYY-MM-01)".into(),
@@ -826,12 +785,10 @@ async fn finalize_filing_period(
 }
 async fn file_filing_period(
     State(svc): State<Arc<EFakturService>>,
+    _org: OrgContext,
     Path(period): Path<String>,
     Json(b): Json<CompanyBody>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(b.company_id) {
-        return r;
-    }
     let Some(period) = parse_period(&period) else {
         return err_response(TaxError::InvalidValue(
             "period must be the masa pajak start date (YYYY-MM-01)".into(),
@@ -862,11 +819,9 @@ struct EFakturExportQuery {
 }
 async fn list_efaktur_export_rows(
     State(svc): State<Arc<EFakturService>>,
+    _org: OrgContext,
     axum::extract::Query(q): axum::extract::Query<EFakturExportQuery>,
 ) -> axum::response::Response {
-    if let Some(r) = tenant_guard(q.company_id) {
-        return r;
-    }
     match svc.export_rows(q.company_id, q.period).await {
         Ok(rows) => {
             let out: Vec<EFakturExportRowOut> = rows

@@ -5,10 +5,25 @@
 //! filing lifecycle (finalize closes the numbering range fail-closed; file is
 //! terminal) plus the relay-facing exactly-once entry points.
 //! Requires DATABASE_URL (:5433/backbone_tax with the tax schema migrated).
+//!
+//! Tenancy: the module ships NONE (ADR-0029). The `company_id` fields on
+//! [`PostedForTax`] and the service verbs are the documented LEGACY TWIN input for the
+//! unstripped consumers — under a bound ambient scope the ambient scope wins, and with none
+//! bound the service scopes itself to the named value. None of these probes bind a scope, so
+//! every verb runs on its caller-named scope. Two consequences shape the probes:
+//!
+//! 1. The filing period + gapless sequence axis is PER-PERIOD (one row per masa, module
+//!    ships no tenancy split), so each probe posts into its OWN future month — the analog of
+//!    the fresh-random-id pattern the id-keyed tables use. Absolute sequence and aggregate
+//!    assertions stay valid only inside that month, and each probe resets its month first
+//!    (see [`clean_period`]), so reruns on a persistent database start pristine.
+//! 2. Id-keyed and period-keyed assertions replace the old company-keyed counts (the column
+//!    is gone): an invoice id / document id names exactly one unit's record.
 
 use chrono::Datelike;
 use rust_decimal::Decimal;
 use sqlx::PgPool;
+use std::sync::atomic::{AtomicU32, Ordering};
 use uuid::Uuid;
 
 use backbone_tax::application::service::efaktur_service::{
@@ -26,11 +41,55 @@ async fn pool() -> PgPool {
     PgPool::connect(&url).await.expect("connect DB")
 }
 
+/// A distinct posting month per call — the period axis this suite's probes must not share
+/// (one filing period + one gapless sequence per masa, post-strip). Months walk forward from
+/// 2031 so no probe ever collides with another's masa, and the tests stay deterministic no
+/// matter the wall clock.
+fn unique_posting_date() -> chrono::NaiveDate {
+    static N: AtomicU32 = AtomicU32::new(0);
+    let n = N.fetch_add(1, Ordering::SeqCst);
+    chrono::NaiveDate::from_ymd_opt(2031 + (n / 12) as i32, 1 + (n % 12), 15).unwrap()
+}
+
+/// The masa-pajak period (first of month) a posting date falls into.
+fn period_of(post_date: chrono::NaiveDate) -> chrono::NaiveDate {
+    format!("{:04}-{:02}-01", post_date.year(), post_date.month())
+        .parse::<chrono::NaiveDate>()
+        .unwrap()
+}
+
+/// Hard-delete every row of one masa-pajak month — the transactions posted inside it, its
+/// e-Faktur documents, and the period row itself — so a probe that reuses a month across test
+/// RUNS starts pristine (fresh gapless sequence, open period) instead of inheriting the
+/// previous run's allocations. Months are unique per test within a run, so this never
+/// touches another probe's data.
+async fn clean_period(pool: &PgPool, period: chrono::NaiveDate) {
+    sqlx::query(
+        "DELETE FROM tax.tax_transactions \
+         WHERE posting_date >= $1 AND posting_date < $1::date + INTERVAL '1 month'",
+    )
+    .bind(period)
+    .execute(pool)
+    .await
+    .unwrap();
+    sqlx::query("DELETE FROM tax.efaktur_documents WHERE period = $1")
+        .bind(period)
+        .execute(pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM tax.tax_filing_periods WHERE period = $1")
+        .bind(period)
+        .execute(pool)
+        .await
+        .unwrap();
+}
+
 #[tokio::test]
 async fn records_transaction_and_assigns_gapless_efaktur() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    let today = chrono::Utc::now().date_naive();
+    let post_date = unique_posting_date();
+    clean_period(&pool, period_of(post_date)).await;
     let svc = EFakturService::new(pool.clone());
 
     // 1) Record a sales invoice with PPN output 110,000 on a 1,000,000 base.
@@ -38,7 +97,7 @@ async fn records_transaction_and_assigns_gapless_efaktur() {
         invoice_ref: Uuid::new_v4(),
         company_id: company,
         invoice_kind: "sales".into(),
-        posting_date: today,
+        posting_date: post_date,
         taxable_base: d("1000000"),
         output_total: d("110000"),
         input_total: d("0"),
@@ -70,13 +129,13 @@ async fn records_transaction_and_assigns_gapless_efaktur() {
         invoice_ref: Uuid::new_v4(),
         company_id: company,
         invoice_kind: "sales".into(),
-        posting_date: today,
+        posting_date: post_date,
         taxable_base: d("500000"),
         output_total: d("55000"),
         input_total: d("0"),
         withholding_total: d("0"),
     };
-    let (_, efaktur2) = svc.record_tax_transaction(&data2).await.unwrap();
+    let (txn2, efaktur2) = svc.record_tax_transaction(&data2).await.unwrap();
     let seq1: i32 = sqlx::query_scalar("SELECT sequence FROM tax.efaktur_documents WHERE id = $1")
         .bind(efaktur1)
         .fetch_one(&pool)
@@ -107,22 +166,24 @@ async fn records_transaction_and_assigns_gapless_efaktur() {
         invoice_ref: Uuid::new_v4(),
         company_id: company,
         invoice_kind: "purchase".into(),
-        posting_date: today,
+        posting_date: post_date,
         taxable_base: d("800000"),
         output_total: d("0"),
         input_total: d("88000"),
         withholding_total: d("0"),
     };
-    let (_txn3, efaktur3) = svc.record_tax_transaction(&data3).await.unwrap();
+    let (txn3, efaktur3) = svc.record_tax_transaction(&data3).await.unwrap();
     assert!(efaktur3.is_none(), "purchase → no e-Faktur assigned");
 
-    // 6) No extra e-Faktur documents created (only the 2 sales).
-    let count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM tax.efaktur_documents WHERE company_id = $1")
-            .bind(company)
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    // 6) No extra e-Faktur documents created (only the 2 sales) — counted by the probe's own
+    // transaction ids (an id names exactly one unit's record; there is no company axis).
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM tax.efaktur_documents WHERE tax_transaction_id = ANY($1)",
+    )
+    .bind(vec![txn1, txn2, txn3])
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(
         count, 2,
         "exactly 2 e-Faktur documents (the 2 sales; purchase has none)"
@@ -135,7 +196,8 @@ async fn records_transaction_and_assigns_gapless_efaktur() {
 async fn void_for_invoice_flips_status_preserving_sequence() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    let today = chrono::Utc::now().date_naive();
+    let post_date = unique_posting_date();
+    clean_period(&pool, period_of(post_date)).await;
     let svc = EFakturService::new(pool.clone());
 
     // Record a sales invoice → e-Faktur assigned.
@@ -144,7 +206,7 @@ async fn void_for_invoice_flips_status_preserving_sequence() {
         invoice_ref: invoice,
         company_id: company,
         invoice_kind: "sales".into(),
-        posting_date: today,
+        posting_date: post_date,
         taxable_base: d("1000000"),
         output_total: d("110000"),
         input_total: d("0"),
@@ -208,12 +270,18 @@ async fn void_for_invoice_flips_status_preserving_sequence() {
 
 // ── masa-pajak lifecycle: finalize closes the range fail-closed; file is terminal ──
 
-fn sales_posted(company: Uuid, invoice: Uuid, base: &str, output: &str) -> PostedForTax {
+fn sales_posted(
+    company: Uuid,
+    invoice: Uuid,
+    base: &str,
+    output: &str,
+    post_date: chrono::NaiveDate,
+) -> PostedForTax {
     PostedForTax {
         invoice_ref: invoice,
         company_id: company,
         invoice_kind: "sales".into(),
-        posting_date: chrono::Utc::now().date_naive(),
+        posting_date: post_date,
         taxable_base: d(base),
         output_total: d(output),
         input_total: d("0"),
@@ -225,32 +293,43 @@ fn sales_posted(company: Uuid, invoice: Uuid, base: &str, output: &str) -> Poste
 async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    let today = chrono::Utc::now().date_naive();
-    let period = format!("{:04}-{:02}-01", today.year(), today.month())
-        .parse::<chrono::NaiveDate>()
-        .unwrap();
+    let post_date = unique_posting_date();
+    let period = period_of(post_date);
+    clean_period(&pool, period).await;
     let svc = EFakturService::new(pool.clone());
 
     // Two sales (output 110000 + 55000) + one purchase (input 88000, withholding 2300)
     // + one more sales recorded BEFORE the close (the pre-finalization replay probe).
-    svc.record_tax_transaction(&sales_posted(company, Uuid::new_v4(), "1000000", "110000"))
-        .await
-        .unwrap();
-    svc.record_tax_transaction(&sales_posted(company, Uuid::new_v4(), "500000", "55000"))
-        .await
-        .unwrap();
+    svc.record_tax_transaction(&sales_posted(
+        company,
+        Uuid::new_v4(),
+        "1000000",
+        "110000",
+        post_date,
+    ))
+    .await
+    .unwrap();
+    svc.record_tax_transaction(&sales_posted(
+        company,
+        Uuid::new_v4(),
+        "500000",
+        "55000",
+        post_date,
+    ))
+    .await
+    .unwrap();
     let purchase = PostedForTax {
         invoice_ref: Uuid::new_v4(),
         company_id: company,
         invoice_kind: "purchase".into(),
-        posting_date: today,
+        posting_date: post_date,
         taxable_base: d("800000"),
         output_total: d("0"),
         input_total: d("88000"),
         withholding_total: d("2300"),
     };
     svc.record_tax_transaction(&purchase).await.unwrap();
-    let early = sales_posted(company, Uuid::new_v4(), "1000000", "110000");
+    let early = sales_posted(company, Uuid::new_v4(), "1000000", "110000", post_date);
     let (txn_id, efaktur_id) = svc.record_tax_transaction(&early).await.unwrap();
 
     // Finalize: open → finalized with the aggregate totals of the month's transactions.
@@ -272,12 +351,12 @@ async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
     // Fail-closed: a NEW sales invoice that month refuses period_not_open — the closed
     // Masa hands out no new numbers (the allocator itself carries the guard).
     let before: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM tax.efaktur_documents WHERE company_id = $1")
-            .bind(company)
+        sqlx::query_scalar("SELECT COUNT(*) FROM tax.efaktur_documents WHERE period = $1")
+            .bind(period)
             .fetch_one(&pool)
             .await
             .unwrap();
-    let refused = sales_posted(company, Uuid::new_v4(), "100000", "11000");
+    let refused = sales_posted(company, Uuid::new_v4(), "100000", "11000", post_date);
     match svc.record_tax_transaction(&refused).await {
         Err(TaxComplianceError::PeriodNotOpen(c, p)) => {
             assert_eq!(c, company);
@@ -286,8 +365,8 @@ async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
         other => panic!("expected PeriodNotOpen, got {other:?}"),
     }
     let after: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM tax.efaktur_documents WHERE company_id = $1")
-            .bind(company)
+        sqlx::query_scalar("SELECT COUNT(*) FROM tax.efaktur_documents WHERE period = $1")
+            .bind(period)
             .fetch_one(&pool)
             .await
             .unwrap();
@@ -310,7 +389,7 @@ async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
         invoice_ref: Uuid::new_v4(),
         company_id: company,
         invoice_kind: "purchase".into(),
-        posting_date: today,
+        posting_date: post_date,
         taxable_base: d("100000"),
         output_total: d("0"),
         input_total: d("11000"),
@@ -333,15 +412,20 @@ async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
 async fn file_runs_finalized_to_filed_and_is_terminal() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    let today = chrono::Utc::now().date_naive();
-    let period = format!("{:04}-{:02}-01", today.year(), today.month())
-        .parse::<chrono::NaiveDate>()
-        .unwrap();
+    let post_date = unique_posting_date();
+    let period = period_of(post_date);
+    clean_period(&pool, period).await;
     let svc = EFakturService::new(pool.clone());
 
     // Direct open → file refuses: the lifecycle runs open → finalized → filed.
     let (_, efaktur_id) = svc
-        .record_tax_transaction(&sales_posted(company, Uuid::new_v4(), "1000000", "110000"))
+        .record_tax_transaction(&sales_posted(
+            company,
+            Uuid::new_v4(),
+            "1000000",
+            "110000",
+            post_date,
+        ))
         .await
         .unwrap();
     let efaktur_id = efaktur_id.expect("sales with output is numbered");
@@ -384,10 +468,18 @@ async fn file_runs_finalized_to_filed_and_is_terminal() {
 async fn confirm_flips_assigned_to_confirmed_and_void_still_works() {
     let pool = pool().await;
     let company = Uuid::new_v4();
+    let post_date = unique_posting_date();
+    clean_period(&pool, period_of(post_date)).await;
     let svc = EFakturService::new(pool.clone());
 
     let (_, efaktur_id) = svc
-        .record_tax_transaction(&sales_posted(company, Uuid::new_v4(), "1000000", "110000"))
+        .record_tax_transaction(&sales_posted(
+            company,
+            Uuid::new_v4(),
+            "1000000",
+            "110000",
+            post_date,
+        ))
         .await
         .unwrap();
     let efaktur_id = efaktur_id.unwrap();
@@ -428,6 +520,8 @@ async fn confirm_flips_assigned_to_confirmed_and_void_still_works() {
 async fn once_entry_points_are_exactly_once_per_event_id() {
     let pool = pool().await;
     let company = Uuid::new_v4();
+    let post_date = unique_posting_date();
+    clean_period(&pool, period_of(post_date)).await;
     let svc = EFakturService::new(pool.clone());
 
     // The consumer inbox table ships with the outbox migrate (the host runs it at boot).
@@ -437,7 +531,7 @@ async fn once_entry_points_are_exactly_once_per_event_id() {
 
     // First delivery applies; a redelivery of the SAME envelope id is a committed no-op.
     let event_id = Uuid::new_v4();
-    let data = sales_posted(company, Uuid::new_v4(), "1000000", "110000");
+    let data = sales_posted(company, Uuid::new_v4(), "1000000", "110000", post_date);
     let first = svc
         .record_tax_transaction_once(event_id, "test-consumer", &data)
         .await
@@ -459,9 +553,8 @@ async fn once_entry_points_are_exactly_once_per_event_id() {
     assert!(replay.is_some());
     assert_eq!(replay.unwrap().0, first.as_ref().unwrap().0);
     let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM tax.tax_transactions WHERE company_id = $1 AND invoice_ref = $2",
+        "SELECT COUNT(*) FROM tax.tax_transactions WHERE invoice_ref = $1",
     )
-    .bind(company)
     .bind(data.invoice_ref)
     .fetch_one(&pool)
     .await

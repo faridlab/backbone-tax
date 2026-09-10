@@ -7,9 +7,9 @@
 
 use backbone_core::GenericCrudService;
 
+use crate::presentation::dto::{CreateTaxRepartitionLineDto, UpdateTaxRepartitionLineDto};
 use crate::domain::entity::TaxRepartitionLine;
 use crate::infrastructure::persistence::TaxRepartitionLineRepository;
-use crate::presentation::dto::{CreateTaxRepartitionLineDto, UpdateTaxRepartitionLineDto};
 
 /// Application service for TaxRepartitionLine entities.
 ///

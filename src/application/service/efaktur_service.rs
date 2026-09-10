@@ -1,7 +1,7 @@
 //! The e-Faktur + tax-recording engine (hand-authored, user-owned).
 //!
 //! `record_tax_transaction` records an immutable TaxTransaction for a posted billing invoice
-//! (idempotent on company+invoice_ref+invoice_kind). For SALES invoices, it also assigns an
+//! (idempotent on invoice_ref+invoice_kind). For SALES invoices, it also assigns an
 //! EFakturDocument with a gapless DJP-format number (010.NNN-NN.YYYYYYYY). The composition layer
 //! calls this when billing emits SalesInvoicePosted/PurchaseInvoicePosted.
 //!
@@ -13,6 +13,14 @@
 //! - `confirm_efaktur` / `void_efaktur` manage the document lifecycle (assigned→confirmed; void
 //!   preserves the DJP number forever).
 //!
+//! Tenancy: none, by design (ADR-0029). Every transaction relays the AMBIENT request org scope
+//! when the composing service bound one (`backbone_orm::org_scope::bind_org_scope_on`); the
+//! decorator-installed row-level fences then govern every statement. The `company_id` inputs are
+//! the documented LEGACY TWIN: the composition relay and unstripped consumers call in-process
+//! with no ambient scope, so the verbs construct the single-company scope from the named id and
+//! run under it — under a decorated host the ambient scope wins and the named company can never
+//! widen the fence. The module never guesses a company of its own.
+//!
 //! Zero cargo edges to other domain modules: tax never imports billing. The composition ACL
 //! passes the invoice data; the only infra dependency is the framework outbox crate, whose
 //! inbox dedup the `_once` entry points claim INSIDE the effect's transaction (the relay's
@@ -22,7 +30,7 @@
 //! All SQL lives in the repositories (tax_transaction / tax_filing_period / e_faktur_document);
 //! this service only orchestrates. 4-layer rule.
 
-use backbone_orm::company_scope;
+use backbone_orm::org_scope;
 use chrono::{Datelike, NaiveDate};
 use rust_decimal::Decimal;
 use sqlx::PgPool;
@@ -62,20 +70,20 @@ impl std::fmt::Display for TaxComplianceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TaxComplianceError::NoFilingPeriod(c, d) => {
-                write!(f, "no open TaxFilingPeriod for company {c} in {d}")
+                write!(f, "no open TaxFilingPeriod for unit {c} in {d}")
             }
             TaxComplianceError::PeriodNotOpen(c, d) => write!(
                 f,
-                "the masa pajak for company {c} starting {d} is closed (finalized or filed) — \
+                "the masa pajak for unit {c} starting {d} is closed (finalized or filed) — \
                  it cannot accept new tax transactions"
             ),
             TaxComplianceError::PeriodNotFinalized(c, d) => write!(
                 f,
-                "the masa pajak for company {c} starting {d} is not finalized — finalize before filing"
+                "the masa pajak for unit {c} starting {d} is not finalized — finalize before filing"
             ),
             TaxComplianceError::PeriodAlreadyFiled(c, d) => write!(
                 f,
-                "the masa pajak for company {c} starting {d} is already filed — filed is terminal"
+                "the masa pajak for unit {c} starting {d} is already filed — filed is terminal"
             ),
             TaxComplianceError::EFakturNotFound(id) => {
                 write!(f, "no e-Faktur document {id} in scope")
@@ -128,6 +136,10 @@ pub struct EFakturService {
 }
 
 /// The tax data the composition ACL extracts from a billing posted event.
+///
+/// `company_id` is the LEGACY TWIN input (ADR-0029): unstripped consumers call in-process with
+/// no ambient scope, and the verbs construct the documented single-company scope from it. Under
+/// a decorated host the ambient request scope wins and this field never widens the fence.
 #[derive(Debug, Clone)]
 pub struct PostedForTax {
     pub invoice_ref: Uuid,
@@ -145,8 +157,28 @@ impl EFakturService {
         Self { db_pool }
     }
 
+    /// Bind the transaction's scope: the AMBIENT request org scope when the composing service
+    /// bound one, otherwise the single-company scope constructed from the caller-named company
+    /// id (the LEGACY TWIN). Transaction-local (`set_config(..., true)`): nothing leaks onto a
+    /// pooled connection.
+    async fn bind_scope(
+        conn: &mut sqlx::PgConnection,
+        company_id: Uuid,
+    ) -> Result<(), TaxComplianceError> {
+        if let Some(scope) = org_scope::current_org_scope() {
+            org_scope::bind_org_scope_on(conn, &scope).await?;
+        } else {
+            org_scope::bind_org_scope_on(
+                conn,
+                &org_scope::OrgScope::for_company_unit(company_id),
+            )
+            .await?;
+        }
+        Ok(())
+    }
+
     /// Record a TaxTransaction for a posted invoice. For SALES, also assigns an e-Faktur number.
-    /// Idempotent: the unique (company, invoice_ref, invoice_kind) fence means a re-delivery of the
+    /// Idempotent: the unique (invoice_ref, invoice_kind) fence means a re-delivery of the
     /// same posted event is a no-op (returns the existing transaction) — including re-deliveries
     /// that arrive after the period was finalized (the fence probe runs BEFORE the open-period
     /// guard, so a closed period refuses only NEW transactions, never replays).
@@ -155,7 +187,7 @@ impl EFakturService {
         data: &PostedForTax,
     ) -> Result<(Uuid, Option<Uuid>), TaxComplianceError> {
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, data.company_id).await?;
+        Self::bind_scope(&mut tx, data.company_id).await?;
         let out = self.record_in_tx(&mut tx, data).await?;
         tx.commit().await?;
         Ok(out)
@@ -173,7 +205,7 @@ impl EFakturService {
         data: &PostedForTax,
     ) -> Result<Option<(Uuid, Option<Uuid>)>, TaxComplianceError> {
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, data.company_id).await?;
+        Self::bind_scope(&mut tx, data.company_id).await?;
         let first =
             backbone_outbox::inbox::once(&mut *tx, EFAKTUR_INBOX_SCHEMA, consumer, event_id)
                 .await
@@ -189,8 +221,7 @@ impl EFakturService {
         Ok(Some(out))
     }
 
-    /// The recording unit of work, on a caller-provided transaction with the company already
-    /// bound.
+    /// The recording unit of work, on a caller-provided transaction with the scope already bound.
     async fn record_in_tx(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
@@ -201,12 +232,7 @@ impl EFakturService {
         // 1) Idempotency probe BEFORE the period guard: a re-delivery of an event whose
         //    transaction already landed (possibly before the period closed) replays as a no-op.
         if let Some(existing_id) = txns
-            .find_id_by_invoice(
-                &mut **tx,
-                data.company_id,
-                data.invoice_ref,
-                &data.invoice_kind,
-            )
+            .find_id_by_invoice(&mut **tx, data.invoice_ref, &data.invoice_kind)
             .await?
         {
             let efaktur = txns.find_efaktur_id(&mut **tx, existing_id).await?;
@@ -217,10 +243,7 @@ impl EFakturService {
         //    finalized or filed. A missing period row is fine — the assignment path opens one.
         let period_start = month_start(data.posting_date);
         let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
-        if let Some(row) = periods
-            .find_by_company_period(&mut **tx, data.company_id, period_start)
-            .await?
-        {
+        if let Some(row) = periods.find_by_period(&mut **tx, period_start).await? {
             if row.status != "open" {
                 return Err(TaxComplianceError::PeriodNotOpen(
                     data.company_id,
@@ -229,8 +252,8 @@ impl EFakturService {
             }
         }
 
-        // 3) Idempotent insert (unique company + invoice_ref + invoice_kind). Repository returns the
-        //    row's id whether the insert succeeded (fresh) or the ON CONFLICT DO UPDATE branch fired
+        // 3) Idempotent insert (unique invoice_ref + invoice_kind). Repository returns the row's
+        //    id whether the insert succeeded (fresh) or the ON CONFLICT DO UPDATE branch fired
         //    (re-delivery) — same observable behavior as the raw-SQL original.
         let txn_id = {
             let id = Uuid::new_v4();
@@ -238,7 +261,6 @@ impl EFakturService {
                 &mut **tx,
                 &NewTaxTransactionRow {
                     id,
-                    company_id: data.company_id,
                     invoice_ref: data.invoice_ref,
                     invoice_kind: &data.invoice_kind,
                     posting_date: data.posting_date,
@@ -282,8 +304,8 @@ impl EFakturService {
         invoice_kind: &str,
     ) -> Result<(), TaxComplianceError> {
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, company_id).await?;
-        self.void_for_invoice_in_tx(&mut tx, company_id, invoice_ref, invoice_kind)
+        Self::bind_scope(&mut tx, company_id).await?;
+        self.void_for_invoice_in_tx(&mut tx, invoice_ref, invoice_kind)
             .await?;
         tx.commit().await?;
         Ok(())
@@ -301,7 +323,7 @@ impl EFakturService {
         invoice_kind: &str,
     ) -> Result<Option<()>, TaxComplianceError> {
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, company_id).await?;
+        Self::bind_scope(&mut tx, company_id).await?;
         let first =
             backbone_outbox::inbox::once(&mut *tx, EFAKTUR_INBOX_SCHEMA, consumer, event_id)
                 .await
@@ -312,23 +334,22 @@ impl EFakturService {
             tx.commit().await?;
             return Ok(None);
         }
-        self.void_for_invoice_in_tx(&mut tx, company_id, invoice_ref, invoice_kind)
+        self.void_for_invoice_in_tx(&mut tx, invoice_ref, invoice_kind)
             .await?;
         tx.commit().await?;
         Ok(Some(()))
     }
 
-    /// The void unit of work, on a caller-provided transaction with the company already bound.
+    /// The void unit of work, on a caller-provided transaction with the scope already bound.
     async fn void_for_invoice_in_tx(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        company_id: Uuid,
         invoice_ref: Uuid,
         invoice_kind: &str,
     ) -> Result<(), TaxComplianceError> {
         let txns = TaxTransactionRepository::new(self.db_pool.clone());
         if let Some(efaktur_id) = txns
-            .find_efaktur_id_by_invoice(&mut **tx, company_id, invoice_ref, invoice_kind)
+            .find_efaktur_id_by_invoice(&mut **tx, invoice_ref, invoice_kind)
             .await?
         {
             let docs = EFakturDocumentRepository::new(self.db_pool.clone());
@@ -347,7 +368,7 @@ impl EFakturService {
         efaktur_id: Uuid,
     ) -> Result<EFakturDocumentRow, TaxComplianceError> {
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, company_id).await?;
+        Self::bind_scope(&mut tx, company_id).await?;
         let docs = EFakturDocumentRepository::new(self.db_pool.clone());
         let doc = docs
             .find_on(&mut *tx, efaktur_id)
@@ -358,10 +379,7 @@ impl EFakturService {
             return Ok(doc); // idempotent re-void
         }
         let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
-        if let Some(period) = periods
-            .find_by_company_period(&mut *tx, company_id, doc.period)
-            .await?
-        {
+        if let Some(period) = periods.find_by_period(&mut *tx, doc.period).await? {
             if period.status == "filed" {
                 return Err(TaxComplianceError::PeriodAlreadyFiled(
                     company_id, doc.period,
@@ -386,7 +404,7 @@ impl EFakturService {
         efaktur_id: Uuid,
     ) -> Result<EFakturDocumentRow, TaxComplianceError> {
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, company_id).await?;
+        Self::bind_scope(&mut tx, company_id).await?;
         let docs = EFakturDocumentRepository::new(self.db_pool.clone());
         let flipped = docs.confirm_on(&mut *tx, efaktur_id).await?;
         if flipped == 0 {
@@ -422,18 +440,15 @@ impl EFakturService {
         period: NaiveDate,
     ) -> Result<FilingPeriodRow, TaxComplianceError> {
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, company_id).await?;
+        Self::bind_scope(&mut tx, company_id).await?;
         let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
         // An empty month (no period row yet) is finalizable: open the row first, idempotently.
         periods
-            .ensure_open(&mut *tx, Uuid::new_v4(), company_id, period)
+            .ensure_open(&mut *tx, Uuid::new_v4(), period)
             .await?;
-        let row = match periods.finalize_open(&mut *tx, company_id, period).await? {
+        let row = match periods.finalize_open(&mut *tx, period).await? {
             Some(r) => r,
-            None => match periods
-                .find_by_company_period(&mut *tx, company_id, period)
-                .await?
-            {
+            None => match periods.find_by_period(&mut *tx, period).await? {
                 // The CAS missed while the row exists and is finalized ⇒ an earlier finalize
                 // already landed; replay is a committed no-op.
                 Some(r) if r.status == "finalized" => r,
@@ -458,14 +473,11 @@ impl EFakturService {
         period: NaiveDate,
     ) -> Result<FilingPeriodRow, TaxComplianceError> {
         let mut tx = self.db_pool.begin().await?;
-        company_scope::bind_company_on(&mut tx, company_id).await?;
+        Self::bind_scope(&mut tx, company_id).await?;
         let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
-        let row = match periods.file_finalized(&mut *tx, company_id, period).await? {
+        let row = match periods.file_finalized(&mut *tx, period).await? {
             Some(r) => r,
-            None => match periods
-                .find_by_company_period(&mut *tx, company_id, period)
-                .await?
-            {
+            None => match periods.find_by_period(&mut *tx, period).await? {
                 Some(r) if r.status == "filed" => r,
                 Some(r) if r.status == "open" => {
                     return Err(TaxComplianceError::PeriodNotFinalized(company_id, period))
@@ -477,53 +489,55 @@ impl EFakturService {
         Ok(row)
     }
 
-    /// List a company's masa pajak rows oldest-first (the operator's SPT overview read). Rides the
-    /// caller's company scope.
+    /// The masa pajak rows in scope, oldest-first (the operator's SPT overview read). Rides the
+    /// ambient request scope when one is bound; otherwise the single-company twin built from the
+    /// caller-named id (the LEGACY TWIN).
     pub async fn list_filing_periods(
         &self,
         company_id: Uuid,
     ) -> Result<Vec<FilingPeriodRow>, TaxComplianceError> {
-        let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
-        company_scope::with_company_scope(
-            Some(company_id),
-            periods.list_for_company(&self.db_pool, company_id),
-        )
-        .await
-        .map_err(Into::into)
+        let mut tx = self.db_pool.begin().await?;
+        Self::bind_scope(&mut tx, company_id).await?;
+        let rows = TaxFilingPeriodRepository::new(self.db_pool.clone())
+            .list_periods(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        Ok(rows)
     }
 
-    /// List a company's e-Faktur documents for one masa pajak (sequence order). `status` filters
-    /// by the enum text when given. Rides the caller's company scope.
+    /// The masa pajak's e-Faktur documents in scope, sequence order. `status` filters by the
+    /// enum text when given. Scope: ambient wins, else the caller-named company twin.
     pub async fn list_period_documents(
         &self,
         company_id: Uuid,
         period: NaiveDate,
         status: Option<&str>,
     ) -> Result<Vec<EFakturDocumentRow>, TaxComplianceError> {
-        let docs = EFakturDocumentRepository::new(self.db_pool.clone());
-        company_scope::with_company_scope(
-            Some(company_id),
-            docs.list_for_period(&self.db_pool, company_id, period, status),
-        )
-        .await
-        .map_err(Into::into)
+        let mut tx = self.db_pool.begin().await?;
+        Self::bind_scope(&mut tx, company_id).await?;
+        let rows = EFakturDocumentRepository::new(self.db_pool.clone())
+            .list_for_period(&mut *tx, period, status)
+            .await?;
+        tx.commit().await?;
+        Ok(rows)
     }
 
-    /// The DJP export projection: every live document of the masa pajak joined to its tax
-    /// transaction (invoice ref, posting date, totals), sequence order. The composing host joins
-    /// buyer identity + per-line detail from billing on top. Rides the caller's company scope.
+    /// The DJP export projection: every live document of the masa pajak in scope joined to its
+    /// tax transaction (invoice ref, posting date, totals), sequence order. The composing host
+    /// joins buyer identity + per-line detail from billing on top. Scope: ambient wins, else the
+    /// caller-named company twin.
     pub async fn export_rows(
         &self,
         company_id: Uuid,
         period: NaiveDate,
     ) -> Result<Vec<EFakturExportRow>, TaxComplianceError> {
-        let docs = EFakturDocumentRepository::new(self.db_pool.clone());
-        company_scope::with_company_scope(
-            Some(company_id),
-            docs.list_export_rows(&self.db_pool, company_id, period),
-        )
-        .await
-        .map_err(Into::into)
+        let mut tx = self.db_pool.begin().await?;
+        Self::bind_scope(&mut tx, company_id).await?;
+        let rows = EFakturDocumentRepository::new(self.db_pool.clone())
+            .list_export_rows(&mut *tx, period)
+            .await?;
+        tx.commit().await?;
+        Ok(rows)
     }
 
     /// Allocate a gapless e-Faktur number (010.NNN-NN.YYYYYYYY) via the TaxFilingPeriod sequence.
@@ -540,16 +554,16 @@ impl EFakturService {
         let period_start = month_start(posting_date);
 
         // Ensure a TaxFilingPeriod exists for this month (auto-open if missing). An existing
-        // finalized/filed row is left untouched by the ON CONFLICT DO NOTHING — the guarded
-        // allocate below then refuses, which is exactly the fail-closed behavior.
+        // finalized/filed row is left untouched by the guarded ensure — the guarded allocate
+        // below then refuses, which is exactly the fail-closed behavior.
         let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
         periods
-            .ensure_open(&mut **tx, Uuid::new_v4(), company_id, period_start)
+            .ensure_open(&mut **tx, Uuid::new_v4(), period_start)
             .await?;
 
         // Atomically allocate the next sequence (gapless — serializes on the row lock).
         let AllocatedSequence { seq, seg } = periods
-            .allocate_sequence(&mut **tx, company_id, period_start)
+            .allocate_sequence(&mut **tx, period_start)
             .await?
             .ok_or(TaxComplianceError::PeriodNotOpen(company_id, period_start))?;
         let month = posting_date.format("%m").to_string();
@@ -562,7 +576,6 @@ impl EFakturService {
             &mut **tx,
             &NewEFakturDocumentRow {
                 id: eid,
-                company_id,
                 tax_transaction_id: txn_id,
                 number: &number,
                 taxpayer_segment: &seg,

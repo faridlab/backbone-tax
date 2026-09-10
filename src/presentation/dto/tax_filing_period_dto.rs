@@ -5,10 +5,10 @@
 //! DTOs provide a clean separation between domain entities and API
 //! representations, with validation and OpenAPI documentation support.
 
-use chrono::{DateTime, NaiveDate, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use chrono::{DateTime, Utc, NaiveDate};
+use rust_decimal::Decimal;
 
 #[cfg(feature = "openapi")]
 #[cfg(feature = "openapi")]
@@ -17,8 +17,8 @@ use utoipa::ToSchema;
 #[cfg(feature = "validation")]
 use validator::Validate;
 
-use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::TaxFilingPeriod;
+use crate::domain::entity::AuditMetadata;
 use crate::domain::entity::TaxFilingStatus;
 
 // =============================================================================
@@ -34,23 +34,13 @@ use crate::domain::entity::TaxFilingStatus;
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct CreateTaxFilingPeriodDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     pub period: NaiveDate,
     #[cfg_attr(feature = "validation", validate(length(max = 16)))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub npwp: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 3)))]
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "taxpayer_segment"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "taxpayer_segment")]
     pub taxpayer_segment: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "next_sequence")]
@@ -77,23 +67,13 @@ pub struct CreateTaxFilingPeriodDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateTaxFilingPeriodDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(alias = "company_id")]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     pub period: NaiveDate,
     #[cfg_attr(feature = "validation", validate(length(max = 16)))]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub npwp: Option<String>,
     #[cfg_attr(feature = "validation", validate(length(max = 3)))]
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        alias = "taxpayer_segment"
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none", alias = "taxpayer_segment")]
     pub taxpayer_segment: Option<String>,
     #[cfg_attr(feature = "openapi", schema(example = 42))]
     #[serde(alias = "next_sequence")]
@@ -120,12 +100,6 @@ pub struct UpdateTaxFilingPeriodDto {
 #[cfg_attr(feature = "validation", derive(Validate))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchTaxFilingPeriodDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    #[serde(skip_serializing_if = "Option::is_none", alias = "company_id")]
-    pub company_id: Option<Uuid>,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub period: Option<NaiveDate>,
@@ -151,15 +125,7 @@ pub struct PatchTaxFilingPeriodDto {
 impl PatchTaxFilingPeriodDto {
     /// Check if any field is set
     pub fn has_changes(&self) -> bool {
-        self.company_id.is_some()
-            || self.period.is_some()
-            || self.npwp.is_some()
-            || self.taxpayer_segment.is_some()
-            || self.next_sequence.is_some()
-            || self.output_total.is_some()
-            || self.input_total.is_some()
-            || self.withholding_total.is_some()
-            || self.status.is_some()
+        self.period.is_some() || self.npwp.is_some() || self.taxpayer_segment.is_some() || self.next_sequence.is_some() || self.output_total.is_some() || self.input_total.is_some() || self.withholding_total.is_some() || self.status.is_some()
     }
 }
 
@@ -175,16 +141,8 @@ impl PatchTaxFilingPeriodDto {
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct TaxFilingPeriodResponseDto {
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
+    #[cfg_attr(feature = "openapi", schema(example = "550e8400-e29b-41d4-a716-446655440000"))]
     pub id: Uuid,
-    #[cfg_attr(
-        feature = "openapi",
-        schema(example = "550e8400-e29b-41d4-a716-446655440000")
-    )]
-    pub company_id: Uuid,
     #[cfg_attr(feature = "openapi", schema(example = "2024-01-01"))]
     pub period: NaiveDate,
     pub npwp: Option<String>,
@@ -228,12 +186,7 @@ pub struct TaxFilingPeriodListResponseDto {
 
 impl TaxFilingPeriodListResponseDto {
     /// Create a new list response from items and pagination info
-    pub fn new(
-        items: Vec<TaxFilingPeriodResponseDto>,
-        total: u64,
-        page: u32,
-        per_page: u32,
-    ) -> Self {
+    pub fn new(items: Vec<TaxFilingPeriodResponseDto>, total: u64, page: u32, per_page: u32) -> Self {
         let total_pages = if per_page > 0 {
             ((total as f64) / (per_page as f64)).ceil() as u32
         } else {
@@ -257,9 +210,9 @@ impl TaxFilingPeriodListResponseDto {
 #[serde(rename_all = "camelCase")]
 pub struct TaxFilingPeriodSummaryDto {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub period: NaiveDate,
     pub npwp: Option<String>,
+    pub taxpayer_segment: Option<String>,
     pub created_at: Option<DateTime<Utc>>,
 }
 
@@ -271,7 +224,6 @@ impl From<TaxFilingPeriod> for TaxFilingPeriodResponseDto {
     fn from(entity: TaxFilingPeriod) -> Self {
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             period: entity.period,
             npwp: entity.npwp,
             taxpayer_segment: entity.taxpayer_segment,
@@ -290,9 +242,9 @@ impl From<TaxFilingPeriod> for TaxFilingPeriodSummaryDto {
         let created_at = backbone_core::PersistentEntity::created_at(&entity);
         Self {
             id: entity.id,
-            company_id: entity.company_id,
             period: entity.period,
             npwp: entity.npwp,
+            taxpayer_segment: entity.taxpayer_segment,
             created_at,
         }
     }
@@ -302,7 +254,6 @@ impl From<CreateTaxFilingPeriodDto> for TaxFilingPeriod {
     fn from(dto: CreateTaxFilingPeriodDto) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id: dto.company_id,
             period: dto.period,
             npwp: dto.npwp,
             taxpayer_segment: dto.taxpayer_segment,
@@ -320,7 +271,6 @@ impl From<&TaxFilingPeriod> for TaxFilingPeriodResponseDto {
     fn from(entity: &TaxFilingPeriod) -> Self {
         Self {
             id: entity.id.clone(),
-            company_id: entity.company_id.clone(),
             period: entity.period.clone(),
             npwp: entity.npwp.clone(),
             taxpayer_segment: entity.taxpayer_segment.clone(),
@@ -342,7 +292,6 @@ impl backbone_core::FromCreateDto<CreateTaxFilingPeriodDto> for TaxFilingPeriod 
 
 impl backbone_core::ApplyUpdateDto<UpdateTaxFilingPeriodDto> for TaxFilingPeriod {
     fn apply_update(mut self, dto: UpdateTaxFilingPeriodDto) -> backbone_core::ServiceResult<Self> {
-        self.company_id = dto.company_id;
         self.period = dto.period;
         self.npwp = dto.npwp;
         self.taxpayer_segment = dto.taxpayer_segment;

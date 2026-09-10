@@ -7,7 +7,6 @@
 //! Thin newtype over `backbone_orm::GenericCrudRepository<TaxTag, backbone_orm::SoftDelete>`.
 //! All standard CRUD methods are available via `Deref`.
 
-use backbone_orm::company_scope;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -19,7 +18,6 @@ pub const TABLE_NAME: &str = "tax.tax_tags";
 /// The exact row a validated tax-tag insert writes.
 pub struct NewTaxTagRow<'a> {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub code: &'a str,
     pub name: &'a str,
 }
@@ -44,44 +42,39 @@ impl TaxTagRepository {
     }
 }
 
-/// Tax-tag SQL. Lives here (not in the service) per the module's 4-layer rule.
+/// Tax-tag SQL. Lives here (not in the service) per the module's 4-layer rule. Every statement
+/// runs on a caller-provided executor — under a decorated host the transaction was bound to the
+/// ambient request org scope, so the composing service's row-level fences govern these reads and
+/// writes; the decorator's per-unit code unique is the duplicate backstop.
 impl TaxTagRepository {
-    /// Existence probe filtered by the caller's company — the friendly
-    /// duplicate-code pre-check. Company-scoped (RLS fence).
-    pub async fn find_by_code_in_company(
+    /// Existence probe by code — the friendly duplicate-code pre-check (used by `create_tag`
+    /// and the installer's find-or-create tag resolution).
+    pub async fn find_by_code_on(
         &self,
-        pool: &PgPool,
-        company_id: Uuid,
+        conn: &mut sqlx::PgConnection,
         code: &str,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let found: Option<Uuid> = company_scope::fetch_optional_scalar_scoped(
-            pool,
-            sqlx::query_scalar(
-                r#"SELECT id FROM tax.tax_tags
-                   WHERE company_id = $1 AND code = $2
-                     AND (metadata->>'deleted_at') IS NULL"#,
-            )
-            .bind(company_id)
-            .bind(code),
+        let found: Option<Uuid> = sqlx::query_scalar(
+            r#"SELECT id FROM tax.tax_tags
+               WHERE code = $1 AND (metadata->>'deleted_at') IS NULL"#,
         )
+        .bind(code)
+        .fetch_optional(conn)
         .await?;
         Ok(found)
     }
 
-    /// Insert a tax tag. Company-scoped (RLS fence).
-    pub async fn insert(&self, pool: &PgPool, r: &NewTaxTagRow<'_>) -> Result<(), sqlx::Error> {
-        company_scope::execute_scoped(
-            pool,
-            sqlx::query(
-                r#"INSERT INTO tax.tax_tags (id, company_id, code, name)
-                   VALUES ($1, $2, $3, $4)"#,
-            )
+    /// Insert a tax tag on any executor.
+    pub async fn insert_on<'e, E>(executor: E, r: &NewTaxTagRow<'_>) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+    {
+        sqlx::query(r#"INSERT INTO tax.tax_tags (id, code, name) VALUES ($1, $2, $3)"#)
             .bind(r.id)
-            .bind(r.company_id)
             .bind(r.code)
-            .bind(r.name),
-        )
-        .await?;
+            .bind(r.name)
+            .execute(executor)
+            .await?;
         Ok(())
     }
 }

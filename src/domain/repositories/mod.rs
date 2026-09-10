@@ -5,54 +5,76 @@
 //! DDD Repository traits - define persistence contracts for aggregates.
 //! Implementations should be in the infrastructure layer.
 
+
 pub mod company_tax_settings_repository;
-pub mod e_faktur_document_repository;
 pub mod tax_category_repository;
+pub mod tax_transaction_repository;
+pub mod e_faktur_document_repository;
 pub mod tax_filing_period_repository;
-pub mod tax_repartition_line_repository;
 pub mod tax_tag_repository;
+pub mod tax_repartition_line_repository;
 pub mod tax_template_repository;
 pub mod tax_template_row_repository;
-pub mod tax_transaction_repository;
 pub mod withholding_category_repository;
 
 // Re-exports
 pub use company_tax_settings_repository::{
-    CompanyTaxSettingsFilter, CompanyTaxSettingsPaginatedResult,
-    CompanyTaxSettingsPaginationParams, CompanyTaxSettingsRepository,
-};
-pub use e_faktur_document_repository::{
-    EFakturDocumentFilter, EFakturDocumentPaginatedResult, EFakturDocumentPaginationParams,
-    EFakturDocumentRepository,
+    CompanyTaxSettingsRepository,
+    CompanyTaxSettingsPaginationParams,
+    CompanyTaxSettingsPaginatedResult,
+    CompanyTaxSettingsFilter,
 };
 pub use tax_category_repository::{
-    TaxCategoryFilter, TaxCategoryPaginatedResult, TaxCategoryPaginationParams,
     TaxCategoryRepository,
-};
-pub use tax_filing_period_repository::{
-    TaxFilingPeriodFilter, TaxFilingPeriodPaginatedResult, TaxFilingPeriodPaginationParams,
-    TaxFilingPeriodRepository,
-};
-pub use tax_repartition_line_repository::{
-    TaxRepartitionLineFilter, TaxRepartitionLinePaginatedResult,
-    TaxRepartitionLinePaginationParams, TaxRepartitionLineRepository,
-};
-pub use tax_tag_repository::{
-    TaxTagFilter, TaxTagPaginatedResult, TaxTagPaginationParams, TaxTagRepository,
-};
-pub use tax_template_repository::{
-    TaxTemplateFilter, TaxTemplatePaginatedResult, TaxTemplatePaginationParams,
-    TaxTemplateRepository,
-};
-pub use tax_template_row_repository::{
-    TaxTemplateRowFilter, TaxTemplateRowPaginatedResult, TaxTemplateRowPaginationParams,
-    TaxTemplateRowRepository,
+    TaxCategoryPaginationParams,
+    TaxCategoryPaginatedResult,
+    TaxCategoryFilter,
 };
 pub use tax_transaction_repository::{
-    TaxTransactionFilter, TaxTransactionPaginatedResult, TaxTransactionPaginationParams,
     TaxTransactionRepository,
+    TaxTransactionPaginationParams,
+    TaxTransactionPaginatedResult,
+    TaxTransactionFilter,
+};
+pub use e_faktur_document_repository::{
+    EFakturDocumentRepository,
+    EFakturDocumentPaginationParams,
+    EFakturDocumentPaginatedResult,
+    EFakturDocumentFilter,
+};
+pub use tax_filing_period_repository::{
+    TaxFilingPeriodRepository,
+    TaxFilingPeriodPaginationParams,
+    TaxFilingPeriodPaginatedResult,
+    TaxFilingPeriodFilter,
+};
+pub use tax_tag_repository::{
+    TaxTagRepository,
+    TaxTagPaginationParams,
+    TaxTagPaginatedResult,
+    TaxTagFilter,
+};
+pub use tax_repartition_line_repository::{
+    TaxRepartitionLineRepository,
+    TaxRepartitionLinePaginationParams,
+    TaxRepartitionLinePaginatedResult,
+    TaxRepartitionLineFilter,
+};
+pub use tax_template_repository::{
+    TaxTemplateRepository,
+    TaxTemplatePaginationParams,
+    TaxTemplatePaginatedResult,
+    TaxTemplateFilter,
+};
+pub use tax_template_row_repository::{
+    TaxTemplateRowRepository,
+    TaxTemplateRowPaginationParams,
+    TaxTemplateRowPaginatedResult,
+    TaxTemplateRowFilter,
 };
 pub use withholding_category_repository::{
-    WithholdingCategoryFilter, WithholdingCategoryPaginatedResult,
-    WithholdingCategoryPaginationParams, WithholdingCategoryRepository,
+    WithholdingCategoryRepository,
+    WithholdingCategoryPaginationParams,
+    WithholdingCategoryPaginatedResult,
+    WithholdingCategoryFilter,
 };

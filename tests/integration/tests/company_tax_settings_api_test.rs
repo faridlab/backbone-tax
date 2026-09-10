@@ -24,7 +24,6 @@ impl TestDataGenerator for CompanyTaxSettingsTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": Uuid::new_v4().to_string(),
-            "company_id": Uuid::new_v4().to_string(),
             "rounding_method": "round_globally",
             "default_exigibility": "on_invoice",
             "cash_basis_transition_account_id": null,
@@ -36,7 +35,6 @@ impl TestDataGenerator for CompanyTaxSettingsTestData {
         let now = Utc::now().to_rfc3339();
         json!({
             "id": id,
-            "company_id": Uuid::new_v4().to_string(),
             "rounding_method": "round_globally",
             "default_exigibility": "on_invoice",
             "cash_basis_transition_account_id": null,

@@ -1,12 +1,12 @@
 use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use rust_decimal::Decimal;
 
-use super::AuditMetadata;
 use super::RepartitionDocumentType;
 use super::RepartitionType;
+use super::AuditMetadata;
 
 /// Strongly-typed ID for TaxRepartitionLine
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -14,15 +14,9 @@ use super::RepartitionType;
 pub struct TaxRepartitionLineId(pub Uuid);
 
 impl TaxRepartitionLineId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for TaxRepartitionLineId {
@@ -39,34 +33,25 @@ impl std::str::FromStr for TaxRepartitionLineId {
 }
 
 impl From<Uuid> for TaxRepartitionLineId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<TaxRepartitionLineId> for Uuid {
-    fn from(id: TaxRepartitionLineId) -> Self {
-        id.0
-    }
+    fn from(id: TaxRepartitionLineId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for TaxRepartitionLineId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for TaxRepartitionLineId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TaxRepartitionLine {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub template_id: Uuid,
     pub document_type: RepartitionDocumentType,
     pub repartition_type: RepartitionType,
@@ -87,18 +72,9 @@ impl TaxRepartitionLine {
     }
 
     /// Create a new TaxRepartitionLine with required fields
-    pub fn new(
-        company_id: Uuid,
-        template_id: Uuid,
-        document_type: RepartitionDocumentType,
-        repartition_type: RepartitionType,
-        factor_percent: Decimal,
-        tag_ids: Vec<Uuid>,
-        sort_order: i32,
-    ) -> Self {
+    pub fn new(template_id: Uuid, document_type: RepartitionDocumentType, repartition_type: RepartitionType, factor_percent: Decimal, tag_ids: Vec<Uuid>, sort_order: i32) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id,
             template_id,
             document_type,
             repartition_type,
@@ -161,6 +137,7 @@ impl TaxRepartitionLine {
         self.metadata.deleted_by.as_ref()
     }
 
+
     // ==========================================================
     // Fluent Setters (with_* for optional fields)
     // ==========================================================
@@ -185,50 +162,29 @@ impl TaxRepartitionLine {
     pub fn apply_patch(&mut self, fields: std::collections::HashMap<String, serde_json::Value>) {
         for (key, value) in fields {
             match key.as_str() {
-                "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.company_id = v;
-                    }
-                }
                 "template_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.template_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.template_id = v; }
                 }
                 "document_type" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.document_type = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.document_type = v; }
                 }
                 "repartition_type" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.repartition_type = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.repartition_type = v; }
                 }
                 "factor_percent" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.factor_percent = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.factor_percent = v; }
                 }
                 "account_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.account_id = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.account_id = v; }
                 }
                 "tag_ids" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.tag_ids = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.tag_ids = v; }
                 }
                 "sort_order" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.sort_order = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.sort_order = v; }
                 }
                 "description" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.description = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.description = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -284,24 +240,14 @@ impl backbone_orm::EntityRepoMeta for TaxRepartitionLine {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
-        m.insert("company_id".to_string(), "uuid".to_string());
         m.insert("template_id".to_string(), "uuid".to_string());
         m.insert("account_id".to_string(), "uuid".to_string());
-        m.insert(
-            "document_type".to_string(),
-            "repartition_document_type".to_string(),
-        );
-        m.insert(
-            "repartition_type".to_string(),
-            "repartition_type".to_string(),
-        );
+        m.insert("document_type".to_string(), "repartition_document_type".to_string());
+        m.insert("repartition_type".to_string(), "repartition_type".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
         &[]
-    }
-    fn company_field() -> Option<&'static str> {
-        Some("company_id")
     }
     fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
         &[("template", "tax_templates", "templateId")]
@@ -314,7 +260,6 @@ impl backbone_orm::EntityRepoMeta for TaxRepartitionLine {
 /// System fields (id, metadata, timestamps) are auto-initialized.
 #[derive(Debug, Clone, Default)]
 pub struct TaxRepartitionLineBuilder {
-    company_id: Option<Uuid>,
     template_id: Option<Uuid>,
     document_type: Option<RepartitionDocumentType>,
     repartition_type: Option<RepartitionType>,
@@ -326,12 +271,6 @@ pub struct TaxRepartitionLineBuilder {
 }
 
 impl TaxRepartitionLineBuilder {
-    /// Set the company_id field (required)
-    pub fn company_id(mut self, value: Uuid) -> Self {
-        self.company_id = Some(value);
-        self
-    }
-
     /// Set the template_id field (required)
     pub fn template_id(mut self, value: Uuid) -> Self {
         self.template_id = Some(value);
@@ -384,22 +323,12 @@ impl TaxRepartitionLineBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<TaxRepartitionLine, String> {
-        let company_id = self
-            .company_id
-            .ok_or_else(|| "company_id is required".to_string())?;
-        let template_id = self
-            .template_id
-            .ok_or_else(|| "template_id is required".to_string())?;
-        let factor_percent = self
-            .factor_percent
-            .ok_or_else(|| "factor_percent is required".to_string())?;
-        let tag_ids = self
-            .tag_ids
-            .ok_or_else(|| "tag_ids is required".to_string())?;
+        let template_id = self.template_id.ok_or_else(|| "template_id is required".to_string())?;
+        let factor_percent = self.factor_percent.ok_or_else(|| "factor_percent is required".to_string())?;
+        let tag_ids = self.tag_ids.ok_or_else(|| "tag_ids is required".to_string())?;
 
         Ok(TaxRepartitionLine {
             id: Uuid::new_v4(),
-            company_id,
             template_id,
             document_type: self.document_type.unwrap_or_default(),
             repartition_type: self.repartition_type.unwrap_or_default(),

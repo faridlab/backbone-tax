@@ -14,10 +14,11 @@ version: 2
 schema: tax
 description: "Tax engine (region-neutral): categories, templates, effective-dated rates, withholding. Computes tax lines for AccountingPost; Indonesia rules deferred (docs/erp/tax-compliance.md)."
 
-# ADR-0014 company fence: every entity here is company-scoped and fenced strict
-# (config was made tenant-scoped with the RLS fence under ADR-0010 B1; the
-# compliance entities were born fenced). No exceptions.
-company_fence: strict
+# Tenancy: none, by design (ADR-0029). The module is tenant-agnostic and reusable —
+# it ships no scoping column and no fence declaration. A composing backend-service
+# that wants these tables org-scoped declares them in its tenancy.yaml; the
+# decorator installs org_unit_id, the RLS policy, and per-unit uniques at
+# composition time.
 
 config:
   database: postgresql

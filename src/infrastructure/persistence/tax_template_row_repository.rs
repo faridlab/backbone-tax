@@ -43,7 +43,6 @@ impl TaxTemplateRowRepository {
 /// The exact row a validated template-row insert writes.
 pub struct NewTaxTemplateRowRecord<'a> {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub template_id: Uuid,
     pub charge_type: &'a str,
     pub rate: Decimal,
@@ -55,60 +54,66 @@ pub struct NewTaxTemplateRowRecord<'a> {
     pub description: Option<&'a str>,
 }
 
-/// Tax-template-row SQL. Lives here (not in the service) per the module's 4-layer rule.
+/// Tax-template-row SQL. Lives here (not in the service) per the module's 4-layer rule. Every
+/// statement runs on a caller-provided executor — under a decorated host the transaction was
+/// bound to the ambient request org scope, so the composing service's row-level fences govern
+/// these reads and writes; unfenced deployments see the whole table.
 impl TaxTemplateRowRepository {
     /// Probe for an overlapping sibling at the same `sort_order` whose effective window intersects
     /// `[effective_from, effective_to]`. Two rows effective on the same date would double-charge
-    /// (council 2026-07-03). Scoped to this template (which is itself company-scoped via its
-    /// `template_id`), so the check is per-tenant. The `daterange && daterange` predicate and the
+    /// (council 2026-07-03). Scoped to this template, so the check is per unit once the composing
+    /// service's fence is installed. The `daterange && daterange` predicate and the
     /// `'infinity'::date` COALESCE are preserved verbatim from the hand-written original.
     pub async fn find_overlap(
         &self,
-        pool: &PgPool,
+        conn: &mut sqlx::PgConnection,
         template_id: Uuid,
         sort_order: i32,
         effective_from: NaiveDate,
         effective_to: Option<NaiveDate>,
     ) -> Result<Option<Uuid>, sqlx::Error> {
-        let overlap = backbone_orm::company_scope::fetch_optional_scalar_scoped(
-            pool,
-            sqlx::query_scalar(
-                r#"SELECT id FROM tax.tax_template_rows
-                   WHERE template_id=$1 AND sort_order=$2 AND (metadata->>'deleted_at') IS NULL
-                     AND daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]')
-                         && daterange($3, COALESCE($4, 'infinity'::date), '[]')
-                   LIMIT 1"#,
-            )
-            .bind(template_id)
-            .bind(sort_order)
-            .bind(effective_from)
-            .bind(effective_to),
+        let overlap = sqlx::query_scalar(
+            r#"SELECT id FROM tax.tax_template_rows
+               WHERE template_id=$1 AND sort_order=$2 AND (metadata->>'deleted_at') IS NULL
+                 AND daterange(effective_from, COALESCE(effective_to, 'infinity'::date), '[]')
+                     && daterange($3, COALESCE($4, 'infinity'::date), '[]')
+               LIMIT 1"#,
         )
+        .bind(template_id)
+        .bind(sort_order)
+        .bind(effective_from)
+        .bind(effective_to)
+        .fetch_optional(conn)
         .await?;
         Ok(overlap)
     }
 
-    /// Insert a new template row, scoped so the RLS WITH CHECK sees `app.company_id`. A raw
-    /// `.execute(pool)` ignores the request company task-local and the fence REJECTS the insert
-    /// (surfaces as a 500 to the caller); the scoped helper binds the company for this statement.
-    /// The `$4::charge_type` cast mirrors the original hand-written SQL exactly.
-    pub async fn insert(
-        &self,
-        pool: &PgPool,
+    /// Insert a new template row on any executor. The `$3::charge_type` cast mirrors the original
+    /// hand-written SQL exactly.
+    pub async fn insert_on<'e, E>(
+        executor: E,
         r: &NewTaxTemplateRowRecord<'_>,
-    ) -> Result<(), sqlx::Error> {
-        backbone_orm::company_scope::execute_scoped(
-            pool,
-            sqlx::query(
-                r#"INSERT INTO tax.tax_template_rows
-                    (id, company_id, template_id, charge_type, rate, account_id, is_withholding, effective_from,
-                     effective_to, sort_order, description)
-                   VALUES ($1,$2,$3,$4::charge_type,$5,$6,$7,$8,$9,$10,$11)"#,
-            )
-            .bind(r.id).bind(r.company_id).bind(r.template_id).bind(r.charge_type).bind(r.rate)
-            .bind(r.account_id).bind(r.is_withholding).bind(r.effective_from).bind(r.effective_to)
-            .bind(r.sort_order).bind(r.description),
+    ) -> Result<(), sqlx::Error>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+    {
+        sqlx::query(
+            r#"INSERT INTO tax.tax_template_rows
+                (id, template_id, charge_type, rate, account_id, is_withholding, effective_from,
+                 effective_to, sort_order, description)
+               VALUES ($1,$2,$3::charge_type,$4,$5,$6,$7,$8,$9,$10)"#,
         )
+        .bind(r.id)
+        .bind(r.template_id)
+        .bind(r.charge_type)
+        .bind(r.rate)
+        .bind(r.account_id)
+        .bind(r.is_withholding)
+        .bind(r.effective_from)
+        .bind(r.effective_to)
+        .bind(r.sort_order)
+        .bind(r.description)
+        .execute(executor)
         .await?;
         Ok(())
     }

@@ -43,7 +43,6 @@ impl TaxTransactionRepository {
 /// The exact row an idempotent tax-transaction upsert writes.
 pub struct NewTaxTransactionRow<'a> {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub invoice_ref: Uuid,
     pub invoice_kind: &'a str,
     pub posting_date: NaiveDate,
@@ -53,15 +52,20 @@ pub struct NewTaxTransactionRow<'a> {
     pub withholding_total: Decimal,
 }
 
-/// Tax-transaction SQL. Lives here (not in the service) per the module's 4-layer rule.
+/// Tax-transaction SQL. Lives here (not in the service) per the module's 4-layer rule. Every
+/// statement runs on a caller-provided connection — under a decorated host the transaction was
+/// bound to the ambient request org scope, so the composing service's row-level fences govern
+/// these reads and writes; unfenced deployments see the whole table. The invoice-keyed lookups
+/// need no unit filter in their own right: an invoice id names exactly one unit's record (the
+/// module-level `(invoice_ref, invoice_kind)` unique is IDENTITY, not posture — it survives the
+/// tenancy strip tenant-free).
 impl TaxTransactionRepository {
-    /// Idempotent insert (unique `company + invoice_ref + invoice_kind` fence). On conflict, the
-    /// `DO UPDATE SET status = tax.tax_transactions.status` is a no-op that lets `RETURNing id`
+    /// Idempotent insert (unique `invoice_ref + invoice_kind` fence). On conflict, the
+    /// `DO UPDATE SET status = tax.tax_transactions.status` is a no-op that lets `RETURNING id`
     /// surface the existing row's id — so a re-delivery of a posted billing event returns the
-    /// original transaction id instead of erroring. The caller has already bound the company on
-    /// `conn` via `bind_company_on`; the explicit `company_id` bind is defense-in-depth on top of
-    /// the RLS fence. The `$4::invoice_kind` cast and `'recorded'::tax_transaction_status` literal
-    /// are preserved verbatim from the hand-written original.
+    /// original transaction id instead of erroring. The `$3::invoice_kind` cast and
+    /// `'recorded'::tax_transaction_status` literal are preserved verbatim from the hand-written
+    /// original.
     pub async fn upsert_recorded(
         &self,
         conn: &mut PgConnection,
@@ -69,17 +73,23 @@ impl TaxTransactionRepository {
     ) -> Result<Uuid, sqlx::Error> {
         let row = sqlx::query(
             r#"INSERT INTO tax.tax_transactions
-                 (id, company_id, invoice_ref, invoice_kind, posting_date, taxable_base,
+                 (id, invoice_ref, invoice_kind, posting_date, taxable_base,
                   output_total, input_total, withholding_total, status)
-               VALUES ($1, $2, $3, $4::invoice_kind, $5, $6, $7, $8, $9, 'recorded'::tax_transaction_status)
-               ON CONFLICT (company_id, invoice_ref, invoice_kind) WHERE (metadata->>'deleted_at') IS NULL
+               VALUES ($1, $2, $3::invoice_kind, $4, $5, $6, $7, $8, 'recorded'::tax_transaction_status)
+               ON CONFLICT (invoice_ref, invoice_kind) WHERE (metadata->>'deleted_at') IS NULL
                DO UPDATE SET status = tax.tax_transactions.status
                RETURNING id"#,
         )
-        .bind(r.id).bind(r.company_id).bind(r.invoice_ref)
-        .bind(r.invoice_kind).bind(r.posting_date).bind(r.taxable_base)
-        .bind(r.output_total).bind(r.input_total).bind(r.withholding_total)
-        .fetch_one(conn).await?;
+        .bind(r.id)
+        .bind(r.invoice_ref)
+        .bind(r.invoice_kind)
+        .bind(r.posting_date)
+        .bind(r.taxable_base)
+        .bind(r.output_total)
+        .bind(r.input_total)
+        .bind(r.withholding_total)
+        .fetch_one(conn)
+        .await?;
         let id: Uuid = row.get("id");
         Ok(id)
     }
@@ -102,9 +112,8 @@ impl TaxTransactionRepository {
         Ok(existing)
     }
 
-    /// Attach the freshly-assigned e-Faktur document id to a transaction. The caller has already
-    /// bound the company on `conn`; the row is company-scoped via its `id` (which is globally
-    /// unique), so no extra `company_id` filter is needed.
+    /// Attach the freshly-assigned e-Faktur document id to a transaction. The row is scoped by
+    /// its `id` (globally unique); the bound org scope is the fence defense-in-depth.
     pub async fn attach_efaktur(
         &self,
         conn: &mut PgConnection,
@@ -126,16 +135,14 @@ impl TaxTransactionRepository {
     pub async fn find_efaktur_id_by_invoice(
         &self,
         conn: &mut PgConnection,
-        company_id: Uuid,
         invoice_ref: Uuid,
         invoice_kind: &str,
     ) -> Result<Option<Uuid>, sqlx::Error> {
         let id: Option<Option<Uuid>> = sqlx::query_scalar(
             r#"SELECT efaktur_document_id FROM tax.tax_transactions
-               WHERE company_id = $1 AND invoice_ref = $2 AND invoice_kind = $3::invoice_kind
+               WHERE invoice_ref = $1 AND invoice_kind = $2::invoice_kind
                  AND (metadata->>'deleted_at') IS NULL"#,
         )
-        .bind(company_id)
         .bind(invoice_ref)
         .bind(invoice_kind)
         .fetch_optional(conn)
@@ -149,16 +156,14 @@ impl TaxTransactionRepository {
     pub async fn find_id_by_invoice(
         &self,
         conn: &mut PgConnection,
-        company_id: Uuid,
         invoice_ref: Uuid,
         invoice_kind: &str,
     ) -> Result<Option<Uuid>, sqlx::Error> {
         let id: Option<Uuid> = sqlx::query_scalar(
             r#"SELECT id FROM tax.tax_transactions
-               WHERE company_id = $1 AND invoice_ref = $2 AND invoice_kind = $3::invoice_kind
+               WHERE invoice_ref = $1 AND invoice_kind = $2::invoice_kind
                  AND (metadata->>'deleted_at') IS NULL"#,
         )
-        .bind(company_id)
         .bind(invoice_ref)
         .bind(invoice_kind)
         .fetch_optional(conn)

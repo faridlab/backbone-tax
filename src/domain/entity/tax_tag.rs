@@ -1,8 +1,8 @@
-use super::AuditMetadata;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
+use super::AuditMetadata;
 
 /// Strongly-typed ID for TaxTag
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -10,15 +10,9 @@ use uuid::Uuid;
 pub struct TaxTagId(pub Uuid);
 
 impl TaxTagId {
-    pub fn new(id: Uuid) -> Self {
-        Self(id)
-    }
-    pub fn generate() -> Self {
-        Self(Uuid::new_v4())
-    }
-    pub fn into_inner(self) -> Uuid {
-        self.0
-    }
+    pub fn new(id: Uuid) -> Self { Self(id) }
+    pub fn generate() -> Self { Self(Uuid::new_v4()) }
+    pub fn into_inner(self) -> Uuid { self.0 }
 }
 
 impl std::fmt::Display for TaxTagId {
@@ -35,34 +29,25 @@ impl std::str::FromStr for TaxTagId {
 }
 
 impl From<Uuid> for TaxTagId {
-    fn from(id: Uuid) -> Self {
-        Self(id)
-    }
+    fn from(id: Uuid) -> Self { Self(id) }
 }
 
 impl From<TaxTagId> for Uuid {
-    fn from(id: TaxTagId) -> Self {
-        id.0
-    }
+    fn from(id: TaxTagId) -> Self { id.0 }
 }
 
 impl AsRef<Uuid> for TaxTagId {
-    fn as_ref(&self) -> &Uuid {
-        &self.0
-    }
+    fn as_ref(&self) -> &Uuid { &self.0 }
 }
 
 impl std::ops::Deref for TaxTagId {
     type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+    fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TaxTag {
     pub id: Uuid,
-    pub company_id: Uuid,
     pub code: String,
     pub name: String,
     #[serde(default)]
@@ -77,10 +62,9 @@ impl TaxTag {
     }
 
     /// Create a new TaxTag with required fields
-    pub fn new(company_id: Uuid, code: String, name: String) -> Self {
+    pub fn new(code: String, name: String) -> Self {
         Self {
             id: Uuid::new_v4(),
-            company_id,
             code,
             name,
             metadata: AuditMetadata::default(),
@@ -137,6 +121,7 @@ impl TaxTag {
         self.metadata.deleted_by.as_ref()
     }
 
+
     // ==========================================================
     // Partial Update
     // ==========================================================
@@ -145,20 +130,11 @@ impl TaxTag {
     pub fn apply_patch(&mut self, fields: std::collections::HashMap<String, serde_json::Value>) {
         for (key, value) in fields {
             match key.as_str() {
-                "company_id" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.company_id = v;
-                    }
-                }
                 "code" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.code = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.code = v; }
                 }
                 "name" => {
-                    if let Ok(v) = serde_json::from_value(value) {
-                        self.name = v;
-                    }
+                    if let Ok(v) = serde_json::from_value(value) { self.name = v; }
                 }
                 _ => {} // ignore unknown fields
             }
@@ -214,14 +190,10 @@ impl backbone_orm::EntityRepoMeta for TaxTag {
     fn column_types() -> std::collections::HashMap<String, String> {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
-        m.insert("company_id".to_string(), "uuid".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
         &["code", "name"]
-    }
-    fn company_field() -> Option<&'static str> {
-        Some("company_id")
     }
 }
 
@@ -231,18 +203,11 @@ impl backbone_orm::EntityRepoMeta for TaxTag {
 /// System fields (id, metadata, timestamps) are auto-initialized.
 #[derive(Debug, Clone, Default)]
 pub struct TaxTagBuilder {
-    company_id: Option<Uuid>,
     code: Option<String>,
     name: Option<String>,
 }
 
 impl TaxTagBuilder {
-    /// Set the company_id field (required)
-    pub fn company_id(mut self, value: Uuid) -> Self {
-        self.company_id = Some(value);
-        self
-    }
-
     /// Set the code field (required)
     pub fn code(mut self, value: String) -> Self {
         self.code = Some(value);
@@ -259,15 +224,11 @@ impl TaxTagBuilder {
     ///
     /// Returns Err if any required field without a default is missing.
     pub fn build(self) -> Result<TaxTag, String> {
-        let company_id = self
-            .company_id
-            .ok_or_else(|| "company_id is required".to_string())?;
         let code = self.code.ok_or_else(|| "code is required".to_string())?;
         let name = self.name.ok_or_else(|| "name is required".to_string())?;
 
         Ok(TaxTag {
             id: Uuid::new_v4(),
-            company_id,
             code,
             name,
             metadata: AuditMetadata::default(),

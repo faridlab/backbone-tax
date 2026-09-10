@@ -1,8 +1,8 @@
 # =============================================================================
 # Domain: Tax
 # Entity: CompanyTaxSettings
-# Description: Per-company tax computation posture — the rounding policy and the
-# cash-basis (deferred exigibility) default. One row per company; an absent row
+# Description: Tax computation posture — the rounding policy and the cash-basis
+# (deferred exigibility) default. One row per owning org unit; an absent row
 # means the defaults (round_globally + on_invoice), which mirror the reference
 # ERP semantics (the rounding field reads "Round per Tax" but its VALUE is
 # round_globally — ports must read the value, never the label).
@@ -11,18 +11,13 @@
 models:
   - name: CompanyTaxSettings
     collection: company_tax_settings
-    description: "Per-company tax computation settings (rounding policy, cash-basis default)"
+    description: "Tax computation settings for an org unit (rounding policy, cash-basis default)"
 
     fields:
       id:
         type: uuid
         attributes: ["@id", "@default(uuid)"]
         description: "Unique settings row identifier"
-
-      company_id:
-        type: uuid
-        attributes: ["@required", "@exclude_from_foreign_key_check"]
-        description: "Owning tenant # logical FK to organization.Company.id (no hard SQL FK — RLS is the fence, ADR-0010 B1)"
 
       rounding_method:
         type: TaxRoundingMethod
@@ -32,22 +27,22 @@ models:
       default_exigibility:
         type: TaxExigibility
         attributes: ["@default(on_invoice)"]
-        description: "Exigibility posture templates of this company default to at creation (per-template override remains)"
+        description: "Exigibility posture templates created for this unit default to at creation (per-template override remains)"
 
       cash_basis_transition_account_id:
         type: uuid?
         attributes: ["@exclude_from_foreign_key_check"]
-        description: "Company-level suspense account deferred tax sits on until its receivable/payable is collected # logical FK to accounting.Account.id; must be reconcilable when default_exigibility is on_payment"
+        description: "Unit-level suspense account deferred tax sits on until its receivable/payable is collected # logical FK to accounting.Account.id; must be reconcilable when default_exigibility is on_payment"
 
       metadata:
         type: Metadata
         attributes: ["@audit_metadata"]
         description: "Audit metadata (created_at, updated_at, deleted_at, created_by, updated_by, deleted_by)"
 
-    indexes:
-      - type: unique
-        fields: [company_id]
-        where: "deleted_at IS NULL"
+    # No tenancy indexes (ADR-0029): the module ships no scoping column. The
+    # per-unit settings uniqueness is POSTURE and is owned by the composing
+    # service's tenancy decorator (it installs the per-unit unique at
+    # composition time).
 
 # =============================================================================
 # Enums

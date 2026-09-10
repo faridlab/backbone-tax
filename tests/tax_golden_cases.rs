@@ -2,9 +2,19 @@
 //! regulation). Proves exclusive/inclusive VAT, effective-dating, cumulative rows, and withholding
 //! thresholds against real Postgres. Requires DATABASE_URL (defaults to :5433).
 //!
-//! Each test wraps its body in `with_company_scope(Some(company))` because the engine reads
-//! (`calculate` / `resolve_withholding`) require an ambient company scope (the engine fails loud as
-//! `NoCompanyScope` otherwise); the write service self-scopes from each `New*` struct's `company_id`.
+//! Tenancy: the module ships NONE (ADR-0029) — every test runs inside [`scoped`], the
+//! single-company scope emulation (`OrgScope::for_company_unit`) of what a composing service's
+//! tenancy decorator resolves and binds per request. The engine's reads (`calculate` /
+//! `resolve_withholding`) require that ambient org scope (they fail loud as `NoCompanyScope`
+//! otherwise) and the write service relays it onto its transactions. The `company_id` on
+//! `DocumentTaxRequest` is the documented LEGACY TWIN input: under the bound scope the ambient
+//! scope wins, so the named value can never widen what the engine reads.
+//!
+//! The unit's tax-posture row (`tax.company_tax_settings`) is the one table whose live read is
+//! not id-keyed (the decorator's per-unit unique makes it one-row-per-unit in production; this
+//! suite connects as a superuser whom RLS can never bind, so multiple units' rows would
+//! coexist). Every test therefore holds [`SETTINGS_LOCK`] (serializing the suite) and starts by
+//! clearing that table, so each case sees exactly the posture it sets — or none.
 
 use chrono::NaiveDate;
 use rust_decimal::Decimal;
@@ -17,6 +27,11 @@ use backbone_tax::{
 };
 use sqlx::PgPool;
 use uuid::Uuid;
+
+/// Serializes the suite: every test reads or seeds `tax.company_tax_settings` transitively
+/// (template creates resolve the default exigibility from it; document calculations read the
+/// rounding policy), so concurrent cases could see each other's posture rows.
+static SETTINGS_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 async fn pool() -> PgPool {
     let url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
@@ -33,20 +48,42 @@ fn d(s: &str) -> Decimal {
 fn day(y: i32, m: u32, dd: u32) -> NaiveDate {
     NaiveDate::from_ymd_opt(y, m, dd).unwrap()
 }
+async fn clear_settings(pool: &PgPool) {
+    sqlx::query("DELETE FROM tax.company_tax_settings")
+        .execute(pool)
+        .await
+        .unwrap();
+}
+/// Run `f` with an ambient org scope bound — the single-company emulation of what a composing
+/// service resolves and binds per request. The engine's reads pick the scope off here (and the
+/// write service relays it onto its transactions).
+async fn scoped<F, R>(pool: &PgPool, company: Uuid, f: F) -> R
+where
+    F: std::future::Future<Output = R>,
+{
+    backbone_orm::org_scope::with_org_request_scope(
+        pool,
+        backbone_orm::org_scope::OrgScope::for_company_unit(company),
+        f,
+    )
+    .await
+    .unwrap()
+}
 
 // TGC-1: exclusive VAT — PPN 11% on 1,000,000 → 110,000 (one line).
 #[tokio::test]
 async fn exclusive_vat() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let engine = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let engine = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("PPN-EXCL"),
-                name: "PPN 11%".into(),
+                name: format!("PPN 11% {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: false,
@@ -56,7 +93,6 @@ async fn exclusive_vat() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -86,14 +122,15 @@ async fn exclusive_vat() {
 async fn inclusive_vat() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let engine = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let engine = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("PPN-INCL"),
-                name: "PPN 11% incl".into(),
+                name: format!("PPN 11% incl {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: true,
@@ -103,7 +140,6 @@ async fn inclusive_vat() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -136,14 +172,15 @@ async fn inclusive_vat() {
 async fn effective_dated_rate() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let engine = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let engine = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("PPN-EFF"),
-                name: "PPN eff".into(),
+                name: format!("PPN eff {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: false,
@@ -153,7 +190,6 @@ async fn effective_dated_rate() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -167,7 +203,6 @@ async fn effective_dated_rate() {
         .await
         .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("12"),
@@ -200,14 +235,15 @@ async fn effective_dated_rate() {
 async fn cumulative_row() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let engine = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let engine = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("PPN-CUM"),
-                name: "PPN + surcharge".into(),
+                name: format!("PPN + surcharge {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: false,
@@ -217,7 +253,6 @@ async fn cumulative_row() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: Some("on_net_total".into()),
             rate: d("11"),
@@ -231,7 +266,6 @@ async fn cumulative_row() {
         .await
         .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: Some("on_previous_row_total".into()),
             rate: d("10"),
@@ -261,14 +295,15 @@ async fn cumulative_row() {
 async fn withholding_threshold() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let engine = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let engine = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let cid = w
             .create_withholding(NewWithholding {
-                company_id: company,
                 code: uq("PPH23"),
-                name: "PPh 23 services 2%".into(),
+                name: format!("PPh 23 services 2% {}", uq("n")),
                 rate: d("2"),
                 threshold_amount: d("1000000"),
                 account_id: None,
@@ -304,9 +339,11 @@ async fn withholding_threshold() {
 async fn engine_errors() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let engine = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let engine = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         assert!(matches!(
             engine
                 .calculate(Uuid::new_v4(), d("100"), day(2026, 7, 3))
@@ -316,9 +353,8 @@ async fn engine_errors() {
         ));
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("EMPTY"),
-                name: "empty".into(),
+                name: format!("empty {}", uq("n")),
                 template_type: None,
                 tax_category_id: None,
                 is_inclusive: false,
@@ -329,7 +365,6 @@ async fn engine_errors() {
             .unwrap();
         // row effective only in 2030 → no effective rate for 2026
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -368,13 +403,15 @@ async fn engine_errors() {
 async fn overlapping_rows_rejected() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let engine = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("OVL"),
-                name: "o".into(),
+                name: format!("o {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: false,
@@ -385,7 +422,6 @@ async fn overlapping_rows_rejected() {
             .unwrap();
         // old 11%, open-ended
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -401,7 +437,6 @@ async fn overlapping_rows_rejected() {
         // new 12% from 2025 WITHOUT closing the old row → overlaps → must be rejected
         let err = w
             .add_row(NewTemplateRow {
-                company_id: company,
                 template_id: tid,
                 charge_type: None,
                 rate: d("12"),
@@ -417,7 +452,7 @@ async fn overlapping_rows_rejected() {
         assert!(matches!(err, TaxError::OverlappingWindow(_)), "got {err:?}");
 
         // and calculate returns exactly ONE line (no double-charge) — 11% only.
-        let lines = TaxEngine::new(pool.clone())
+        let lines = engine
             .calculate(tid, d("1000000"), day(2025, 6, 1))
             .await
             .unwrap();
@@ -432,14 +467,15 @@ async fn overlapping_rows_rejected() {
 async fn inclusive_reconciles_exactly() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("INC-ODD"),
-                name: "i".into(),
+                name: format!("i {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: true,
@@ -449,7 +485,6 @@ async fn inclusive_reconciles_exactly() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -483,14 +518,15 @@ async fn inclusive_reconciles_exactly() {
 async fn inclusive_with_cumulative_rejected() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("INC-CUM"),
-                name: "ic".into(),
+                name: format!("ic {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: true,
@@ -500,7 +536,6 @@ async fn inclusive_with_cumulative_rejected() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: Some("on_net_total".into()),
             rate: d("11"),
@@ -514,7 +549,6 @@ async fn inclusive_with_cumulative_rejected() {
         .await
         .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: Some("on_previous_row_total".into()),
             rate: d("10"),
@@ -561,14 +595,15 @@ fn doc_lines(tid: uuid::Uuid, price: &str, n: usize) -> Vec<DocumentTaxRequestLi
 async fn tgc10_round_globally_odoo_worked_example() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("PPN-INCL"),
-                name: "PPN 21% inclusive".into(),
+                name: format!("PPN 21% inclusive {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: true,
@@ -578,7 +613,6 @@ async fn tgc10_round_globally_odoo_worked_example() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("21"),
@@ -617,11 +651,12 @@ async fn tgc10_round_globally_odoo_worked_example() {
 async fn tgc11_round_per_line_same_inputs() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         w.upsert_company_settings(NewCompanySettings {
-            company_id: company,
             rounding_method: "round_per_line".into(),
             default_exigibility: "on_invoice".into(),
             cash_basis_transition_account_id: None,
@@ -630,9 +665,8 @@ async fn tgc11_round_per_line_same_inputs() {
         .unwrap();
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
-                code: uq("PPN-INCL"),
-                name: "PPN 21% inclusive".into(),
+                code: uq("PPN-INCL-PL"),
+                name: format!("PPN 21% inclusive per-line {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: true,
@@ -642,7 +676,6 @@ async fn tgc11_round_per_line_same_inputs() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("21"),
@@ -682,14 +715,15 @@ async fn tgc11_round_per_line_same_inputs() {
 async fn tgc12_round_globally_exclusive_multi_line() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("VAT10"),
-                name: "VAT 10%".into(),
+                name: format!("VAT 10% {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: false,
@@ -699,7 +733,6 @@ async fn tgc12_round_globally_exclusive_multi_line() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("10"),
@@ -737,14 +770,15 @@ async fn tgc12_round_globally_exclusive_multi_line() {
 async fn tgc13_repartition_factor_split() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("PPN-SPLIT"),
-                name: "PPN split".into(),
+                name: format!("PPN split {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: false,
@@ -754,7 +788,6 @@ async fn tgc13_repartition_factor_split() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -769,16 +802,14 @@ async fn tgc13_repartition_factor_split() {
         .unwrap();
         let tag = w
             .create_tag(NewTag {
-                company_id: company,
-                code: uq("TAG").into(),
-                name: "reporting".into(),
+                code: uq("TAG"),
+                name: format!("reporting {}", uq("n")),
             })
             .await
             .unwrap();
         let acc_a = Uuid::new_v4();
         let acc_b = Uuid::new_v4();
         w.replace_repartition_family(ReplaceRepartitionFamily {
-            company_id: company,
             template_id: tid,
             document_type: "invoice".into(),
             base_tag_ids: vec![tag],
@@ -833,14 +864,15 @@ async fn tgc13_repartition_factor_split() {
 async fn tgc14_repartition_refund_family_sign() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("PPN-REF"),
-                name: "PPN refund routing".into(),
+                name: format!("PPN refund routing {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: false,
@@ -850,7 +882,6 @@ async fn tgc14_repartition_refund_family_sign() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -866,7 +897,6 @@ async fn tgc14_repartition_refund_family_sign() {
         let acc_invoice = Uuid::new_v4();
         let acc_refund = Uuid::new_v4();
         w.replace_repartition_family(ReplaceRepartitionFamily {
-            company_id: company,
             template_id: tid,
             document_type: "invoice".into(),
             base_tag_ids: vec![],
@@ -882,7 +912,6 @@ async fn tgc14_repartition_refund_family_sign() {
         .await
         .unwrap();
         w.replace_repartition_family(ReplaceRepartitionFamily {
-            company_id: company,
             template_id: tid,
             document_type: "refund".into(),
             base_tag_ids: vec![],
@@ -928,28 +957,35 @@ async fn tgc14_repartition_refund_family_sign() {
 async fn tgc15_caba_deferred_account_resolution() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
-        let tid = Uuid::new_v4();
-        let transition = Uuid::new_v4();
-        let real = Uuid::new_v4();
-        sqlx::query(
-            r#"INSERT INTO tax.tax_templates
-                   (id, company_id, code, name, template_type, is_inclusive,
-                    tax_exigibility, cash_basis_transition_account_id)
-               VALUES ($1, $2, $3, 'CABA PPN', 'sales', FALSE,
-                       'on_payment'::tax_exigibility, $4)"#,
-        )
-        .bind(tid)
-        .bind(company)
-        .bind(uq("CABA"))
-        .bind(transition)
-        .execute(&pool)
-        .await
-        .unwrap();
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    let tid = Uuid::new_v4();
+    let transition = Uuid::new_v4();
+    let real = Uuid::new_v4();
+    sqlx::query(
+        r#"INSERT INTO tax.tax_templates
+               (id, code, name, template_type, is_inclusive,
+                tax_exigibility, cash_basis_transition_account_id)
+           VALUES ($1, $2, 'CABA PPN', 'sales', FALSE,
+                   'on_payment'::tax_exigibility, $3)"#,
+    )
+    .bind(tid)
+    .bind(uq("CABA"))
+    .bind(transition)
+    .execute(&pool)
+    .await
+    .unwrap();
+    scoped(&pool, company, async move {
+        let tag = w
+            .create_tag(NewTag {
+                code: uq("DTAG"),
+                name: format!("deferred base tag {}", uq("n")),
+            })
+            .await
+            .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -962,16 +998,7 @@ async fn tgc15_caba_deferred_account_resolution() {
         })
         .await
         .unwrap();
-        let tag = w
-            .create_tag(NewTag {
-                company_id: company,
-                code: uq("DTAG").into(),
-                name: "deferred base tag".into(),
-            })
-            .await
-            .unwrap();
         w.replace_repartition_family(ReplaceRepartitionFamily {
-            company_id: company,
             template_id: tid,
             document_type: "invoice".into(),
             base_tag_ids: vec![tag],
@@ -1018,30 +1045,30 @@ async fn tgc15_caba_deferred_account_resolution() {
 async fn tgc16_legacy_template_row_account_fallback() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        use backbone_tax::{NewTaxTemplateRow as RepoTemplate, TaxTemplateRepository};
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
-        let tid = Uuid::new_v4();
-        let row_account = Uuid::new_v4();
-        TaxTemplateRepository::insert_on(
-            &pool,
-            &RepoTemplate {
-                id: tid,
-                company_id: company,
-                code: &uq("LEGACY"),
-                name: "legacy row-account routing",
-                template_type: "sales",
-                tax_category_id: None,
-                is_inclusive: false,
-                tax_exigibility: "on_invoice",
-                cash_basis_transition_account_id: None,
-            },
-        )
-        .await
-        .unwrap();
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    use backbone_tax::{NewTaxTemplateRow as RepoTemplate, TaxTemplateRepository};
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    let tid = Uuid::new_v4();
+    let row_account = Uuid::new_v4();
+    TaxTemplateRepository::insert_on(
+        &pool,
+        &RepoTemplate {
+            id: tid,
+            code: &uq("LEGACY"),
+            name: "legacy row-account routing",
+            template_type: "sales",
+            tax_category_id: None,
+            is_inclusive: false,
+            tax_exigibility: "on_invoice",
+            cash_basis_transition_account_id: None,
+        },
+    )
+    .await
+    .unwrap();
+    scoped(&pool, company, async move {
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -1076,19 +1103,20 @@ async fn tgc16_legacy_template_row_account_fallback() {
 }
 
 // TGC-17: absent settings row ⇒ the documented default round_globally; one
-// upsert flips the company to round_per_line.
+// upsert flips the unit to round_per_line.
 #[tokio::test]
 async fn tgc17_settings_default_when_row_absent() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("PPN-D"),
-                name: "default policy probe".into(),
+                name: format!("default policy probe {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: false,
@@ -1098,7 +1126,6 @@ async fn tgc17_settings_default_when_row_absent() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("11"),
@@ -1126,7 +1153,6 @@ async fn tgc17_settings_default_when_row_absent() {
             RoundingMethod::RoundGlobally
         );
         w.upsert_company_settings(NewCompanySettings {
-            company_id: company,
             rounding_method: "round_per_line".into(),
             default_exigibility: "on_invoice".into(),
             cash_basis_transition_account_id: None,
@@ -1148,14 +1174,15 @@ async fn tgc17_settings_default_when_row_absent() {
 async fn tgc18_inclusive_globally_no_last_line_absorb() {
     let pool = pool().await;
     let company = Uuid::new_v4();
-    backbone_orm::company_scope::with_company_scope(Some(company), async move {
-        let w = TaxWriteService::new(pool.clone());
-        let e = TaxEngine::new(pool.clone());
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let e = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
         let tid = w
             .create_template(NewTemplate {
-                company_id: company,
                 code: uq("PPN-3L"),
-                name: "PPN 21% three lines".into(),
+                name: format!("PPN 21% three lines {}", uq("n")),
                 template_type: Some("sales".into()),
                 tax_category_id: None,
                 is_inclusive: true,
@@ -1165,7 +1192,6 @@ async fn tgc18_inclusive_globally_no_last_line_absorb() {
             .await
             .unwrap();
         w.add_row(NewTemplateRow {
-            company_id: company,
             template_id: tid,
             charge_type: None,
             rate: d("21"),
