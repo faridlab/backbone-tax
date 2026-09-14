@@ -628,7 +628,6 @@ async fn tgc10_round_globally_odoo_worked_example() {
 
         let r = e
             .calculate_document(&DocumentTaxRequest {
-                company_id: company,
                 document_type: DocumentType::Invoice,
                 on_date: day(2026, 8, 19),
                 lines: doc_lines(tid, "21.53", 2),
@@ -691,7 +690,6 @@ async fn tgc11_round_per_line_same_inputs() {
 
         let r = e
             .calculate_document(&DocumentTaxRequest {
-                company_id: company,
                 document_type: DocumentType::Invoice,
                 on_date: day(2026, 8, 19),
                 lines: doc_lines(tid, "21.53", 2),
@@ -748,7 +746,6 @@ async fn tgc12_round_globally_exclusive_multi_line() {
 
         let r = e
             .calculate_document(&DocumentTaxRequest {
-                company_id: company,
                 document_type: DocumentType::Invoice,
                 on_date: day(2026, 8, 19),
                 lines: doc_lines(tid, "10.005", 2),
@@ -836,7 +833,6 @@ async fn tgc13_repartition_factor_split() {
 
         let r = e
             .calculate_document(&DocumentTaxRequest {
-                company_id: company,
                 document_type: DocumentType::Invoice,
                 on_date: day(2026, 8, 19),
                 lines: vec![DocumentTaxRequestLine {
@@ -929,7 +925,6 @@ async fn tgc14_repartition_refund_family_sign() {
 
         let r = e
             .calculate_document(&DocumentTaxRequest {
-                company_id: company,
                 document_type: DocumentType::Refund,
                 on_date: day(2026, 8, 19),
                 lines: vec![DocumentTaxRequestLine {
@@ -1016,7 +1011,6 @@ async fn tgc15_caba_deferred_account_resolution() {
 
         let r = e
             .calculate_document(&DocumentTaxRequest {
-                company_id: company,
                 document_type: DocumentType::Invoice,
                 on_date: day(2026, 8, 19),
                 lines: vec![DocumentTaxRequestLine {
@@ -1084,7 +1078,6 @@ async fn tgc16_legacy_template_row_account_fallback() {
 
         let r = e
             .calculate_document(&DocumentTaxRequest {
-                company_id: company,
                 document_type: DocumentType::Invoice,
                 on_date: day(2026, 8, 19),
                 lines: vec![DocumentTaxRequestLine {
@@ -1139,7 +1132,6 @@ async fn tgc17_settings_default_when_row_absent() {
         .await
         .unwrap();
         let req = DocumentTaxRequest {
-            company_id: company,
             document_type: DocumentType::Invoice,
             on_date: day(2026, 8, 19),
             lines: vec![DocumentTaxRequestLine {
@@ -1207,7 +1199,6 @@ async fn tgc18_inclusive_globally_no_last_line_absorb() {
 
         let r = e
             .calculate_document(&DocumentTaxRequest {
-                company_id: company,
                 document_type: DocumentType::Invoice,
                 on_date: day(2026, 8, 19),
                 lines: doc_lines(tid, "21.53", 3),

@@ -375,7 +375,6 @@ pub struct DocumentTaxRequestLine {
 /// the named company can never widen the fence.
 #[derive(Debug, Clone)]
 pub struct DocumentTaxRequest {
-    pub company_id: Uuid,
     pub document_type: DocumentType,
     pub on_date: NaiveDate,
     pub lines: Vec<DocumentTaxRequestLine>,
@@ -692,13 +691,10 @@ impl TaxEngine {
         if let Some(scope) = org_scope::current_org_scope() {
             // Ambient fence wins: the named company can never widen it under a decorated host.
             org_scope::bind_org_scope_on(&mut tx, &scope).await?;
-        } else {
-            // No ambient scope (an unstripped consumer calling in-process): construct the
-            // documented legacy twin from the request's company id. Fails closed if the id
-            // does not resolve to a company unit in the org tree.
-            let scope = org_scope::OrgScope::for_company_unit(req.company_id);
-            org_scope::bind_org_scope_on(&mut tx, &scope).await?;
         }
+        // With no ambient scope the connection stays unbound, which is the unfenced posture an
+        // undecorated deployment already has. The request cannot name a scope of its own: a
+        // caller-supplied tenant is exactly what this surface stopped accepting.
 
         let method = Self::rounding_method_on(&mut tx).await?;
 

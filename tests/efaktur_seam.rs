@@ -95,7 +95,6 @@ async fn records_transaction_and_assigns_gapless_efaktur() {
     // 1) Record a sales invoice with PPN output 110,000 on a 1,000,000 base.
     let data1 = PostedForTax {
         invoice_ref: Uuid::new_v4(),
-        company_id: company,
         invoice_kind: "sales".into(),
         posting_date: post_date,
         taxable_base: d("1000000"),
@@ -127,7 +126,6 @@ async fn records_transaction_and_assigns_gapless_efaktur() {
     // 3) Second sales invoice same month → sequence increments (gapless).
     let data2 = PostedForTax {
         invoice_ref: Uuid::new_v4(),
-        company_id: company,
         invoice_kind: "sales".into(),
         posting_date: post_date,
         taxable_base: d("500000"),
@@ -164,7 +162,6 @@ async fn records_transaction_and_assigns_gapless_efaktur() {
     // 5) Purchase invoice → no e-Faktur (only sales get numbered).
     let data3 = PostedForTax {
         invoice_ref: Uuid::new_v4(),
-        company_id: company,
         invoice_kind: "purchase".into(),
         posting_date: post_date,
         taxable_base: d("800000"),
@@ -204,7 +201,6 @@ async fn void_for_invoice_flips_status_preserving_sequence() {
     let invoice = Uuid::new_v4();
     let data = PostedForTax {
         invoice_ref: invoice,
-        company_id: company,
         invoice_kind: "sales".into(),
         posting_date: post_date,
         taxable_base: d("1000000"),
@@ -229,7 +225,7 @@ async fn void_for_invoice_flips_status_preserving_sequence() {
     assert_eq!(status_before, "assigned");
 
     // Void → status flips to voided; sequence + number preserved (DJP no-reuse).
-    svc.void_for_invoice(company, invoice, "sales")
+    svc.void_for_invoice(invoice, "sales")
         .await
         .unwrap();
     let seq_after: i32 =
@@ -251,7 +247,7 @@ async fn void_for_invoice_flips_status_preserving_sequence() {
     );
 
     // Idempotent: void again → still voided, no error.
-    svc.void_for_invoice(company, invoice, "sales")
+    svc.void_for_invoice(invoice, "sales")
         .await
         .unwrap();
     let status_again: String =
@@ -263,7 +259,7 @@ async fn void_for_invoice_flips_status_preserving_sequence() {
     assert_eq!(status_again, "voided");
 
     // No-op: voiding an invoice with no e-Faktur (unknown invoice) → Ok, nothing changes.
-    svc.void_for_invoice(company, Uuid::new_v4(), "sales")
+    svc.void_for_invoice(Uuid::new_v4(), "sales")
         .await
         .unwrap();
 }
@@ -279,7 +275,6 @@ fn sales_posted(
 ) -> PostedForTax {
     PostedForTax {
         invoice_ref: invoice,
-        company_id: company,
         invoice_kind: "sales".into(),
         posting_date: post_date,
         taxable_base: d(base),
@@ -320,7 +315,6 @@ async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
     .unwrap();
     let purchase = PostedForTax {
         invoice_ref: Uuid::new_v4(),
-        company_id: company,
         invoice_kind: "purchase".into(),
         posting_date: post_date,
         taxable_base: d("800000"),
@@ -333,7 +327,7 @@ async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
     let (txn_id, efaktur_id) = svc.record_tax_transaction(&early).await.unwrap();
 
     // Finalize: open → finalized with the aggregate totals of the month's transactions.
-    let row = svc.finalize_period(company, period).await.unwrap();
+    let row = svc.finalize_period(period).await.unwrap();
     assert_eq!(row.status, "finalized");
     assert_eq!(row.output_total, d("275000"), "Σ output over the month");
     assert_eq!(row.input_total, d("88000"), "Σ input over the month");
@@ -344,7 +338,7 @@ async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
     );
 
     // Idempotent: a second finalize replays as a committed no-op, same row.
-    let again = svc.finalize_period(company, period).await.unwrap();
+    let again = svc.finalize_period(period).await.unwrap();
     assert_eq!(again.id, row.id);
     assert_eq!(again.status, "finalized");
 
@@ -358,8 +352,9 @@ async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
             .unwrap();
     let refused = sales_posted(company, Uuid::new_v4(), "100000", "11000", post_date);
     match svc.record_tax_transaction(&refused).await {
-        Err(TaxComplianceError::PeriodNotOpen(c, p)) => {
-            assert_eq!(c, company);
+        Err(TaxComplianceError::PeriodNotOpen(_c, p)) => {
+            // The refusal names the tenant it looked under, which now comes from the ambient
+            // scope rather than the caller. This test runs undecorated, so there is none.
             assert_eq!(p, period);
         }
         other => panic!("expected PeriodNotOpen, got {other:?}"),
@@ -387,7 +382,6 @@ async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
     // A NEW purchase invoice also refuses — finalize closes the Masa to ALL new transactions.
     let purchase2 = PostedForTax {
         invoice_ref: Uuid::new_v4(),
-        company_id: company,
         invoice_kind: "purchase".into(),
         posting_date: post_date,
         taxable_base: d("100000"),
@@ -401,7 +395,7 @@ async fn finalize_closes_the_period_fail_closed_and_rolls_totals() {
     }
 
     // Export rows: 3 documents (2 original sales + the early one), sequence order.
-    let rows = svc.export_rows(company, period).await.unwrap();
+    let rows = svc.export_rows(period).await.unwrap();
     assert_eq!(rows.len(), 3);
     assert_eq!(rows[0].document.sequence, 1);
     assert_eq!(rows[1].document.sequence, 2);
@@ -429,14 +423,14 @@ async fn file_runs_finalized_to_filed_and_is_terminal() {
         .await
         .unwrap();
     let efaktur_id = efaktur_id.expect("sales with output is numbered");
-    match svc.file_period(company, period).await {
+    match svc.file_period(period).await {
         Err(TaxComplianceError::PeriodNotFinalized(..)) => {}
         other => panic!("file from open must refuse period_not_finalized, got {other:?}"),
     }
 
     // finalized → filed; filed_at lands in the audit metadata.
-    svc.finalize_period(company, period).await.unwrap();
-    let filed = svc.file_period(company, period).await.unwrap();
+    svc.finalize_period(period).await.unwrap();
+    let filed = svc.file_period(period).await.unwrap();
     assert_eq!(filed.status, "filed");
     let filed_at: Option<String> = sqlx::query_scalar(
         "SELECT metadata->>'filed_at' FROM tax.tax_filing_periods WHERE id = $1",
@@ -448,9 +442,9 @@ async fn file_runs_finalized_to_filed_and_is_terminal() {
     assert!(filed_at.is_some(), "filed_at stamped into metadata.jsonb");
 
     // Terminal: re-file is an idempotent no-op, finalize-on-filed refuses.
-    let refiled = svc.file_period(company, period).await.unwrap();
+    let refiled = svc.file_period(period).await.unwrap();
     assert_eq!(refiled.id, filed.id);
-    match svc.finalize_period(company, period).await {
+    match svc.finalize_period(period).await {
         Err(TaxComplianceError::PeriodAlreadyFiled(..)) => {}
         other => panic!("finalize on a filed period must refuse, got {other:?}"),
     }
@@ -458,7 +452,7 @@ async fn file_runs_finalized_to_filed_and_is_terminal() {
     // Voiding a document whose period is filed refuses (the SPT was submitted with that
     // number — it is locked). A NEW recording that month would refuse period_not_open, so
     // exercise the void refusal on the document recorded before the close.
-    match svc.void_efaktur(company, efaktur_id).await {
+    match svc.void_efaktur(efaktur_id).await {
         Err(TaxComplianceError::PeriodAlreadyFiled(..)) => {}
         other => panic!("void on a filed period must refuse, got {other:?}"),
     }
@@ -485,16 +479,16 @@ async fn confirm_flips_assigned_to_confirmed_and_void_still_works() {
     let efaktur_id = efaktur_id.unwrap();
 
     // assigned → confirmed.
-    let confirmed = svc.confirm_efaktur(company, efaktur_id).await.unwrap();
+    let confirmed = svc.confirm_efaktur(efaktur_id).await.unwrap();
     assert_eq!(confirmed.status, "confirmed");
 
     // Idempotent re-confirm returns the row unchanged.
-    let again = svc.confirm_efaktur(company, efaktur_id).await.unwrap();
+    let again = svc.confirm_efaktur(efaktur_id).await.unwrap();
     assert_eq!(again.id, confirmed.id);
     assert_eq!(again.status, "confirmed");
 
     // Void from confirmed is still permitted (a later credit note).
-    let voided = svc.void_efaktur(company, efaktur_id).await.unwrap();
+    let voided = svc.void_efaktur(efaktur_id).await.unwrap();
     assert_eq!(voided.status, "voided");
     assert_eq!(
         voided.number, confirmed.number,
@@ -502,13 +496,13 @@ async fn confirm_flips_assigned_to_confirmed_and_void_still_works() {
     );
 
     // Confirming a voided document refuses.
-    match svc.confirm_efaktur(company, efaktur_id).await {
+    match svc.confirm_efaktur(efaktur_id).await {
         Err(TaxComplianceError::EFakturNotConfirmable(..)) => {}
         other => panic!("confirm on voided must refuse, got {other:?}"),
     }
 
     // Unknown document id → typed not-found.
-    match svc.confirm_efaktur(company, Uuid::new_v4()).await {
+    match svc.confirm_efaktur(Uuid::new_v4()).await {
         Err(TaxComplianceError::EFakturNotFound(..)) => {}
         other => panic!("unknown document must refuse not-found, got {other:?}"),
     }
@@ -567,7 +561,6 @@ async fn once_entry_points_are_exactly_once_per_event_id() {
         .void_for_invoice_once(
             cancel_id,
             "test-consumer",
-            company,
             data.invoice_ref,
             "sales",
         )
@@ -578,7 +571,6 @@ async fn once_entry_points_are_exactly_once_per_event_id() {
         .void_for_invoice_once(
             cancel_id,
             "test-consumer",
-            company,
             data.invoice_ref,
             "sales",
         )
@@ -589,7 +581,6 @@ async fn once_entry_points_are_exactly_once_per_event_id() {
         .void_for_invoice_once(
             Uuid::new_v4(),
             "test-consumer",
-            company,
             Uuid::new_v4(),
             "sales",
         )

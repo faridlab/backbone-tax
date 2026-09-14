@@ -94,7 +94,6 @@ fn compliance_err_response(e: TaxComplianceError) -> axum::response::Response {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateCategoryBody {
-    company_id: Uuid,
     code: String,
     name: String,
     #[serde(default)]
@@ -121,7 +120,6 @@ async fn create_category(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateTemplateBody {
-    company_id: Uuid,
     code: String,
     name: String,
     #[serde(default)]
@@ -161,7 +159,6 @@ async fn create_template(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CompanySettingsBody {
-    company_id: Uuid,
     rounding_method: String,
     default_exigibility: String,
     #[serde(default)]
@@ -186,12 +183,10 @@ impl From<CompanyTaxSettingsRecord> for CompanySettingsOut {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CompanyIdQuery {
-    company_id: Uuid,
 }
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RepartitionQuery {
-    company_id: Uuid,
     template_id: Uuid,
 }
 #[derive(Debug, Serialize)]
@@ -258,7 +253,6 @@ async fn put_company_settings(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AddRepartitionLineBody {
-    company_id: Uuid,
     template_id: Uuid,
     /// `invoice` | `refund`.
     document_type: String,
@@ -300,7 +294,6 @@ async fn add_repartition_line(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ReplaceFamilyBody {
-    company_id: Uuid,
     template_id: Uuid,
     /// `invoice` | `refund`.
     document_type: String,
@@ -359,7 +352,6 @@ async fn replace_repartition_family(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateTagBody {
-    company_id: Uuid,
     code: String,
     name: String,
 }
@@ -383,7 +375,6 @@ async fn create_tag(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AddRowBody {
-    company_id: Uuid,
     template_id: Uuid,
     #[serde(default)]
     charge_type: Option<String>,
@@ -427,7 +418,6 @@ async fn add_row(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateWithholdingBody {
-    company_id: Uuid,
     code: String,
     name: String,
     rate: Decimal,
@@ -519,7 +509,6 @@ struct DocumentCalculateLineBody {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct DocumentCalculateBody {
-    company_id: Uuid,
     /// `invoice` | `refund`.
     document_type: String,
     on_date: NaiveDate,
@@ -564,7 +553,6 @@ async fn calculate_document(
         }
     };
     let req = DocumentTaxRequest {
-        company_id: b.company_id,
         document_type: doc_type,
         on_date: b.on_date,
         lines: b
@@ -642,7 +630,6 @@ async fn resolve_withholding(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct EFakturDocumentQuery {
-    company_id: Uuid,
     /// Masa pajak start (YYYY-MM-DD, the first day of the month).
     period: NaiveDate,
     /// Optional status filter: `assigned` | `confirmed` | `voided`.
@@ -683,7 +670,7 @@ async fn list_efaktur_documents(
     axum::extract::Query(q): axum::extract::Query<EFakturDocumentQuery>,
 ) -> axum::response::Response {
     match svc
-        .list_period_documents(q.company_id, q.period, q.status.as_deref())
+        .list_period_documents(q.period, q.status.as_deref())
         .await
     {
         Ok(docs) => {
@@ -697,7 +684,6 @@ async fn list_efaktur_documents(
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CompanyBody {
-    company_id: Uuid,
 }
 async fn confirm_efaktur(
     State(svc): State<Arc<EFakturService>>,
@@ -705,7 +691,7 @@ async fn confirm_efaktur(
     Path(id): Path<Uuid>,
     Json(b): Json<CompanyBody>,
 ) -> axum::response::Response {
-    match svc.confirm_efaktur(b.company_id, id).await {
+    match svc.confirm_efaktur(id).await {
         Ok(doc) => (StatusCode::OK, Json(EFakturDocumentOut::from(doc))).into_response(),
         Err(e) => compliance_err_response(e),
     }
@@ -716,7 +702,7 @@ async fn void_efaktur(
     Path(id): Path<Uuid>,
     Json(b): Json<CompanyBody>,
 ) -> axum::response::Response {
-    match svc.void_efaktur(b.company_id, id).await {
+    match svc.void_efaktur(id).await {
         Ok(doc) => (StatusCode::OK, Json(EFakturDocumentOut::from(doc))).into_response(),
         Err(e) => compliance_err_response(e),
     }
@@ -751,7 +737,7 @@ async fn list_filing_periods(
     _org: OrgContext,
     axum::extract::Query(q): axum::extract::Query<CompanyIdQuery>,
 ) -> axum::response::Response {
-    match svc.list_filing_periods(q.company_id).await {
+    match svc.list_filing_periods().await {
         Ok(periods) => {
             let out: Vec<FilingPeriodOut> = periods.into_iter().map(Into::into).collect();
             (StatusCode::OK, Json(out)).into_response()
@@ -778,7 +764,7 @@ async fn finalize_filing_period(
             "period must be the masa pajak start date (YYYY-MM-01)".into(),
         ));
     };
-    match svc.finalize_period(b.company_id, period).await {
+    match svc.finalize_period(period).await {
         Ok(row) => (StatusCode::OK, Json(FilingPeriodOut::from(row))).into_response(),
         Err(e) => compliance_err_response(e),
     }
@@ -794,7 +780,7 @@ async fn file_filing_period(
             "period must be the masa pajak start date (YYYY-MM-01)".into(),
         ));
     };
-    match svc.file_period(b.company_id, period).await {
+    match svc.file_period(period).await {
         Ok(row) => (StatusCode::OK, Json(FilingPeriodOut::from(row))).into_response(),
         Err(e) => compliance_err_response(e),
     }
@@ -814,7 +800,6 @@ struct EFakturExportRowOut {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct EFakturExportQuery {
-    company_id: Uuid,
     period: NaiveDate,
 }
 async fn list_efaktur_export_rows(
@@ -822,7 +807,7 @@ async fn list_efaktur_export_rows(
     _org: OrgContext,
     axum::extract::Query(q): axum::extract::Query<EFakturExportQuery>,
 ) -> axum::response::Response {
-    match svc.export_rows(q.company_id, q.period).await {
+    match svc.export_rows(q.period).await {
         Ok(rows) => {
             let out: Vec<EFakturExportRowOut> = rows
                 .into_iter()
