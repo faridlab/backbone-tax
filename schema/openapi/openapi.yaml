@@ -7,7 +7,7 @@ info:
     This API provides 11 standard CRUD endpoints for each model.
 
 servers:
-  - url: http://localhost:3000
+  - url: /
     description: Development server
 
 tags:
@@ -33,7 +33,7 @@ tags:
     description: WithholdingCategory management endpoints
 
 paths:
-  /api/v1/company_tax_settingses:
+  /api/v1/tax/company_tax_settingses:
     get:
       tags:
         - CompanyTaxSettingses
@@ -79,7 +79,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/company_tax_settingses/{id}:
+  /api/v1/tax/company_tax_settingses/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -151,7 +151,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/company_tax_settingses/bulk:
+  /api/v1/tax/company_tax_settingses/bulk:
     post:
       tags:
         - CompanyTaxSettingses
@@ -243,7 +243,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/company_tax_settingses/upsert:
+  /api/v1/tax/company_tax_settingses/upsert:
     post:
       tags:
         - CompanyTaxSettingses
@@ -273,7 +273,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CompanyTaxSettings'
 
-  /api/v1/company_tax_settingses/trash:
+  /api/v1/tax/company_tax_settingses/trash:
     get:
       tags:
         - CompanyTaxSettingses
@@ -290,7 +290,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CompanyTaxSettingsList'
 
-  /api/v1/company_tax_settingses/{id}/restore:
+  /api/v1/tax/company_tax_settingses/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -308,7 +308,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/company_tax_settingses/empty:
+  /api/v1/tax/company_tax_settingses/empty:
     delete:
       tags:
         - CompanyTaxSettingses
@@ -325,7 +325,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/company_tax_settingses/delete/bulk:
+  /api/v1/tax/company_tax_settingses/delete/bulk:
     post:
       tags:
         - CompanyTaxSettingses
@@ -345,7 +345,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/company_tax_settingses/restore/bulk:
+  /api/v1/tax/company_tax_settingses/restore/bulk:
     post:
       tags:
         - CompanyTaxSettingses
@@ -363,7 +363,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/company_tax_settingses/restore/all:
+  /api/v1/tax/company_tax_settingses/restore/all:
     post:
       tags:
         - CompanyTaxSettingses
@@ -379,7 +379,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/company_tax_settingses/trash/bulk:
+  /api/v1/tax/company_tax_settingses/trash/bulk:
     delete:
       tags:
         - CompanyTaxSettingses
@@ -399,7 +399,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_categories:
+  /api/v1/tax/tax_categories:
     get:
       tags:
         - TaxCategories
@@ -445,7 +445,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/tax_categories/{id}:
+  /api/v1/tax/tax_categories/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -517,7 +517,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_categories/bulk:
+  /api/v1/tax/tax_categories/bulk:
     post:
       tags:
         - TaxCategories
@@ -609,7 +609,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_categories/upsert:
+  /api/v1/tax/tax_categories/upsert:
     post:
       tags:
         - TaxCategories
@@ -639,7 +639,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxCategory'
 
-  /api/v1/tax_categories/trash:
+  /api/v1/tax/tax_categories/trash:
     get:
       tags:
         - TaxCategories
@@ -656,7 +656,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxCategoryList'
 
-  /api/v1/tax_categories/{id}/restore:
+  /api/v1/tax/tax_categories/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -674,7 +674,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_categories/empty:
+  /api/v1/tax/tax_categories/empty:
     delete:
       tags:
         - TaxCategories
@@ -691,7 +691,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/tax_categories/delete/bulk:
+  /api/v1/tax/tax_categories/delete/bulk:
     post:
       tags:
         - TaxCategories
@@ -711,7 +711,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_categories/restore/bulk:
+  /api/v1/tax/tax_categories/restore/bulk:
     post:
       tags:
         - TaxCategories
@@ -729,7 +729,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_categories/restore/all:
+  /api/v1/tax/tax_categories/restore/all:
     post:
       tags:
         - TaxCategories
@@ -745,7 +745,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/tax_categories/trash/bulk:
+  /api/v1/tax/tax_categories/trash/bulk:
     delete:
       tags:
         - TaxCategories
@@ -765,7 +765,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_transactions:
+  /api/v1/tax/tax_transactions:
     get:
       tags:
         - TaxTransactions
@@ -811,7 +811,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/tax_transactions/{id}:
+  /api/v1/tax/tax_transactions/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -883,7 +883,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_transactions/bulk:
+  /api/v1/tax/tax_transactions/bulk:
     post:
       tags:
         - TaxTransactions
@@ -975,7 +975,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_transactions/upsert:
+  /api/v1/tax/tax_transactions/upsert:
     post:
       tags:
         - TaxTransactions
@@ -1005,7 +1005,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxTransaction'
 
-  /api/v1/tax_transactions/trash:
+  /api/v1/tax/tax_transactions/trash:
     get:
       tags:
         - TaxTransactions
@@ -1022,7 +1022,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxTransactionList'
 
-  /api/v1/tax_transactions/{id}/restore:
+  /api/v1/tax/tax_transactions/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -1040,7 +1040,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_transactions/empty:
+  /api/v1/tax/tax_transactions/empty:
     delete:
       tags:
         - TaxTransactions
@@ -1057,7 +1057,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/tax_transactions/delete/bulk:
+  /api/v1/tax/tax_transactions/delete/bulk:
     post:
       tags:
         - TaxTransactions
@@ -1077,7 +1077,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_transactions/restore/bulk:
+  /api/v1/tax/tax_transactions/restore/bulk:
     post:
       tags:
         - TaxTransactions
@@ -1095,7 +1095,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_transactions/restore/all:
+  /api/v1/tax/tax_transactions/restore/all:
     post:
       tags:
         - TaxTransactions
@@ -1111,7 +1111,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/tax_transactions/trash/bulk:
+  /api/v1/tax/tax_transactions/trash/bulk:
     delete:
       tags:
         - TaxTransactions
@@ -1131,7 +1131,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/e_faktur_documents:
+  /api/v1/tax/e_faktur_documents:
     get:
       tags:
         - EFakturDocuments
@@ -1177,7 +1177,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/e_faktur_documents/{id}:
+  /api/v1/tax/e_faktur_documents/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -1249,7 +1249,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/e_faktur_documents/bulk:
+  /api/v1/tax/e_faktur_documents/bulk:
     post:
       tags:
         - EFakturDocuments
@@ -1341,7 +1341,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/e_faktur_documents/upsert:
+  /api/v1/tax/e_faktur_documents/upsert:
     post:
       tags:
         - EFakturDocuments
@@ -1371,7 +1371,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EFakturDocument'
 
-  /api/v1/e_faktur_documents/trash:
+  /api/v1/tax/e_faktur_documents/trash:
     get:
       tags:
         - EFakturDocuments
@@ -1388,7 +1388,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EFakturDocumentList'
 
-  /api/v1/e_faktur_documents/{id}/restore:
+  /api/v1/tax/e_faktur_documents/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -1406,7 +1406,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/e_faktur_documents/empty:
+  /api/v1/tax/e_faktur_documents/empty:
     delete:
       tags:
         - EFakturDocuments
@@ -1423,7 +1423,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/e_faktur_documents/delete/bulk:
+  /api/v1/tax/e_faktur_documents/delete/bulk:
     post:
       tags:
         - EFakturDocuments
@@ -1443,7 +1443,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/e_faktur_documents/restore/bulk:
+  /api/v1/tax/e_faktur_documents/restore/bulk:
     post:
       tags:
         - EFakturDocuments
@@ -1461,7 +1461,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/e_faktur_documents/restore/all:
+  /api/v1/tax/e_faktur_documents/restore/all:
     post:
       tags:
         - EFakturDocuments
@@ -1477,7 +1477,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/e_faktur_documents/trash/bulk:
+  /api/v1/tax/e_faktur_documents/trash/bulk:
     delete:
       tags:
         - EFakturDocuments
@@ -1497,7 +1497,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_filing_periods:
+  /api/v1/tax/tax_filing_periods:
     get:
       tags:
         - TaxFilingPeriods
@@ -1543,7 +1543,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/tax_filing_periods/{id}:
+  /api/v1/tax/tax_filing_periods/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -1615,7 +1615,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_filing_periods/bulk:
+  /api/v1/tax/tax_filing_periods/bulk:
     post:
       tags:
         - TaxFilingPeriods
@@ -1707,7 +1707,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_filing_periods/upsert:
+  /api/v1/tax/tax_filing_periods/upsert:
     post:
       tags:
         - TaxFilingPeriods
@@ -1737,7 +1737,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxFilingPeriod'
 
-  /api/v1/tax_filing_periods/trash:
+  /api/v1/tax/tax_filing_periods/trash:
     get:
       tags:
         - TaxFilingPeriods
@@ -1754,7 +1754,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxFilingPeriodList'
 
-  /api/v1/tax_filing_periods/{id}/restore:
+  /api/v1/tax/tax_filing_periods/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -1772,7 +1772,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_filing_periods/empty:
+  /api/v1/tax/tax_filing_periods/empty:
     delete:
       tags:
         - TaxFilingPeriods
@@ -1789,7 +1789,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/tax_filing_periods/delete/bulk:
+  /api/v1/tax/tax_filing_periods/delete/bulk:
     post:
       tags:
         - TaxFilingPeriods
@@ -1809,7 +1809,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_filing_periods/restore/bulk:
+  /api/v1/tax/tax_filing_periods/restore/bulk:
     post:
       tags:
         - TaxFilingPeriods
@@ -1827,7 +1827,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_filing_periods/restore/all:
+  /api/v1/tax/tax_filing_periods/restore/all:
     post:
       tags:
         - TaxFilingPeriods
@@ -1843,7 +1843,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/tax_filing_periods/trash/bulk:
+  /api/v1/tax/tax_filing_periods/trash/bulk:
     delete:
       tags:
         - TaxFilingPeriods
@@ -1863,7 +1863,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_tags:
+  /api/v1/tax/tax_tags:
     get:
       tags:
         - TaxTags
@@ -1909,7 +1909,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/tax_tags/{id}:
+  /api/v1/tax/tax_tags/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -1981,7 +1981,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_tags/bulk:
+  /api/v1/tax/tax_tags/bulk:
     post:
       tags:
         - TaxTags
@@ -2073,7 +2073,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_tags/upsert:
+  /api/v1/tax/tax_tags/upsert:
     post:
       tags:
         - TaxTags
@@ -2103,7 +2103,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxTag'
 
-  /api/v1/tax_tags/trash:
+  /api/v1/tax/tax_tags/trash:
     get:
       tags:
         - TaxTags
@@ -2120,7 +2120,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxTagList'
 
-  /api/v1/tax_tags/{id}/restore:
+  /api/v1/tax/tax_tags/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -2138,7 +2138,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_tags/empty:
+  /api/v1/tax/tax_tags/empty:
     delete:
       tags:
         - TaxTags
@@ -2155,7 +2155,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/tax_tags/delete/bulk:
+  /api/v1/tax/tax_tags/delete/bulk:
     post:
       tags:
         - TaxTags
@@ -2175,7 +2175,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_tags/restore/bulk:
+  /api/v1/tax/tax_tags/restore/bulk:
     post:
       tags:
         - TaxTags
@@ -2193,7 +2193,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_tags/restore/all:
+  /api/v1/tax/tax_tags/restore/all:
     post:
       tags:
         - TaxTags
@@ -2209,7 +2209,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/tax_tags/trash/bulk:
+  /api/v1/tax/tax_tags/trash/bulk:
     delete:
       tags:
         - TaxTags
@@ -2229,7 +2229,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_repartition_lines:
+  /api/v1/tax/tax_repartition_lines:
     get:
       tags:
         - TaxRepartitionLines
@@ -2275,7 +2275,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/tax_repartition_lines/{id}:
+  /api/v1/tax/tax_repartition_lines/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -2347,7 +2347,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_repartition_lines/bulk:
+  /api/v1/tax/tax_repartition_lines/bulk:
     post:
       tags:
         - TaxRepartitionLines
@@ -2439,7 +2439,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_repartition_lines/upsert:
+  /api/v1/tax/tax_repartition_lines/upsert:
     post:
       tags:
         - TaxRepartitionLines
@@ -2469,7 +2469,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxRepartitionLine'
 
-  /api/v1/tax_repartition_lines/trash:
+  /api/v1/tax/tax_repartition_lines/trash:
     get:
       tags:
         - TaxRepartitionLines
@@ -2486,7 +2486,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxRepartitionLineList'
 
-  /api/v1/tax_repartition_lines/{id}/restore:
+  /api/v1/tax/tax_repartition_lines/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -2504,7 +2504,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_repartition_lines/empty:
+  /api/v1/tax/tax_repartition_lines/empty:
     delete:
       tags:
         - TaxRepartitionLines
@@ -2521,7 +2521,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/tax_repartition_lines/delete/bulk:
+  /api/v1/tax/tax_repartition_lines/delete/bulk:
     post:
       tags:
         - TaxRepartitionLines
@@ -2541,7 +2541,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_repartition_lines/restore/bulk:
+  /api/v1/tax/tax_repartition_lines/restore/bulk:
     post:
       tags:
         - TaxRepartitionLines
@@ -2559,7 +2559,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_repartition_lines/restore/all:
+  /api/v1/tax/tax_repartition_lines/restore/all:
     post:
       tags:
         - TaxRepartitionLines
@@ -2575,7 +2575,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/tax_repartition_lines/trash/bulk:
+  /api/v1/tax/tax_repartition_lines/trash/bulk:
     delete:
       tags:
         - TaxRepartitionLines
@@ -2595,7 +2595,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_templates:
+  /api/v1/tax/tax_templates:
     get:
       tags:
         - TaxTemplates
@@ -2641,7 +2641,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/tax_templates/{id}:
+  /api/v1/tax/tax_templates/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -2713,7 +2713,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_templates/bulk:
+  /api/v1/tax/tax_templates/bulk:
     post:
       tags:
         - TaxTemplates
@@ -2805,7 +2805,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_templates/upsert:
+  /api/v1/tax/tax_templates/upsert:
     post:
       tags:
         - TaxTemplates
@@ -2835,7 +2835,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxTemplate'
 
-  /api/v1/tax_templates/trash:
+  /api/v1/tax/tax_templates/trash:
     get:
       tags:
         - TaxTemplates
@@ -2852,7 +2852,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxTemplateList'
 
-  /api/v1/tax_templates/{id}/restore:
+  /api/v1/tax/tax_templates/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -2870,7 +2870,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_templates/empty:
+  /api/v1/tax/tax_templates/empty:
     delete:
       tags:
         - TaxTemplates
@@ -2887,7 +2887,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/tax_templates/delete/bulk:
+  /api/v1/tax/tax_templates/delete/bulk:
     post:
       tags:
         - TaxTemplates
@@ -2907,7 +2907,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_templates/restore/bulk:
+  /api/v1/tax/tax_templates/restore/bulk:
     post:
       tags:
         - TaxTemplates
@@ -2925,7 +2925,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_templates/restore/all:
+  /api/v1/tax/tax_templates/restore/all:
     post:
       tags:
         - TaxTemplates
@@ -2941,7 +2941,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/tax_templates/trash/bulk:
+  /api/v1/tax/tax_templates/trash/bulk:
     delete:
       tags:
         - TaxTemplates
@@ -2961,7 +2961,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_template_rows:
+  /api/v1/tax/tax_template_rows:
     get:
       tags:
         - TaxTemplateRows
@@ -3007,7 +3007,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/tax_template_rows/{id}:
+  /api/v1/tax/tax_template_rows/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -3079,7 +3079,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_template_rows/bulk:
+  /api/v1/tax/tax_template_rows/bulk:
     post:
       tags:
         - TaxTemplateRows
@@ -3171,7 +3171,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_template_rows/upsert:
+  /api/v1/tax/tax_template_rows/upsert:
     post:
       tags:
         - TaxTemplateRows
@@ -3201,7 +3201,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxTemplateRow'
 
-  /api/v1/tax_template_rows/trash:
+  /api/v1/tax/tax_template_rows/trash:
     get:
       tags:
         - TaxTemplateRows
@@ -3218,7 +3218,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaxTemplateRowList'
 
-  /api/v1/tax_template_rows/{id}/restore:
+  /api/v1/tax/tax_template_rows/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -3236,7 +3236,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/tax_template_rows/empty:
+  /api/v1/tax/tax_template_rows/empty:
     delete:
       tags:
         - TaxTemplateRows
@@ -3253,7 +3253,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/tax_template_rows/delete/bulk:
+  /api/v1/tax/tax_template_rows/delete/bulk:
     post:
       tags:
         - TaxTemplateRows
@@ -3273,7 +3273,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_template_rows/restore/bulk:
+  /api/v1/tax/tax_template_rows/restore/bulk:
     post:
       tags:
         - TaxTemplateRows
@@ -3291,7 +3291,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/tax_template_rows/restore/all:
+  /api/v1/tax/tax_template_rows/restore/all:
     post:
       tags:
         - TaxTemplateRows
@@ -3307,7 +3307,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/tax_template_rows/trash/bulk:
+  /api/v1/tax/tax_template_rows/trash/bulk:
     delete:
       tags:
         - TaxTemplateRows
@@ -3327,7 +3327,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/withholding_categories:
+  /api/v1/tax/withholding_categories:
     get:
       tags:
         - WithholdingCategories
@@ -3373,7 +3373,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /api/v1/withholding_categories/{id}:
+  /api/v1/tax/withholding_categories/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
 
@@ -3445,7 +3445,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/withholding_categories/bulk:
+  /api/v1/tax/withholding_categories/bulk:
     post:
       tags:
         - WithholdingCategories
@@ -3537,7 +3537,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/withholding_categories/upsert:
+  /api/v1/tax/withholding_categories/upsert:
     post:
       tags:
         - WithholdingCategories
@@ -3567,7 +3567,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/WithholdingCategory'
 
-  /api/v1/withholding_categories/trash:
+  /api/v1/tax/withholding_categories/trash:
     get:
       tags:
         - WithholdingCategories
@@ -3584,7 +3584,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/WithholdingCategoryList'
 
-  /api/v1/withholding_categories/{id}/restore:
+  /api/v1/tax/withholding_categories/{id}/restore:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
@@ -3602,7 +3602,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /api/v1/withholding_categories/empty:
+  /api/v1/tax/withholding_categories/empty:
     delete:
       tags:
         - WithholdingCategories
@@ -3619,7 +3619,7 @@ paths:
                   deleted_count:
                     type: integer
 
-  /api/v1/withholding_categories/delete/bulk:
+  /api/v1/tax/withholding_categories/delete/bulk:
     post:
       tags:
         - WithholdingCategories
@@ -3639,7 +3639,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/withholding_categories/restore/bulk:
+  /api/v1/tax/withholding_categories/restore/bulk:
     post:
       tags:
         - WithholdingCategories
@@ -3657,7 +3657,7 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
-  /api/v1/withholding_categories/restore/all:
+  /api/v1/tax/withholding_categories/restore/all:
     post:
       tags:
         - WithholdingCategories
@@ -3673,7 +3673,7 @@ paths:
                 properties:
                   restored: { type: integer }
 
-  /api/v1/withholding_categories/trash/bulk:
+  /api/v1/tax/withholding_categories/trash/bulk:
     delete:
       tags:
         - WithholdingCategories
