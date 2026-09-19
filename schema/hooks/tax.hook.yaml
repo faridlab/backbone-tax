@@ -80,12 +80,14 @@ rules:
     assert: "round_per_line: round raw_base per line, round each tax amount per line; round_globally: keep raw amounts, aggregate per tax across all base lines, round per document, redistribute the deltas. Read the VALUE — the default round_globally rounds the aggregate, despite the reference UI labelling it 'Round per Tax'"
     error_code: none
     enforcement: service
+    justification: "This is a computation, not an invariant over stored rows. It decides what the amounts ARE before anything is written, and the choice depends on the document as a whole rather than on any row a constraint could examine. There is no raw write path that reaches it: a caller that writes amounts directly is not calculating, it is recording amounts it already has." 
   - id: R13
     name: smooth_delta_only
     when: calculate_document
     assert: "distribute_delta_smoothly is the ONLY delta primitive — tax totals, base totals and repartition splits all redistribute through it (integer cents at currency precision, apportioned by weight, biggest-first, residual cents on the largest factors); Σ redistributed == original + delta EXACTLY"
     error_code: none
     enforcement: service
+    justification: "A single-primitive rule is about which code path runs, and a database cannot see code paths. Its OUTCOME is checkable (the redistributed amounts sum to the original plus the delta, exactly), and that sum is asserted by the engine's own property tests; what cannot be expressed as a constraint is the requirement that every caller reach it through the same primitive instead of rounding its own way." 
   - id: R14
     name: repartition_family_valid
     when: writing_repartition_lines
@@ -113,6 +115,7 @@ rules:
     assert: "a template created under a unit whose settings row defaults to on_payment inherits on_payment and the unit's transition account; an explicit per-template override wins"
     error_code: none
     enforcement: service
+    justification: "Inheritance with an override is a decision taken once, at creation, from a settings row that may change afterwards. A column DEFAULT cannot read another table, and a trigger that did would either re-resolve the posture on every later write, or freeze the wrong answer for templates created before the settings row existed. Materialising the resolved value at creation is the behaviour this rule is about, and the note below says so." 
     note: "resolved and MATERIALIZED on the template row at creation so a later posture change never rewrites existing templates"
 
 # Ported guards with no target in this module's shape (stated, not silently dropped):
