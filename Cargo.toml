@@ -3,6 +3,7 @@ name = "backbone-tax"
 version = "0.6.18"
 edition = "2021"
 description = "Tax engine (region-neutral): categories, templates, effective-dated rates, withholding. Computes tax lines; Indonesia rules deferred"
+license = "MIT OR Apache-2.0"
 
 [lib]
 path = "src/lib.rs"
