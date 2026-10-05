@@ -143,6 +143,13 @@ impl TaxEngine {
         Self { db_pool }
     }
 
+    /// The database this call runs on: the composer's request pool when one
+    /// is bound (a tenant mount, or a relay consumer wrapped by the host),
+    /// else the composed pool (ADR-0029 pool law).
+    fn rpool(&self) -> PgPool {
+        crate::request_pool::current().unwrap_or_else(|| self.db_pool.clone())
+    }
+
     /// Compute the tax lines for `template_id` applied to `base_amount` on `on_date`.
     ///
     /// - `on_net_total`: rate% of the net base.
@@ -169,7 +176,7 @@ impl TaxEngine {
             // SELECT (which would be indistinguishable from a genuine "no row applies").
             return Err(TaxError::NoCompanyScope);
         }
-        let mut tx = scoped_tx(&self.db_pool).await?;
+        let mut tx = scoped_tx(&self.rpool()).await?;
 
         let inclusive: Option<bool> =
             sqlx::query_scalar(
@@ -295,7 +302,7 @@ impl TaxEngine {
         if org_scope::current_org_scope().is_none() {
             return Err(TaxError::NoCompanyScope);
         }
-        let mut tx = scoped_tx(&self.db_pool).await?;
+        let mut tx = scoped_tx(&self.rpool()).await?;
         let row: Option<(Decimal, Decimal, Option<Uuid>, Option<String>)> = sqlx::query_as(
             r#"SELECT rate, threshold_amount, account_id, name
                FROM tax.withholding_categories
@@ -687,7 +694,7 @@ impl TaxEngine {
                 return Err(TaxError::NegativeBase);
             }
         }
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         if let Some(scope) = org_scope::current_org_scope() {
             // Ambient fence wins: the named company can never widen it under a decorated host.
             org_scope::bind_org_scope_on(&mut tx, &scope).await?;

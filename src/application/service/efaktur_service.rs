@@ -166,6 +166,13 @@ impl EFakturService {
         Self { db_pool }
     }
 
+    /// The database this call runs on: the composer's request pool when one
+    /// is bound (a tenant mount, or a relay consumer wrapped by the host),
+    /// else the composed pool (ADR-0029 pool law).
+    fn rpool(&self) -> PgPool {
+        crate::request_pool::current().unwrap_or_else(|| self.db_pool.clone())
+    }
+
     /// Bind the transaction's scope from the AMBIENT request org scope.
     /// Transaction-local (`set_config(..., true)`): nothing leaks onto a pooled connection.
     ///
@@ -189,7 +196,7 @@ impl EFakturService {
         &self,
         data: &PostedForTax,
     ) -> Result<(Uuid, Option<Uuid>), TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
         let out = self.record_in_tx(&mut tx, data).await?;
         tx.commit().await?;
@@ -207,7 +214,7 @@ impl EFakturService {
         consumer: &str,
         data: &PostedForTax,
     ) -> Result<Option<(Uuid, Option<Uuid>)>, TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
         let first =
             backbone_outbox::inbox::once(&mut *tx, EFAKTUR_INBOX_SCHEMA, consumer, event_id)
@@ -230,7 +237,7 @@ impl EFakturService {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         data: &PostedForTax,
     ) -> Result<(Uuid, Option<Uuid>), TaxComplianceError> {
-        let txns = TaxTransactionRepository::new(self.db_pool.clone());
+        let txns = TaxTransactionRepository::new(self.rpool());
 
         // 1) Idempotency probe BEFORE the period guard: a re-delivery of an event whose
         //    transaction already landed (possibly before the period closed) replays as a no-op.
@@ -245,7 +252,7 @@ impl EFakturService {
         // 2) The masa-pajak guard: a NEW transaction refuses when the posting month's period is
         //    finalized or filed. A missing period row is fine — the assignment path opens one.
         let period_start = month_start(data.posting_date);
-        let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
+        let periods = TaxFilingPeriodRepository::new(self.rpool());
         if let Some(row) = periods.find_by_period(&mut **tx, period_start).await? {
             if row.status != "open" {
                 return Err(TaxComplianceError::PeriodNotOpen(
@@ -305,7 +312,7 @@ impl EFakturService {
         invoice_ref: Uuid,
         invoice_kind: &str,
     ) -> Result<(), TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
         self.void_for_invoice_in_tx(&mut tx, invoice_ref, invoice_kind)
             .await?;
@@ -323,7 +330,7 @@ impl EFakturService {
         invoice_ref: Uuid,
         invoice_kind: &str,
     ) -> Result<Option<()>, TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
         let first =
             backbone_outbox::inbox::once(&mut *tx, EFAKTUR_INBOX_SCHEMA, consumer, event_id)
@@ -348,12 +355,12 @@ impl EFakturService {
         invoice_ref: Uuid,
         invoice_kind: &str,
     ) -> Result<(), TaxComplianceError> {
-        let txns = TaxTransactionRepository::new(self.db_pool.clone());
+        let txns = TaxTransactionRepository::new(self.rpool());
         if let Some(efaktur_id) = txns
             .find_efaktur_id_by_invoice(&mut **tx, invoice_ref, invoice_kind)
             .await?
         {
-            let docs = EFakturDocumentRepository::new(self.db_pool.clone());
+            let docs = EFakturDocumentRepository::new(self.rpool());
             docs.void_on(&mut **tx, efaktur_id).await?;
         }
         Ok(())
@@ -367,9 +374,9 @@ impl EFakturService {
         &self,
         efaktur_id: Uuid,
     ) -> Result<EFakturDocumentRow, TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
-        let docs = EFakturDocumentRepository::new(self.db_pool.clone());
+        let docs = EFakturDocumentRepository::new(self.rpool());
         let doc = docs
             .find_on(&mut *tx, efaktur_id)
             .await?
@@ -378,7 +385,7 @@ impl EFakturService {
             tx.commit().await?;
             return Ok(doc); // idempotent re-void
         }
-        let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
+        let periods = TaxFilingPeriodRepository::new(self.rpool());
         if let Some(period) = periods.find_by_period(&mut *tx, doc.period).await? {
             if period.status == "filed" {
                 return Err(TaxComplianceError::PeriodAlreadyFiled(
@@ -402,9 +409,9 @@ impl EFakturService {
         &self,
         efaktur_id: Uuid,
     ) -> Result<EFakturDocumentRow, TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
-        let docs = EFakturDocumentRepository::new(self.db_pool.clone());
+        let docs = EFakturDocumentRepository::new(self.rpool());
         let flipped = docs.confirm_on(&mut *tx, efaktur_id).await?;
         if flipped == 0 {
             // Not in `assigned` — read back to distinguish an idempotent re-confirm from a refusal.
@@ -437,9 +444,9 @@ impl EFakturService {
         &self,
         period: NaiveDate,
     ) -> Result<FilingPeriodRow, TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
-        let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
+        let periods = TaxFilingPeriodRepository::new(self.rpool());
         // An empty month (no period row yet) is finalizable: open the row first, idempotently.
         periods
             .ensure_open(&mut *tx, Uuid::new_v4(), period)
@@ -469,9 +476,9 @@ impl EFakturService {
         &self,
         period: NaiveDate,
     ) -> Result<FilingPeriodRow, TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
-        let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
+        let periods = TaxFilingPeriodRepository::new(self.rpool());
         let row = match periods.file_finalized(&mut *tx, period).await? {
             Some(r) => r,
             None => match periods.find_by_period(&mut *tx, period).await? {
@@ -492,9 +499,9 @@ impl EFakturService {
     pub async fn list_filing_periods(
         &self,
     ) -> Result<Vec<FilingPeriodRow>, TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
-        let rows = TaxFilingPeriodRepository::new(self.db_pool.clone())
+        let rows = TaxFilingPeriodRepository::new(self.rpool())
             .list_periods(&mut *tx)
             .await?;
         tx.commit().await?;
@@ -508,9 +515,9 @@ impl EFakturService {
         period: NaiveDate,
         status: Option<&str>,
     ) -> Result<Vec<EFakturDocumentRow>, TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
-        let rows = EFakturDocumentRepository::new(self.db_pool.clone())
+        let rows = EFakturDocumentRepository::new(self.rpool())
             .list_for_period(&mut *tx, period, status)
             .await?;
         tx.commit().await?;
@@ -525,9 +532,9 @@ impl EFakturService {
         &self,
         period: NaiveDate,
     ) -> Result<Vec<EFakturExportRow>, TaxComplianceError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         Self::bind_scope(&mut tx).await?;
-        let rows = EFakturDocumentRepository::new(self.db_pool.clone())
+        let rows = EFakturDocumentRepository::new(self.rpool())
             .list_export_rows(&mut *tx, period)
             .await?;
         tx.commit().await?;
@@ -549,7 +556,7 @@ impl EFakturService {
         // Ensure a TaxFilingPeriod exists for this month (auto-open if missing). An existing
         // finalized/filed row is left untouched by the guarded ensure — the guarded allocate
         // below then refuses, which is exactly the fail-closed behavior.
-        let periods = TaxFilingPeriodRepository::new(self.db_pool.clone());
+        let periods = TaxFilingPeriodRepository::new(self.rpool());
         periods
             .ensure_open(&mut **tx, Uuid::new_v4(), period_start)
             .await?;
@@ -564,7 +571,7 @@ impl EFakturService {
 
         // Insert the EFakturDocument.
         let eid = Uuid::new_v4();
-        let docs = EFakturDocumentRepository::new(self.db_pool.clone());
+        let docs = EFakturDocumentRepository::new(self.rpool());
         docs.insert(
             &mut **tx,
             &NewEFakturDocumentRow {

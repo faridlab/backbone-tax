@@ -34,6 +34,8 @@ user_owned:
   - "src/infrastructure/persistence/tax_filing_period_repository.rs"
   - "src/infrastructure/persistence/e_faktur_document_repository.rs"
   - "src/presentation/http/guarded_routes.rs"
+  # The composer-installed request-pool shim the write/engine/e-Faktur services resolve their database through (ADR-0029 pool law): hand-written, never schema-derived.
+  - "src/request_pool.rs"
 
   # Behavior tests (the golden numeric oracle) + route probes + BDD features.
   - "tests/tax_golden_cases.rs"

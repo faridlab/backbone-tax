@@ -149,6 +149,13 @@ impl TaxWriteService {
         Self { db_pool }
     }
 
+    /// The database this call runs on: the composer's request pool when one
+    /// is bound (a tenant mount, or a relay consumer wrapped by the host),
+    /// else the composed pool (ADR-0029 pool law).
+    fn rpool(&self) -> PgPool {
+        crate::request_pool::current().unwrap_or_else(|| self.db_pool.clone())
+    }
+
     fn is_dup(e: &sqlx::Error) -> bool {
         e.as_database_error()
             .map(|d| d.is_unique_violation())
@@ -166,7 +173,7 @@ impl TaxWriteService {
     async fn scoped_tx(
         &self,
     ) -> Result<sqlx::Transaction<'static, sqlx::Postgres>, TaxError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         if let Some(scope) = org_scope::current_org_scope() {
             org_scope::bind_org_scope_on(&mut tx, &scope).await?;
         }
@@ -177,7 +184,7 @@ impl TaxWriteService {
         let mut tx = self.scoped_tx().await?;
         let id = Uuid::new_v4();
         let kind = c.tax_kind.clone().unwrap_or_else(|| "vat".to_string());
-        let repos = TaxCategoryRepository::new(self.db_pool.clone());
+        let repos = TaxCategoryRepository::new(self.rpool());
         // Friendly duplicate-code pre-check (the decorator-installed per-unit unique is the
         // raw-SQL backstop; a bare deployment has no module-owned unique left).
         if repos.find_by_code_on(&mut tx, &c.code).await?.is_some() {
@@ -249,10 +256,10 @@ impl TaxWriteService {
         company_id: Uuid,
         code: &str,
     ) -> Result<Option<Uuid>, TaxError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         let scope = org_scope::OrgScope::for_company_unit(company_id);
         org_scope::bind_org_scope_on(&mut tx, &scope).await?;
-        let tpls = TaxTemplateRepository::new(self.db_pool.clone());
+        let tpls = TaxTemplateRepository::new(self.rpool());
         let found = tpls.find_by_code_on(&mut tx, code).await?;
         tx.commit().await?;
         Ok(found)
@@ -267,10 +274,10 @@ impl TaxWriteService {
         company_id: Uuid,
         code: &str,
     ) -> Result<Option<Uuid>, TaxError> {
-        let mut tx = self.db_pool.begin().await?;
+        let mut tx = self.rpool().begin().await?;
         let scope = org_scope::OrgScope::for_company_unit(company_id);
         org_scope::bind_org_scope_on(&mut tx, &scope).await?;
-        let tags = TaxTagRepository::new(self.db_pool.clone());
+        let tags = TaxTagRepository::new(self.rpool());
         let found = tags.find_by_code_on(&mut tx, code).await?;
         tx.commit().await?;
         Ok(found)
@@ -279,7 +286,7 @@ impl TaxWriteService {
     pub async fn create_template(&self, t: NewTemplate) -> Result<Uuid, TaxError> {
         let mut tx = self.scoped_tx().await?;
         if let Some(cid) = t.tax_category_id {
-            let cats = TaxCategoryRepository::new(self.db_pool.clone());
+            let cats = TaxCategoryRepository::new(self.rpool());
             let found = cats.find_by_id_on(&mut tx, cid).await?;
             if found.is_none() {
                 return Err(TaxError::CategoryNotFound(cid));
@@ -291,7 +298,7 @@ impl TaxWriteService {
         }
         // Friendly duplicate-name pre-check (the decorator-installed per-unit partial
         // unique index is the raw-SQL backstop).
-        let tpls = TaxTemplateRepository::new(self.db_pool.clone());
+        let tpls = TaxTemplateRepository::new(self.rpool());
         if tpls
             .find_by_name_and_type_on(&mut tx, &tt, &t.name)
             .await?
@@ -303,7 +310,7 @@ impl TaxWriteService {
         // Resolve the cash-basis posture: caller override > the owning unit's settings
         // default > on_invoice. The resolved pair is MATERIALIZED on the row so later
         // posture changes never rewrite existing templates.
-        let settings = CompanyTaxSettingsRepository::new(self.db_pool.clone())
+        let settings = CompanyTaxSettingsRepository::new(self.rpool())
             .find_own(&mut tx)
             .await?;
         let exigibility = t
@@ -396,7 +403,7 @@ impl TaxWriteService {
     /// (`round_globally` / `on_invoice`).
     pub async fn company_settings(&self) -> Result<Option<CompanyTaxSettingsRecord>, TaxError> {
         let mut tx = self.scoped_tx().await?;
-        CompanyTaxSettingsRepository::new(self.db_pool.clone())
+        CompanyTaxSettingsRepository::new(self.rpool())
             .find_own(&mut tx)
             .await
             .map_err(TaxError::from)
@@ -408,7 +415,7 @@ impl TaxWriteService {
         template_id: Uuid,
     ) -> Result<Vec<RepartitionLineRecord>, TaxError> {
         let mut tx = self.scoped_tx().await?;
-        TaxRepartitionLineRepository::new(self.db_pool.clone())
+        TaxRepartitionLineRepository::new(self.rpool())
             .find_for_template(&mut tx, template_id)
             .await
             .map_err(TaxError::from)
@@ -440,7 +447,7 @@ impl TaxWriteService {
         } else {
             None
         };
-        let id = CompanyTaxSettingsRepository::new(self.db_pool.clone())
+        let id = CompanyTaxSettingsRepository::new(self.rpool())
             .put(
                 &mut tx,
                 &s.rounding_method,
@@ -537,7 +544,7 @@ impl TaxWriteService {
                 "factor_percent must be nonzero".into(),
             ));
         }
-        let tpls = TaxTemplateRepository::new(self.db_pool.clone());
+        let tpls = TaxTemplateRepository::new(self.rpool());
         if tpls
             .find_by_id_on(&mut tx, r.template_id)
             .await?
@@ -545,7 +552,7 @@ impl TaxWriteService {
         {
             return Err(TaxError::TemplateNotFound(r.template_id));
         }
-        let repo = TaxRepartitionLineRepository::new(self.db_pool.clone());
+        let repo = TaxRepartitionLineRepository::new(self.rpool());
         let existing = repo.find_for_template(&mut tx, r.template_id).await?;
         if !Self::family_valid_after(&existing, &r) {
             return Err(TaxError::RepartitionInvalid(r.template_id));
@@ -597,7 +604,7 @@ impl TaxWriteService {
         if round2(sum) != Decimal::from(100) {
             return Err(TaxError::RepartitionInvalid(f.template_id));
         }
-        if TaxTemplateRepository::new(self.db_pool.clone())
+        if TaxTemplateRepository::new(self.rpool())
             .find_by_id_on(&mut tx, f.template_id)
             .await?
             .is_none()
@@ -682,7 +689,7 @@ impl TaxWriteService {
     /// Create a reporting tag (referenced by repartition lines' `tag_ids`).
     pub async fn create_tag(&self, g: NewTag) -> Result<Uuid, TaxError> {
         let mut tx = self.scoped_tx().await?;
-        let repo = TaxTagRepository::new(self.db_pool.clone());
+        let repo = TaxTagRepository::new(self.rpool());
         if repo.find_by_code_on(&mut tx, &g.code).await?.is_some() {
             return Err(TaxError::DuplicateCode(g.code));
         }
@@ -705,7 +712,7 @@ impl TaxWriteService {
         if !Self::valid_window(row.effective_from, row.effective_to) {
             return Err(TaxError::InvalidDateRange);
         }
-        let tpls = TaxTemplateRepository::new(self.db_pool.clone());
+        let tpls = TaxTemplateRepository::new(self.rpool());
         let found = tpls.find_by_id_on(&mut tx, row.template_id).await?;
         if found.is_none() {
             return Err(TaxError::TemplateNotFound(row.template_id));
@@ -714,7 +721,7 @@ impl TaxWriteService {
         // effective on the same date would double-charge. `[from, to]` inclusive, open-ended =
         // infinity. Scoped to this template, so the check is per unit once the composing
         // service's fence is installed.
-        let rows_repo = TaxTemplateRowRepository::new(self.db_pool.clone());
+        let rows_repo = TaxTemplateRowRepository::new(self.rpool());
         let overlap = rows_repo
             .find_overlap(
                 &mut tx,
@@ -764,7 +771,7 @@ impl TaxWriteService {
         // — so `resolve_withholding` always has exactly one applicable rate on any date. The
         // DB-level EXCLUDE also enforces this (its shape is a domain invariant and survives the
         // strip tenant-free; see the strip migration).
-        let whs = WithholdingCategoryRepository::new(self.db_pool.clone());
+        let whs = WithholdingCategoryRepository::new(self.rpool());
         let overlap = whs
             .find_overlap(
                 &mut tx,
