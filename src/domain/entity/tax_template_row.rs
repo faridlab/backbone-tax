@@ -253,6 +253,8 @@ impl backbone_orm::EntityRepoMeta for TaxTemplateRow {
         m.insert("template_id".to_string(), "uuid".to_string());
         m.insert("account_id".to_string(), "uuid".to_string());
         m.insert("charge_type".to_string(), "charge_type".to_string());
+        m.insert("effective_from".to_string(), "date".to_string());
+        m.insert("effective_to".to_string(), "date".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {

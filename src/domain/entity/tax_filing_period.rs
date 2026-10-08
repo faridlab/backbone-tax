@@ -245,6 +245,7 @@ impl backbone_orm::EntityRepoMeta for TaxFilingPeriod {
         let mut m = std::collections::HashMap::new();
         m.insert("id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "tax_filing_status".to_string());
+        m.insert("period".to_string(), "date".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {

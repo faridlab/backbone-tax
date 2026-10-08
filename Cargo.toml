@@ -1,6 +1,6 @@
 [package]
 name = "backbone-tax"
-version = "0.6.20"
+version = "0.7.0"
 edition = "2021"
 description = "Tax engine (region-neutral): categories, templates, effective-dated rates, withholding. Computes tax lines; Indonesia rules deferred"
 license = "MIT OR Apache-2.0"
@@ -20,13 +20,13 @@ path = "src/lib.rs"
 # or `rev = "<commit-sha>"`. Cargo dedupes the git fetch — the repo is only
 # cloned once even though four crates reference it.
 # -----------------------------------------------------------------------------
-backbone-core = { version = "2.7.35", features = ["postgres"] }
-backbone-orm = { version = "2.7.35" }
-backbone-auth = { version = "2.7.35", features = ["axum"] }
-backbone-messaging = { version = "2.7.35" }
+backbone-core = { version = "3.0.0", features = ["postgres"] }
+backbone-orm = { version = "3.0.0" }
+backbone-auth = { version = "3.0.0", features = ["axum"] }
+backbone-messaging = { version = "3.0.0" }
 # Consumer-inbox dedup for the relay-facing `_once` entry points (the e-Faktur recording seam).
 # Framework infra, not a domain module — the no-module-edges rule is untouched.
-backbone-outbox = { version = "2.7.35" }
+backbone-outbox = { version = "3.0.0" }
 
 # Core async runtime and serialization
 tokio = { version = "1.0", features = ["full"] }

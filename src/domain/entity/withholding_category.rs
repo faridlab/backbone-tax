@@ -246,6 +246,8 @@ impl backbone_orm::EntityRepoMeta for WithholdingCategory {
         m.insert("id".to_string(), "uuid".to_string());
         m.insert("account_id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "tax_status".to_string());
+        m.insert("effective_from".to_string(), "date".to_string());
+        m.insert("effective_to".to_string(), "date".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {

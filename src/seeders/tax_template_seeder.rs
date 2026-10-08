@@ -36,7 +36,7 @@ impl Seeder for SeedTaxTemplateSeeder {
     }
 
     fn order(&self) -> i32 {
-        8
+        7
     }
 
     async fn should_run(&self, pool: &PgPool) -> Result<bool> {

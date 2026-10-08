@@ -18,7 +18,6 @@ pub mod tax_template_row_api_test;
 pub mod withholding_category_api_test;
 
 // Re-exports for convenience
-pub use crud_test_base::*;
 pub use company_tax_settings_api_test::*;
 pub use tax_category_api_test::*;
 pub use tax_transaction_api_test::*;

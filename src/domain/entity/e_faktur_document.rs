@@ -245,6 +245,8 @@ impl backbone_orm::EntityRepoMeta for EFakturDocument {
         m.insert("tax_transaction_id".to_string(), "uuid".to_string());
         m.insert("replaces_id".to_string(), "uuid".to_string());
         m.insert("status".to_string(), "e_faktur_status".to_string());
+        m.insert("period".to_string(), "date".to_string());
+        m.insert("assignment_date".to_string(), "date".to_string());
         m
     }
     fn search_fields() -> &'static [&'static str] {
