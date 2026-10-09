@@ -689,7 +689,7 @@ async fn confirm_efaktur(
     State(svc): State<Arc<EFakturService>>,
     _org: OrgContext,
     Path(id): Path<Uuid>,
-    Json(b): Json<CompanyBody>,
+    Json(_body): Json<CompanyBody>,
 ) -> axum::response::Response {
     match svc.confirm_efaktur(id).await {
         Ok(doc) => (StatusCode::OK, Json(EFakturDocumentOut::from(doc))).into_response(),
@@ -700,7 +700,7 @@ async fn void_efaktur(
     State(svc): State<Arc<EFakturService>>,
     _org: OrgContext,
     Path(id): Path<Uuid>,
-    Json(b): Json<CompanyBody>,
+    Json(_body): Json<CompanyBody>,
 ) -> axum::response::Response {
     match svc.void_efaktur(id).await {
         Ok(doc) => (StatusCode::OK, Json(EFakturDocumentOut::from(doc))).into_response(),
@@ -735,7 +735,7 @@ impl From<crate::infrastructure::persistence::FilingPeriodRow> for FilingPeriodO
 async fn list_filing_periods(
     State(svc): State<Arc<EFakturService>>,
     _org: OrgContext,
-    axum::extract::Query(q): axum::extract::Query<CompanyIdQuery>,
+    axum::extract::Query(_query): axum::extract::Query<CompanyIdQuery>,
 ) -> axum::response::Response {
     match svc.list_filing_periods().await {
         Ok(periods) => {
@@ -757,7 +757,7 @@ async fn finalize_filing_period(
     State(svc): State<Arc<EFakturService>>,
     _org: OrgContext,
     Path(period): Path<String>,
-    Json(b): Json<CompanyBody>,
+    Json(_body): Json<CompanyBody>,
 ) -> axum::response::Response {
     let Some(period) = parse_period(&period) else {
         return err_response(TaxError::InvalidValue(
@@ -773,7 +773,7 @@ async fn file_filing_period(
     State(svc): State<Arc<EFakturService>>,
     _org: OrgContext,
     Path(period): Path<String>,
-    Json(b): Json<CompanyBody>,
+    Json(_body): Json<CompanyBody>,
 ) -> axum::response::Response {
     let Some(period) = parse_period(&period) else {
         return err_response(TaxError::InvalidValue(
