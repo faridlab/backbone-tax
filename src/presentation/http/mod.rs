@@ -17,7 +17,6 @@ pub mod tax_template_row_handler;
 pub mod withholding_category_handler;
 
 // <<< CUSTOM
-pub mod guarded_routes;
 // END CUSTOM
 
 // Re-exports
@@ -32,5 +31,7 @@ pub use tax_template_handler::{create_tax_template_routes, create_tax_template_r
 pub use tax_template_row_handler::{create_tax_template_row_routes, create_tax_template_row_read_routes, create_tax_template_row_write_routes};
 pub use withholding_category_handler::{create_withholding_category_routes, create_withholding_category_read_routes, create_withholding_category_write_routes};
 // <<< CUSTOM
-pub use guarded_routes::create_guarded_tax_routes;
 // END CUSTOM
+
+// This directory's extension (hand-written; ADR-0031).
+include!("mod.ext.rs");

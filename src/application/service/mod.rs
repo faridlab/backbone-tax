@@ -19,11 +19,6 @@ pub mod tax_template_row_service;
 pub mod withholding_category_service;
 
 // <<< CUSTOM
-pub mod efaktur_service;
-pub mod tax_engine;
-pub mod tax_rounding;
-pub mod tax_write_service;
-pub use efaktur_service::{EFakturService, PostedForTax, TaxComplianceError};
 // END CUSTOM
 
 pub use company_tax_settings_service::CompanyTaxSettingsService;
@@ -37,13 +32,7 @@ pub use tax_template_service::TaxTemplateService;
 pub use tax_template_row_service::TaxTemplateRowService;
 pub use withholding_category_service::WithholdingCategoryService;
 // <<< CUSTOM
-pub use tax_engine::{
-    DocumentTaxLine, DocumentTaxRequest, DocumentTaxRequestLine, DocumentTaxResult, DocumentType,
-    TaxEngine, TaxError, TaxLine,
-};
-pub use tax_rounding::{distribute_delta_smoothly, round2, RoundingMethod};
-pub use tax_write_service::{
-    NewCategory, NewCompanySettings, NewRepartitionLine, NewRepartitionSplit, NewTag, NewTemplate,
-    NewTemplateRow, NewWithholding, ReplaceRepartitionFamily, TaxWriteService,
-};
 // END CUSTOM
+
+// This directory's extension (hand-written; ADR-0031).
+include!("mod.ext.rs");

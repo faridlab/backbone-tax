@@ -25,11 +25,17 @@ pub mod presentation;
 pub mod seeders;
 pub mod exports;
 // <<< CUSTOM MODULES
-// The hand-owned request-pool shim (the composing service's tenant pool
-// resolution): a generated-tree declaration the regenerator drops, so it
-// lives in the preserved block (#447 cause-2 class).
-pub mod request_pool;
 // END CUSTOM
+
+// The module's extension (hand-written; ADR-0031).
+#[path = "lib.ext.rs"]
+mod lib_ext;
+pub use lib_ext::*;
+/// This crate's module and builder under fixed names, for the extension's `impl` blocks.
+#[allow(dead_code)]
+pub(crate) type ThisModule = TaxModule;
+#[allow(dead_code)]
+pub(crate) type ThisModuleBuilder = TaxModuleBuilder;
 
 // Re-exports for convenience - Domain entities
 pub use domain::entity::*;
@@ -49,22 +55,6 @@ pub use application::service::TaxTemplateService;
 pub use application::service::TaxTemplateRowService;
 pub use application::service::WithholdingCategoryService;
 
-// <<< CUSTOM
-pub use application::service::{
-    DocumentTaxLine, DocumentTaxRequest, DocumentTaxRequestLine, DocumentTaxResult, DocumentType,
-    NewCategory, NewCompanySettings, NewRepartitionLine, NewRepartitionSplit, NewTag, NewTemplate,
-    NewTemplateRow, NewWithholding, ReplaceRepartitionFamily, TaxEngine, TaxError, TaxLine,
-    TaxWriteService,
-};
-// Document-grade rounding primitives (round_globally redistribution math) —
-// public so the rounding unit oracle can pin them from integration tests.
-pub use application::service::{distribute_delta_smoothly, round2, RoundingMethod};
-// The e-Faktur + tax-recording seam. The composition ACL calls
-// `EFakturService::record_tax_transaction` when billing emits a posted event —
-// this is the inbound audit-mirror write path (see docs/fsd.md).
-pub use application::service::{EFakturService, PostedForTax, TaxComplianceError};
-pub use presentation::http::create_guarded_tax_routes;
-// END CUSTOM
 // Re-exports - Validation
 pub use application::validator::{ValidationError, ValidationResult};
 
@@ -95,19 +85,49 @@ pub struct TaxModule {
     pub(crate) tax_template_service: Arc<TaxTemplateService>,
     pub(crate) tax_template_row_service: Arc<TaxTemplateRowService>,
     pub(crate) withholding_category_service: Arc<WithholdingCategoryService>,
+    /// The module's extension state (`lib.ext.rs`); its fields read through `Deref`.
+    pub(crate) ext: ModuleExt,
     // <<< CUSTOM FIELDS
-    /// The region-neutral tax engine (compute tax lines). Public so producing
-    /// modules (billing/selling/buying) can call it in-process and attach the
-    /// returned lines to their own AccountingPost (FSD: "tax contributes lines,
-    /// not a posting").
-    pub tax_engine: Arc<TaxEngine>,
-    /// Validated tax-config writes (mounted as guarded HTTP routes).
-    pub tax_write_service: Arc<TaxWriteService>,
-    /// The e-Faktur + tax-recording seam. Public so the composition ACL can call
-    /// `record_tax_transaction` when billing emits SalesInvoicePosted /
-    /// PurchaseInvoicePosted — the inbound audit-mirror write path.
-    pub efaktur_service: Arc<EFakturService>,
     // END CUSTOM
+}
+
+impl std::ops::Deref for TaxModule {
+    type Target = ModuleExt;
+    fn deref(&self) -> &Self::Target {
+        &self.ext
+    }
+}
+
+impl std::ops::DerefMut for TaxModule {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.ext
+    }
+}
+
+/// What the extension's `build` hook receives from the generated build (ADR-0031).
+#[allow(dead_code)]
+pub(crate) struct ModuleParts<'a> {
+    pub(crate) db_pool: &'a PgPool,
+    pub(crate) company_tax_settings_service: &'a Arc<CompanyTaxSettingsService>,
+    pub(crate) company_tax_settings_repository: &'a Arc<CompanyTaxSettingsRepository>,
+    pub(crate) tax_category_service: &'a Arc<TaxCategoryService>,
+    pub(crate) tax_category_repository: &'a Arc<TaxCategoryRepository>,
+    pub(crate) tax_transaction_service: &'a Arc<TaxTransactionService>,
+    pub(crate) tax_transaction_repository: &'a Arc<TaxTransactionRepository>,
+    pub(crate) e_faktur_document_service: &'a Arc<EFakturDocumentService>,
+    pub(crate) e_faktur_document_repository: &'a Arc<EFakturDocumentRepository>,
+    pub(crate) tax_filing_period_service: &'a Arc<TaxFilingPeriodService>,
+    pub(crate) tax_filing_period_repository: &'a Arc<TaxFilingPeriodRepository>,
+    pub(crate) tax_tag_service: &'a Arc<TaxTagService>,
+    pub(crate) tax_tag_repository: &'a Arc<TaxTagRepository>,
+    pub(crate) tax_repartition_line_service: &'a Arc<TaxRepartitionLineService>,
+    pub(crate) tax_repartition_line_repository: &'a Arc<TaxRepartitionLineRepository>,
+    pub(crate) tax_template_service: &'a Arc<TaxTemplateService>,
+    pub(crate) tax_template_repository: &'a Arc<TaxTemplateRepository>,
+    pub(crate) tax_template_row_service: &'a Arc<TaxTemplateRowService>,
+    pub(crate) tax_template_row_repository: &'a Arc<TaxTemplateRowRepository>,
+    pub(crate) withholding_category_service: &'a Arc<WithholdingCategoryService>,
+    pub(crate) withholding_category_repository: &'a Arc<WithholdingCategoryRepository>,
 }
 
 impl TaxModule {
@@ -197,8 +217,23 @@ impl TaxModule {
 /// Builder for TaxModule
 pub struct TaxModuleBuilder {
     db_pool: Option<PgPool>,
+    /// The builder's extension state (`lib.ext.rs`); its fields read through `Deref`.
+    ext: ModuleBuilderExt,
     // <<< CUSTOM BUILDER FIELDS
     // END CUSTOM
+}
+
+impl std::ops::Deref for TaxModuleBuilder {
+    type Target = ModuleBuilderExt;
+    fn deref(&self) -> &Self::Target {
+        &self.ext
+    }
+}
+
+impl std::ops::DerefMut for TaxModuleBuilder {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.ext
+    }
 }
 
 impl TaxModuleBuilder {
@@ -206,6 +241,7 @@ impl TaxModuleBuilder {
     pub fn new() -> Self {
         Self {
             db_pool: None,
+            ext: Default::default(),
             // <<< CUSTOM BUILDER DEFAULTS
             // END CUSTOM
         }
@@ -266,10 +302,32 @@ impl TaxModuleBuilder {
         let withholding_category_service = Arc::new(WithholdingCategoryService::with_repository(withholding_category_repository.clone()));
 
         // <<< CUSTOM
-        let tax_engine = Arc::new(TaxEngine::new(db_pool.clone()));
-        let tax_write_service = Arc::new(TaxWriteService::new(db_pool.clone()));
-        let efaktur_service = Arc::new(EFakturService::new(db_pool.clone()));
         // END CUSTOM
+
+        // The extension builds its own state from what the generated build made.
+        let ext = self.ext.build(&ModuleParts {
+            db_pool: &db_pool,
+            company_tax_settings_service: &company_tax_settings_service,
+            company_tax_settings_repository: &company_tax_settings_repository,
+            tax_category_service: &tax_category_service,
+            tax_category_repository: &tax_category_repository,
+            tax_transaction_service: &tax_transaction_service,
+            tax_transaction_repository: &tax_transaction_repository,
+            e_faktur_document_service: &e_faktur_document_service,
+            e_faktur_document_repository: &e_faktur_document_repository,
+            tax_filing_period_service: &tax_filing_period_service,
+            tax_filing_period_repository: &tax_filing_period_repository,
+            tax_tag_service: &tax_tag_service,
+            tax_tag_repository: &tax_tag_repository,
+            tax_repartition_line_service: &tax_repartition_line_service,
+            tax_repartition_line_repository: &tax_repartition_line_repository,
+            tax_template_service: &tax_template_service,
+            tax_template_repository: &tax_template_repository,
+            tax_template_row_service: &tax_template_row_service,
+            tax_template_row_repository: &tax_template_row_repository,
+            withholding_category_service: &withholding_category_service,
+            withholding_category_repository: &withholding_category_repository,
+        })?;
 
         Ok(TaxModule {
             company_tax_settings_service,
@@ -282,10 +340,8 @@ impl TaxModuleBuilder {
             tax_template_service,
             tax_template_row_service,
             withholding_category_service,
+            ext,
             // <<< CUSTOM
-            tax_engine,
-            tax_write_service,
-            efaktur_service,
             // END CUSTOM
         })
     }
@@ -296,3 +352,6 @@ impl Default for TaxModuleBuilder {
         Self::new()
     }
 }
+
+// This directory's extension (hand-written; ADR-0031).
+include!("mod.ext.rs");
