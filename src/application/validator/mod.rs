@@ -27,5 +27,3 @@ pub use tax_template_validator::{TaxTemplateValidator, tax_template_validator};
 pub use tax_template_row_validator::{TaxTemplateRowValidator, tax_template_row_validator};
 pub use withholding_category_validator::{WithholdingCategoryValidator, withholding_category_validator};
 
-// <<< CUSTOM
-// END CUSTOM

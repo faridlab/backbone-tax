@@ -123,6 +123,4 @@ mod tests {
 // CUSTOM TESTS
 // ============================================================================
 
-// <<< CUSTOM TESTS START >>>
 // Add EFakturDocument specific tests here
-// <<< CUSTOM TESTS END >>>

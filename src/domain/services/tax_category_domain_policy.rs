@@ -18,5 +18,3 @@ use crate::domain::entity::TaxCategory;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type TaxCategoryDomainPolicy = PermitAllPolicy<TaxCategory>;
 
-// <<< CUSTOM
-// END CUSTOM

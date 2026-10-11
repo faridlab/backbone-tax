@@ -14,10 +14,6 @@ pub type CompanyTaxSettingsValidator = EntityValidator<CompanyTaxSettings>;
 /// Build a validator for CompanyTaxSettings with all schema-defined field rules.
 pub fn company_tax_settings_validator() -> CompanyTaxSettingsValidator {
     EntityValidator::new()
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
         // No schema-derived rules — add custom rules above.
 }
 
-// <<< CUSTOM
-// END CUSTOM

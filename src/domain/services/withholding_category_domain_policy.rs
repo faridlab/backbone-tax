@@ -18,5 +18,3 @@ use crate::domain::entity::WithholdingCategory;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type WithholdingCategoryDomainPolicy = PermitAllPolicy<WithholdingCategory>;
 
-// <<< CUSTOM
-// END CUSTOM

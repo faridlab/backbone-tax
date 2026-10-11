@@ -18,8 +18,6 @@ pub mod tax_template_service;
 pub mod tax_template_row_service;
 pub mod withholding_category_service;
 
-// <<< CUSTOM
-// END CUSTOM
 
 pub use company_tax_settings_service::CompanyTaxSettingsService;
 pub use tax_category_service::TaxCategoryService;
@@ -31,8 +29,6 @@ pub use tax_repartition_line_service::TaxRepartitionLineService;
 pub use tax_template_service::TaxTemplateService;
 pub use tax_template_row_service::TaxTemplateRowService;
 pub use withholding_category_service::WithholdingCategoryService;
-// <<< CUSTOM
-// END CUSTOM
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

@@ -24,8 +24,6 @@ pub mod application;
 pub mod presentation;
 pub mod seeders;
 pub mod exports;
-// <<< CUSTOM MODULES
-// END CUSTOM
 
 // The module's extension (hand-written; ADR-0031).
 #[path = "lib.ext.rs"]
@@ -87,8 +85,6 @@ pub struct TaxModule {
     pub(crate) withholding_category_service: Arc<WithholdingCategoryService>,
     /// The module's extension state (`lib.ext.rs`); its fields read through `Deref`.
     pub(crate) ext: ModuleExt,
-    // <<< CUSTOM FIELDS
-    // END CUSTOM
 }
 
 impl std::ops::Deref for TaxModule {
@@ -210,8 +206,6 @@ impl TaxModule {
             .merge(create_withholding_category_read_routes(self.withholding_category_service.clone()))
     }
 
-    // <<< CUSTOM METHODS
-    // END CUSTOM
 }
 
 /// Builder for TaxModule
@@ -219,8 +213,6 @@ pub struct TaxModuleBuilder {
     db_pool: Option<PgPool>,
     /// The builder's extension state (`lib.ext.rs`); its fields read through `Deref`.
     ext: ModuleBuilderExt,
-    // <<< CUSTOM BUILDER FIELDS
-    // END CUSTOM
 }
 
 impl std::ops::Deref for TaxModuleBuilder {
@@ -242,8 +234,6 @@ impl TaxModuleBuilder {
         Self {
             db_pool: None,
             ext: Default::default(),
-            // <<< CUSTOM BUILDER DEFAULTS
-            // END CUSTOM
         }
     }
 
@@ -253,8 +243,6 @@ impl TaxModuleBuilder {
         self
     }
 
-    // <<< CUSTOM - custom builder methods
-    // END CUSTOM
 
     /// Build the module with configured dependencies
     pub fn build(self) -> anyhow::Result<TaxModule> {
@@ -301,8 +289,6 @@ impl TaxModuleBuilder {
         let withholding_category_repository = Arc::new(WithholdingCategoryRepository::new(db_pool.clone()));
         let withholding_category_service = Arc::new(WithholdingCategoryService::with_repository(withholding_category_repository.clone()));
 
-        // <<< CUSTOM
-        // END CUSTOM
 
         // The extension builds its own state from what the generated build made.
         let ext = self.ext.build(&ModuleParts {
@@ -341,8 +327,6 @@ impl TaxModuleBuilder {
             tax_template_row_service,
             withholding_category_service,
             ext,
-            // <<< CUSTOM
-            // END CUSTOM
         })
     }
 }

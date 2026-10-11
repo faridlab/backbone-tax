@@ -187,3 +187,4 @@ pub fn create_protected_tax_repartition_line_routes<A: AuthMiddleware + Send + S
             }
         }))
 }
+

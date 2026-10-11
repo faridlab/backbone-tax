@@ -18,5 +18,3 @@ use crate::domain::entity::CompanyTaxSettings;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type CompanyTaxSettingsDomainPolicy = PermitAllPolicy<CompanyTaxSettings>;
 
-// <<< CUSTOM
-// END CUSTOM

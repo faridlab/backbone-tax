@@ -19,9 +19,5 @@ pub fn e_faktur_document_validator() -> EFakturDocumentValidator {
         .rule(RequiredString::new("transaction_code", |e: &EFakturDocument| &e.transaction_code))
         .rule(RequiredString::new("taxpayer_segment", |e: &EFakturDocument| &e.taxpayer_segment))
         .rule(NonNegative::new("sequence", |e: &EFakturDocument| e.sequence as i64))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

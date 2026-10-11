@@ -308,7 +308,7 @@ impl backbone_core::ApplyUpdateDto<UpdateWithholdingCategoryDto> for Withholding
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to WithholdingCategory here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

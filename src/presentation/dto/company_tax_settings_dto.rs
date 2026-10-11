@@ -243,7 +243,7 @@ impl backbone_core::ApplyUpdateDto<UpdateCompanyTaxSettingsDto> for CompanyTaxSe
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to CompanyTaxSettings here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

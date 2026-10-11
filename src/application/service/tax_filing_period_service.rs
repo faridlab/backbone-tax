@@ -32,5 +32,3 @@ pub type TaxFilingPeriodService = GenericCrudService<
     TaxFilingPeriodRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

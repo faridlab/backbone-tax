@@ -311,7 +311,7 @@ impl backbone_core::ApplyUpdateDto<UpdateTaxTemplateDto> for TaxTemplate {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to TaxTemplate here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

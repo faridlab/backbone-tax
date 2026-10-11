@@ -111,6 +111,4 @@ mod tests {
 // CUSTOM TESTS
 // ============================================================================
 
-// <<< CUSTOM TESTS START >>>
 // Add TaxTemplate specific tests here
-// <<< CUSTOM TESTS END >>>

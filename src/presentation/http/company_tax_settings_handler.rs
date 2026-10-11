@@ -186,3 +186,4 @@ pub fn create_protected_company_tax_settings_routes<A: AuthMiddleware + Send + S
             }
         }))
 }
+

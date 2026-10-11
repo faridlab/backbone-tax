@@ -11,8 +11,6 @@ use crate::domain::entity::TaxRepartitionLine;
 /// enum containing a `Crud(CrudEvent<TaxRepartitionLine>)` variant.
 pub type TaxRepartitionLineEvent = CrudEvent<TaxRepartitionLine>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

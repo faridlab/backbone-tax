@@ -18,5 +18,3 @@ use crate::domain::entity::TaxRepartitionLine;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type TaxRepartitionLineDomainPolicy = PermitAllPolicy<TaxRepartitionLine>;
 
-// <<< CUSTOM
-// END CUSTOM

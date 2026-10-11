@@ -17,9 +17,5 @@ pub fn tax_tag_validator() -> TaxTagValidator {
     EntityValidator::new()
         .rule(RequiredString::new("code", |e: &TaxTag| &e.code))
         .rule(RequiredString::new("name", |e: &TaxTag| &e.name))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

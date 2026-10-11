@@ -32,5 +32,3 @@ pub type CompanyTaxSettingsService = GenericCrudService<
     CompanyTaxSettingsRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -17,5 +17,3 @@ pub mod tax_template_specification;
 pub mod tax_template_row_specification;
 pub mod withholding_category_specification;
 
-// <<< CUSTOM
-// END CUSTOM

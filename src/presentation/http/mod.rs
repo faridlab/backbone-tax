@@ -16,8 +16,6 @@ pub mod tax_template_handler;
 pub mod tax_template_row_handler;
 pub mod withholding_category_handler;
 
-// <<< CUSTOM
-// END CUSTOM
 
 // Re-exports
 pub use company_tax_settings_handler::{create_company_tax_settings_routes, create_company_tax_settings_read_routes, create_company_tax_settings_write_routes};
@@ -30,8 +28,6 @@ pub use tax_repartition_line_handler::{create_tax_repartition_line_routes, creat
 pub use tax_template_handler::{create_tax_template_routes, create_tax_template_read_routes, create_tax_template_write_routes};
 pub use tax_template_row_handler::{create_tax_template_row_routes, create_tax_template_row_read_routes, create_tax_template_row_write_routes};
 pub use withholding_category_handler::{create_withholding_category_routes, create_withholding_category_read_routes, create_withholding_category_write_routes};
-// <<< CUSTOM
-// END CUSTOM
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

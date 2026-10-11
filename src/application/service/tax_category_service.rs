@@ -32,5 +32,3 @@ pub type TaxCategoryService = GenericCrudService<
     TaxCategoryRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

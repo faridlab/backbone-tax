@@ -16,9 +16,5 @@ pub type TaxTransactionValidator = EntityValidator<TaxTransaction>;
 pub fn tax_transaction_validator() -> TaxTransactionValidator {
     EntityValidator::new()
         .rule(RequiredString::new("currency", |e: &TaxTransaction| &e.currency))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

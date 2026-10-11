@@ -18,9 +18,5 @@ pub fn tax_filing_period_validator() -> TaxFilingPeriodValidator {
         .rule(OptionalNotBlank::new("npwp", |e: &TaxFilingPeriod| e.npwp.as_deref()))
         .rule(OptionalNotBlank::new("taxpayer_segment", |e: &TaxFilingPeriod| e.taxpayer_segment.as_deref()))
         .rule(NonNegative::new("next_sequence", |e: &TaxFilingPeriod| e.next_sequence as i64))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

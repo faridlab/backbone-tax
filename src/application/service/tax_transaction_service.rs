@@ -32,5 +32,3 @@ pub type TaxTransactionService = GenericCrudService<
     TaxTransactionRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

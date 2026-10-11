@@ -186,3 +186,4 @@ pub fn create_protected_tax_template_routes<A: AuthMiddleware + Send + Sync + 's
             }
         }))
 }
+

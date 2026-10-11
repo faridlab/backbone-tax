@@ -310,7 +310,7 @@ impl backbone_core::ApplyUpdateDto<UpdateTaxRepartitionLineDto> for TaxRepartiti
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to TaxRepartitionLine here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

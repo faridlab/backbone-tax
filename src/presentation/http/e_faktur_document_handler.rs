@@ -187,3 +187,4 @@ pub fn create_protected_e_faktur_document_routes<A: AuthMiddleware + Send + Sync
             }
         }))
 }
+

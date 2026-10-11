@@ -17,9 +17,5 @@ pub fn tax_template_validator() -> TaxTemplateValidator {
     EntityValidator::new()
         .rule(RequiredString::new("code", |e: &TaxTemplate| &e.code))
         .rule(RequiredString::new("name", |e: &TaxTemplate| &e.name))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

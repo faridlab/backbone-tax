@@ -32,5 +32,3 @@ pub type TaxTagService = GenericCrudService<
     TaxTagRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

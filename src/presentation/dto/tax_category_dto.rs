@@ -262,7 +262,7 @@ impl backbone_core::ApplyUpdateDto<UpdateTaxCategoryDto> for TaxCategory {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to TaxCategory here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

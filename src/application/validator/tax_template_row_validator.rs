@@ -16,9 +16,5 @@ pub type TaxTemplateRowValidator = EntityValidator<TaxTemplateRow>;
 pub fn tax_template_row_validator() -> TaxTemplateRowValidator {
     EntityValidator::new()
         .rule(OptionalNotBlank::new("description", |e: &TaxTemplateRow| e.description.as_deref()))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

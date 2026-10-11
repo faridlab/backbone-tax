@@ -18,5 +18,3 @@ use crate::domain::entity::TaxTag;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type TaxTagDomainPolicy = PermitAllPolicy<TaxTag>;
 
-// <<< CUSTOM
-// END CUSTOM

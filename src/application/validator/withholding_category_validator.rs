@@ -17,9 +17,5 @@ pub fn withholding_category_validator() -> WithholdingCategoryValidator {
     EntityValidator::new()
         .rule(RequiredString::new("code", |e: &WithholdingCategory| &e.code))
         .rule(RequiredString::new("name", |e: &WithholdingCategory| &e.name))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

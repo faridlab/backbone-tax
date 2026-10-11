@@ -18,5 +18,3 @@ use crate::domain::entity::TaxFilingPeriod;
 /// service. `PermitAllPolicy` is the safe default until then.
 pub type TaxFilingPeriodDomainPolicy = PermitAllPolicy<TaxFilingPeriod>;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -32,5 +32,3 @@ pub type EFakturDocumentService = GenericCrudService<
     EFakturDocumentRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

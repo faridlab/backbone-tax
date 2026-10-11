@@ -32,5 +32,3 @@ pub type TaxRepartitionLineService = GenericCrudService<
     TaxRepartitionLineRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -238,7 +238,7 @@ impl backbone_core::ApplyUpdateDto<UpdateTaxTagDto> for TaxTag {
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to TaxTag here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

@@ -32,5 +32,3 @@ pub type WithholdingCategoryService = GenericCrudService<
     WithholdingCategoryRepository,
 >;
 
-// <<< CUSTOM
-// END CUSTOM

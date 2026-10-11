@@ -44,5 +44,3 @@ pub use tax_template_row_event_handlers::TaxTemplateRowEventHandler;
 pub use withholding_category_events::{WithholdingCategoryEvent, WithholdingCategoryEventPublisher, NoopWithholdingCategoryEventPublisher};
 pub use withholding_category_event_handlers::WithholdingCategoryEventHandler;
 
-// <<< CUSTOM
-// END CUSTOM

@@ -112,6 +112,4 @@ mod tests {
 // CUSTOM TESTS
 // ============================================================================
 
-// <<< CUSTOM TESTS START >>>
 // Add WithholdingCategory specific tests here
-// <<< CUSTOM TESTS END >>>

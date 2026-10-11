@@ -17,9 +17,5 @@ pub fn tax_category_validator() -> TaxCategoryValidator {
     EntityValidator::new()
         .rule(RequiredString::new("code", |e: &TaxCategory| &e.code))
         .rule(RequiredString::new("name", |e: &TaxCategory| &e.name))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

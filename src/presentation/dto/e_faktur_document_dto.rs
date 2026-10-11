@@ -337,7 +337,7 @@ impl backbone_core::ApplyUpdateDto<UpdateEFakturDocumentDto> for EFakturDocument
 // Custom DTOs
 // =============================================================================
 
-// <<< CUSTOM DTOs
 // Add custom DTOs specific to EFakturDocument here.
 // This section will be preserved during regeneration.
 // >>> END CUSTOM DTOs
+

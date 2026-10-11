@@ -24,5 +24,3 @@ pub use tax_template_domain_policy::TaxTemplateDomainPolicy;
 pub use tax_template_row_domain_policy::TaxTemplateRowDomainPolicy;
 pub use withholding_category_domain_policy::WithholdingCategoryDomainPolicy;
 
-// <<< CUSTOM
-// END CUSTOM

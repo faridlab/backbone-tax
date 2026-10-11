@@ -16,9 +16,5 @@ pub type TaxRepartitionLineValidator = EntityValidator<TaxRepartitionLine>;
 pub fn tax_repartition_line_validator() -> TaxRepartitionLineValidator {
     EntityValidator::new()
         .rule(OptionalNotBlank::new("description", |e: &TaxRepartitionLine| e.description.as_deref()))
-    // <<< CUSTOM RULES
-    // END CUSTOM RULES
 }
 
-// <<< CUSTOM
-// END CUSTOM

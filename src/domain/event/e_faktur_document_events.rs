@@ -11,8 +11,6 @@ use crate::domain::entity::EFakturDocument;
 /// enum containing a `Crud(CrudEvent<EFakturDocument>)` variant.
 pub type EFakturDocumentEvent = CrudEvent<EFakturDocument>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;

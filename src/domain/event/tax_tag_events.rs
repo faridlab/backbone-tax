@@ -11,8 +11,6 @@ use crate::domain::entity::TaxTag;
 /// enum containing a `Crud(CrudEvent<TaxTag>)` variant.
 pub type TaxTagEvent = CrudEvent<TaxTag>;
 
-// <<< CUSTOM
-// END CUSTOM
 
 use backbone_messaging::{CrudEventPublisher, NoOpCrudEventPublisher};
 use std::sync::Arc;
