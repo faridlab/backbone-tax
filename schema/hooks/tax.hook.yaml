@@ -37,6 +37,7 @@ rules:
   - id: R5
     name: non_negative_base
     when: calculating
+    enforced_by: "src/application/service/tax_engine.rs::calculate, src/application/service/tax_engine.rs::resolve_withholding"
     assert: "base_amount >= 0"
     error_code: negative_base
   - id: R6
