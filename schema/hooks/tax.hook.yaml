@@ -16,105 +16,144 @@ state_machines: []
 rules:
   - id: R1
     name: charge_computation
+    entity: TaxTemplateRow
     when: calculate
     assert: "on_net_total => rate% of net; on_previous_row_total => rate% of (net + prior charges); actual => fixed amount"
     error_code: none
+    justification: "OPEN QUESTION, so not claimed: calculate and raw_from_rows compute each charge type as stated, but the running base of an on_previous_row_total row adds every prior row's unsigned amount, withholding rows included, so a withholding line raises the base of later cumulative rows although it is emitted as a deduction. Whether prior charges include withholding is for the owner to decide."
   - id: R2
     name: inclusive_extraction
+    entity: TaxTemplate
     when: calculate
     assert: "is_inclusive => net = gross / (1 + sum on_net rates); tax = gross - net"
     error_code: none
+    enforced_by: "src/application/service/tax_engine.rs::calculate"
+    justification: "The rate sum counts the non-withholding on_net rows: a withholding row is not part of the price being grossed up. The document path (raw_from_rows) extracts each component from the raw net instead, under R12's rounding policy."
   - id: R3
     name: effective_rate_selection
+    entity: TaxTemplateRow
     when: calculate
     assert: "pick the row whose [effective_from, effective_to] window contains on_date"
     error_code: no_effective_rate
+    enforced_by: "src/application/service/tax_engine.rs::calculate, src/application/service/tax_engine.rs::fetch_effective_rows_on, src/application/service/tax_engine.rs::calculate_document"
   - id: R4
     name: withholding_threshold
+    entity: WithholdingCategory
     when: resolve_withholding
     assert: "base >= threshold_amount => line = -(base * rate%); else no line"
     error_code: none
+    enforced_by: "src/application/service/tax_engine.rs::resolve_withholding"
+    justification: "Template rows marked is_withholding are not thresholded; this rule covers the withholding category verb only."
   - id: R5
     name: non_negative_base
+    entity: TaxTemplate
     when: calculating
-    enforced_by: "src/application/service/tax_engine.rs::calculate, src/application/service/tax_engine.rs::resolve_withholding"
     assert: "base_amount >= 0"
     error_code: negative_base
+    enforced_by: "src/application/service/tax_engine.rs::calculate, src/application/service/tax_engine.rs::resolve_withholding, src/application/service/tax_engine.rs::calculate_document"
   - id: R6
     name: template_exists_for_row
+    entity: TaxTemplateRow
     when: adding_row
     assert: "template_id references an existing template"
     error_code: template_not_found
+    enforced_by: "src/application/service/tax_write_service.rs::add_row, src/application/service/tax_write_service.rs::add_repartition_line, src/application/service/tax_write_service.rs::replace_repartition_family, migrations/20260426220003_create_tax_template_row_table.up.sql::fk_tax_template_rows_template_id, migrations/20260819100002_create_tax_repartition_line_table.up.sql::fk_tax_repartition_lines_template_id"
+    justification: "The service refuses a missing or soft-deleted template; the foreign keys refuse a missing one but not a soft-deleted one, and the template is read without a lock. No composed surface soft-deletes templates."
   - id: R7
     name: valid_effective_window
+    entity: TaxTemplateRow
     when: adding_config
     assert: "effective_to is null or >= effective_from"
     error_code: invalid_date_range
+    enforced_by: "src/application/service/tax_write_service.rs::add_row, src/application/service/tax_write_service.rs::create_withholding, src/application/service/tax_write_service.rs::valid_window"
+    justification: "Holds on both create verbs, for template rows and withholding categories; neither has an update verb. No CHECK carries it: a reversed window written another way meets only the exclusion constraints' daterange, which refuses with a generic data error."
   - id: R8
     name: unique_config_code
+    entity: TaxCategory
     when: creating_config
     assert: "code unique among non-deleted rows"
     error_code: duplicate_code
+    justification: "PARTLY: create_category and create_tag pre-read the code without a lock, create_template has no pre-check and only maps the insert error, and create_tag maps none, so a lost race answers 500. The module's code uniques left with tenancy (strip_tenancy); the composing service's tenancy posture installs the per-unit uniques. WithholdingCategory is outside this rule: its code repeats across effective-dated versions by design."
   # Council 2026-07-03
   - id: R9
     name: no_overlapping_effective_windows
+    entity: TaxTemplateRow
     when: adding_row/creating_withholding
     assert: "no sibling at the same (template_id, sort_order) [or same withholding code] has an overlapping [effective_from, effective_to] window"
     error_code: overlapping_effective_window
+    enforced_by: "src/application/service/tax_write_service.rs::add_row, src/application/service/tax_write_service.rs::create_withholding, src/infrastructure/persistence/tax_template_row_repository.rs::find_overlap, src/infrastructure/persistence/withholding_category_repository.rs::find_overlap, migrations/20260426220020_tax_effective_overlap_exclude.up.sql::excl_tax_template_rows_no_overlap, migrations/20260910153000_strip_tenancy.up.sql::excl_withholding_no_overlap"
+    justification: "The exclusion constraints also count soft-deleted rows, and the withholding one spans every org unit, so the database can refuse what the unit-fenced service check passed; such a refusal, or a lost race, answers 500 rather than overlapping_effective_window."
     note: "enforced in the write path AND by an EXCLUDE USING gist DB constraint; calculate also DISTINCT-ON dedups per sort_order so a stray row never double-charges"
   - id: R10
     name: inclusive_reconciles_exactly
+    entity: TaxTemplate
     when: calculate
     assert: "is_inclusive => Σ tax lines == gross - net exactly (last on_net line absorbs the rounding residual)"
     error_code: none
+    enforced_by: "src/application/service/tax_engine.rs::calculate"
+    justification: "Holds for calculate; the document path rounds nets and components separately under R12."
   - id: R11
     name: inclusive_only_on_net
+    entity: TaxTemplate
     when: calculate
     assert: "an inclusive template may only carry on_net_total charge rows (grossing-up basis is otherwise undefined)"
     error_code: inclusive_cumulative_unsupported
+    enforced_by: "src/application/service/tax_engine.rs::calculate"
+    justification: "Refused at compute time, the rule's when. Withholding rows are exempt, and add_row does not refuse a cumulative row on an inclusive template, so such a template is stored and fails when it is calculated."
   # Document-grade engine (rounding policy, repartition, cash-basis exigibility).
   # ADR-0015 enforcement posture: db = a DB object (index/trigger/constraint) enforces it;
   # service = compute-time or write-path only, because no raw write path can reach it.
   - id: R12
     name: rounding_policy
+    entity: CompanyTaxSettings
     when: calculate_document
     assert: "round_per_line: round raw_base per line, round each tax amount per line; round_globally: keep raw amounts, aggregate per tax across all base lines, round per document, redistribute the deltas. Read the VALUE — the default round_globally rounds the aggregate, despite the reference UI labelling it 'Round per Tax'"
     error_code: none
     enforcement: service
-    justification: "This is a computation, not an invariant over stored rows. It decides what the amounts ARE before anything is written, and the choice depends on the document as a whole rather than on any row a constraint could examine. There is no raw write path that reaches it: a caller that writes amounts directly is not calculating, it is recording amounts it already has." 
+    justification: "PARTLY: round_per_line computes each tax from the unrounded base and rounds only the result, and round_globally aggregates per template and component rather than per tax across the document, so a tax shared by two templates is rounded twice. This is a computation, not an invariant over stored rows: it decides what the amounts ARE before anything is written, from the document as a whole."
   - id: R13
     name: smooth_delta_only
+    entity: CompanyTaxSettings
     when: calculate_document
     assert: "distribute_delta_smoothly is the ONLY delta primitive — tax totals, base totals and repartition splits all redistribute through it (integer cents at currency precision, apportioned by weight, biggest-first, residual cents on the largest factors); Σ redistributed == original + delta EXACTLY"
     error_code: none
     enforcement: service
-    justification: "A single-primitive rule is about which code path runs, and a database cannot see code paths. Its OUTCOME is checkable (the redistributed amounts sum to the original plus the delta, exactly), and that sum is asserted by the engine's own property tests; what cannot be expressed as a constraint is the requirement that every caller reach it through the same primitive instead of rounding its own way." 
+    justification: "PARTLY: distribute_delta_smoothly floors a sub-cent delta, so the redistributed sum misses the original plus the delta whenever the delta carries a sub-cent part; precision is fixed at two places, and the tests in tests/tax_rounding_unit.rs are example cases. A single-primitive rule is about which code path runs, and a database cannot see code paths."
   - id: R14
     name: repartition_family_valid
+    entity: TaxRepartitionLine
     when: writing_repartition_lines
     assert: "per (template, document_type): exactly one base line, at least one tax line, Σ tax factor_percent = 100.00 (2dp), and the invoice family is well-formed if and only if the refund family is"
     error_code: repartition_invalid
+    enforced_by: "src/application/service/tax_write_service.rs::family_valid_after, src/application/service/tax_write_service.rs::add_repartition_line, src/application/service/tax_write_service.rs::replace_repartition_family, migrations/20260819100005_tax_db_guards.up.sql::validate_repartition_family, migrations/20260819100005_tax_db_guards.up.sql::tax_repartition_lines_family_check"
     enforcement: both
     note: "DB arm is a DEFERRABLE INITIALLY DEFERRED constraint trigger checking the family at commit (raw SQL bypasses the service); service arm returns a friendly 422 first"
   - id: R15
     name: template_name_unique
+    entity: TaxTemplate
     when: creating_template
     assert: "template name unique among non-deleted templates of the same org unit and template_type"
     error_code: duplicate_name
+    justification: "PARTLY: create_template pre-reads the name without a lock, and a race lost at the database answers duplicate_code, not duplicate_name. The module's name unique left with tenancy (strip_tenancy); the composing service's tenancy posture installs the per-unit unique on (org_unit_id, template_type, name)."
     enforcement: both
     note: "DB arm is a partial unique index (org_unit_id, template_type, name) WHERE deleted_at IS NULL, installed by the composing service's tenancy decorator (ADR-0029); the per-unit code unique stays as the primary locator"
   - id: R16
     name: caba_transition_reconcilable
+    entity: TaxTemplate
     when: creating_template/updating_settings
     assert: "an on_payment template (or a unit whose settings row defaults to on_payment) must name a transition account, and that account must be reconcilable; if the accounting schema is absent the requirement is unverifiable so the write is refused"
     error_code: caba_transition_not_reconcilable
+    enforced_by: "src/application/service/tax_write_service.rs::verify_caba_transition, src/application/service/tax_write_service.rs::create_template, src/application/service/tax_write_service.rs::upsert_company_settings, migrations/20260819100005_tax_db_guards.up.sql::check_caba_transition_reconcilable, migrations/20260819100005_tax_db_guards.up.sql::tax_templates_caba_transition_check, migrations/20260819100005_tax_db_guards.up.sql::company_tax_settings_caba_transition_check"
+    justification: "The service refuses when the accounting schema is absent; the trigger lets the write through there. A missing account answers invalid_value, the account is checked once without a lock, and a trigger refusal on the settings upsert answers 500."
     enforcement: both
     note: "DB arm is a trigger guarded by to_regclass('accounting.accounts') — inert where the accounting module is not installed; the CHECK pairing exigibility with a non-null transition account is structural"
   - id: R18
     name: caba_default_posture
+    entity: TaxTemplate
     when: creating_template
     assert: "a template created under a unit whose settings row defaults to on_payment inherits on_payment and the unit's transition account; an explicit per-template override wins"
     error_code: none
+    enforced_by: "src/application/service/tax_write_service.rs::create_template, src/infrastructure/persistence/company_tax_settings_repository.rs::find_own"
     enforcement: service
     justification: "Inheritance with an override is a decision taken once, at creation, from a settings row that may change afterwards. A column DEFAULT cannot read another table, and a trigger that did would either re-resolve the posture on every later write, or freeze the wrong answer for templates created before the settings row existed. Materialising the resolved value at creation is the behaviour this rule is about, and the note below says so." 
     note: "resolved and MATERIALIZED on the template row at creation so a later posture change never rewrites existing templates"

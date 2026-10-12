@@ -1,23 +1,12 @@
 # The rule ratchet (schema doctor): these counts may only go down. Regenerate with
 # `metaphor schema rules . --update-baseline` after enforcing a rule.
-unenforced: 16
-warnings: 17
+unenforced: 5
+warnings: 0
 machines_without_verbs: 0
 untested_rule_ids: 17
 unenforced_rules:
-- 'tax.hook.yaml: caba_default_posture'
-- 'tax.hook.yaml: caba_transition_reconcilable'
 - 'tax.hook.yaml: charge_computation'
-- 'tax.hook.yaml: effective_rate_selection'
-- 'tax.hook.yaml: inclusive_extraction'
-- 'tax.hook.yaml: inclusive_only_on_net'
-- 'tax.hook.yaml: inclusive_reconciles_exactly'
-- 'tax.hook.yaml: no_overlapping_effective_windows'
-- 'tax.hook.yaml: repartition_family_valid'
 - 'tax.hook.yaml: rounding_policy'
 - 'tax.hook.yaml: smooth_delta_only'
-- 'tax.hook.yaml: template_exists_for_row'
 - 'tax.hook.yaml: template_name_unique'
 - 'tax.hook.yaml: unique_config_code'
-- 'tax.hook.yaml: valid_effective_window'
-- 'tax.hook.yaml: withholding_threshold'
