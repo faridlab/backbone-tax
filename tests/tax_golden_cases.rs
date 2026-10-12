@@ -290,6 +290,72 @@ async fn cumulative_row() {
     .await;
 }
 
+// R1: a withholding row is held back from the payment, not charged on the price, so it never
+// raises the base of a later cumulative row. VAT 11%, withholding 2% and a 10% tax on tax, on
+// 1,000,000: the tax on tax is 10% of (1,000,000 + 110,000), the withholding left out.
+#[tokio::test]
+async fn r1_withholding_does_not_raise_the_cumulative_base() {
+    let pool = pool().await;
+    let company = Uuid::new_v4();
+    let _g = SETTINGS_LOCK.lock().await;
+    clear_settings(&pool).await;
+    let w = TaxWriteService::new(pool.clone());
+    let engine = TaxEngine::new(pool.clone());
+    scoped(&pool, company, async move {
+        let tid = w
+            .create_template(NewTemplate {
+                code: uq("PPN-WHT-CUM"),
+                name: format!("PPN, PPh and surcharge {}", uq("n")),
+                template_type: Some("sales".into()),
+                tax_category_id: None,
+                is_inclusive: false,
+                tax_exigibility: None,
+                cash_basis_transition_account_id: None,
+            })
+            .await
+            .unwrap();
+        for (sort_order, charge_type, rate, is_withholding) in [
+            (0, "on_net_total", "11", false),
+            (1, "on_net_total", "2", true),
+            (2, "on_previous_row_total", "10", false),
+        ] {
+            w.add_row(NewTemplateRow {
+                template_id: tid,
+                charge_type: Some(charge_type.into()),
+                rate: d(rate),
+                account_id: None,
+                is_withholding,
+                effective_from: day(2022, 4, 1),
+                effective_to: None,
+                sort_order,
+                description: None,
+            })
+            .await
+            .unwrap();
+        }
+
+        let lines = engine
+            .calculate(tid, d("1000000"), day(2026, 7, 3))
+            .await
+            .unwrap();
+        let amounts: Vec<Decimal> = lines.iter().map(|l| l.tax_amount).collect();
+        assert_eq!(amounts, vec![d("110000.00"), d("-20000.00"), d("111000.00")]);
+
+        let doc = engine
+            .calculate_document(&DocumentTaxRequest {
+                document_type: DocumentType::Invoice,
+                on_date: day(2026, 7, 3),
+                lines: doc_lines(tid, "1000000", 1),
+            })
+            .await
+            .unwrap();
+        let taxes: Vec<Decimal> = doc.lines.iter().map(|l| l.tax_amount.abs()).collect();
+        assert!(taxes.contains(&d("111000.00")), "document path leaves withholding out too: {taxes:?}");
+        assert!(!taxes.contains(&d("113000.00")), "withholding raised the base: {taxes:?}");
+    })
+    .await;
+}
+
 // TGC-5: withholding threshold — PPh 2%: above threshold → -amount; below → None.
 #[tokio::test]
 async fn withholding_threshold() {

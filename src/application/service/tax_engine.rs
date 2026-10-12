@@ -265,6 +265,8 @@ impl TaxEngine {
         }
 
         // Exclusive: rate applies to net (or, for cumulative rows, net + prior charge amounts).
+        // A withholding row is held back from the payment, not charged on the price, so it never
+        // raises the base of a later cumulative row.
         let net = base_amount;
         let mut running = net;
         let mut lines = Vec::with_capacity(rows.len());
@@ -275,7 +277,9 @@ impl TaxEngine {
                 _ => money(net * rate / hundred), // on_net_total
             };
             let signed = if is_withholding { -amount } else { amount };
-            running += amount;
+            if !is_withholding {
+                running += amount;
+            }
             lines.push(TaxLine {
                 account_id,
                 rate,
@@ -515,13 +519,16 @@ fn raw_from_rows(
     } else {
         let mut running = gross;
         let mut components = Vec::with_capacity(rows.len());
-        for (_, charge_type, rate, _, _, _) in rows {
+        for (_, charge_type, rate, _, is_withholding, _) in rows {
             let raw = match charge_type.as_str() {
                 "actual" => *rate,
                 "on_previous_row_total" => running * *rate / hundred,
                 _ => gross * *rate / hundred, // on_net_total
             };
-            running += raw;
+            // Withholding is held back from the payment, not charged on the price.
+            if !*is_withholding {
+                running += raw;
+            }
             components.push(RawComponent { raw_amount: raw });
         }
         Ok(LineRaw {
