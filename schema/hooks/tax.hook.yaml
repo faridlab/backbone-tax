@@ -18,9 +18,10 @@ rules:
     name: charge_computation
     entity: TaxTemplateRow
     when: calculate
-    assert: "on_net_total => rate% of net; on_previous_row_total => rate% of (net + prior charges); actual => fixed amount"
+    assert: "on_net_total => rate% of net; on_previous_row_total => rate% of (net + prior non-withholding charges); actual => fixed amount"
     error_code: none
-    justification: "OPEN QUESTION, so not claimed: calculate and raw_from_rows compute each charge type as stated, but the running base of an on_previous_row_total row adds every prior row's unsigned amount, withholding rows included, so a withholding line raises the base of later cumulative rows although it is emitted as a deduction. Whether prior charges include withholding is for the owner to decide."
+    enforced_by: "src/application/service/tax_engine.rs::calculate, src/application/service/tax_engine.rs::raw_from_rows"
+    justification: "Prior charges are the charges on the price: a withholding row is held back from the payment, so it never raises the base of a later cumulative row."
   - id: R2
     name: inclusive_extraction
     entity: TaxTemplate
