@@ -56,7 +56,7 @@ impl backbone_core::write_guard::WriteGuard<TaxTemplateRow> for TaxTemplateRowRo
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
-        let mut shadow = Vec::new();
+        let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `template_id_required` (@required on TaxTemplateRow.template_id)
         if (create || (update && r::changed(old.as_ref(), row, &["template_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "template_id")), r::not(r::is_empty(r::trim(r::field(row, "template_id")))))) {
@@ -64,11 +64,11 @@ impl backbone_core::write_guard::WriteGuard<TaxTemplateRow> for TaxTemplateRowRo
         }
         // `rate_non_negative` (@non_negative on TaxTemplateRow.rate)
         if (create || (update && r::changed(old.as_ref(), row, &["rate"]))) && !r::holds(&r::ge(r::field(row, "rate"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("rate", "non_negative", "rate must not be negative"));
+            refuse.push(Violation::new("rate", "non_negative", "rate must not be negative"));
         }
         // `description_max_length` (@max(150) on TaxTemplateRow.description)
         if (create || (update && r::changed(old.as_ref(), row, &["description"]))) && !r::holds(&r::le(r::length(r::field(row, "description")), r::Val::Num(150.0_f64))) {
-            shadow.push(Violation::new("description", "max_length", "description must be at most 150 characters").with_param("max", 150_i64));
+            refuse.push(Violation::new("description", "max_length", "description must be at most 150 characters").with_param("max", 150_i64));
         }
         GuardOutcome { refuse, shadow }
     }

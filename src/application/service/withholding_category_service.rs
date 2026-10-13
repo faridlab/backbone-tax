@@ -56,7 +56,7 @@ impl backbone_core::write_guard::WriteGuard<WithholdingCategory> for Withholding
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
-        let mut shadow = Vec::new();
+        let shadow = Vec::new();
         let mut refuse = Vec::new();
         // `code_required` (@required on WithholdingCategory.code)
         if (create || (update && r::changed(old.as_ref(), row, &["code"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "code")), r::not(r::is_empty(r::trim(r::field(row, "code")))))) {
@@ -64,7 +64,7 @@ impl backbone_core::write_guard::WriteGuard<WithholdingCategory> for Withholding
         }
         // `code_max_length` (@max(40) on WithholdingCategory.code)
         if (create || (update && r::changed(old.as_ref(), row, &["code"]))) && !r::holds(&r::le(r::length(r::field(row, "code")), r::Val::Num(40.0_f64))) {
-            shadow.push(Violation::new("code", "max_length", "code must be at most 40 characters").with_param("max", 40_i64));
+            refuse.push(Violation::new("code", "max_length", "code must be at most 40 characters").with_param("max", 40_i64));
         }
         // `name_required` (@required on WithholdingCategory.name)
         if (create || (update && r::changed(old.as_ref(), row, &["name"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "name")), r::not(r::is_empty(r::trim(r::field(row, "name")))))) {
@@ -72,15 +72,15 @@ impl backbone_core::write_guard::WriteGuard<WithholdingCategory> for Withholding
         }
         // `name_max_length` (@max(150) on WithholdingCategory.name)
         if (create || (update && r::changed(old.as_ref(), row, &["name"]))) && !r::holds(&r::le(r::length(r::field(row, "name")), r::Val::Num(150.0_f64))) {
-            shadow.push(Violation::new("name", "max_length", "name must be at most 150 characters").with_param("max", 150_i64));
+            refuse.push(Violation::new("name", "max_length", "name must be at most 150 characters").with_param("max", 150_i64));
         }
         // `rate_non_negative` (@non_negative on WithholdingCategory.rate)
         if (create || (update && r::changed(old.as_ref(), row, &["rate"]))) && !r::holds(&r::ge(r::field(row, "rate"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("rate", "non_negative", "rate must not be negative"));
+            refuse.push(Violation::new("rate", "non_negative", "rate must not be negative"));
         }
         // `threshold_amount_non_negative` (@non_negative on WithholdingCategory.threshold_amount)
         if (create || (update && r::changed(old.as_ref(), row, &["threshold_amount"]))) && !r::holds(&r::ge(r::field(row, "threshold_amount"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("threshold_amount", "non_negative", "threshold_amount must not be negative"));
+            refuse.push(Violation::new("threshold_amount", "non_negative", "threshold_amount must not be negative"));
         }
         GuardOutcome { refuse, shadow }
     }

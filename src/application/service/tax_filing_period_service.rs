@@ -56,20 +56,21 @@ impl backbone_core::write_guard::WriteGuard<TaxFilingPeriod> for TaxFilingPeriod
         };
         let row = &row;
         let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
-        let mut shadow = Vec::new();
+        let shadow = Vec::new();
+        let mut refuse = Vec::new();
         // `npwp_max_length` (@max(16) on TaxFilingPeriod.npwp)
         if (create || (update && r::changed(old.as_ref(), row, &["npwp"]))) && !r::holds(&r::le(r::length(r::field(row, "npwp")), r::Val::Num(16.0_f64))) {
-            shadow.push(Violation::new("npwp", "max_length", "npwp must be at most 16 characters").with_param("max", 16_i64));
+            refuse.push(Violation::new("npwp", "max_length", "npwp must be at most 16 characters").with_param("max", 16_i64));
         }
         // `taxpayer_segment_max_length` (@max(3) on TaxFilingPeriod.taxpayer_segment)
         if (create || (update && r::changed(old.as_ref(), row, &["taxpayer_segment"]))) && !r::holds(&r::le(r::length(r::field(row, "taxpayer_segment")), r::Val::Num(3.0_f64))) {
-            shadow.push(Violation::new("taxpayer_segment", "max_length", "taxpayer_segment must be at most 3 characters").with_param("max", 3_i64));
+            refuse.push(Violation::new("taxpayer_segment", "max_length", "taxpayer_segment must be at most 3 characters").with_param("max", 3_i64));
         }
         // `next_sequence_non_negative` (@non_negative on TaxFilingPeriod.next_sequence)
         if (create || (update && r::changed(old.as_ref(), row, &["next_sequence"]))) && !r::holds(&r::ge(r::field(row, "next_sequence"), r::Val::Num(0.0_f64))) {
-            shadow.push(Violation::new("next_sequence", "non_negative", "next_sequence must not be negative"));
+            refuse.push(Violation::new("next_sequence", "non_negative", "next_sequence must not be negative"));
         }
-        GuardOutcome { refuse: Vec::new(), shadow }
+        GuardOutcome { refuse, shadow }
     }
 }
 
