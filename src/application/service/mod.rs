@@ -29,6 +29,15 @@ pub use tax_repartition_line_service::TaxRepartitionLineService;
 pub use tax_template_service::TaxTemplateService;
 pub use tax_template_row_service::TaxTemplateRowService;
 pub use withholding_category_service::WithholdingCategoryService;
+pub use tax_category_service::TaxCategoryRowRules;
+pub use tax_transaction_service::TaxTransactionRowRules;
+pub use e_faktur_document_service::EFakturDocumentRowRules;
+pub use tax_filing_period_service::TaxFilingPeriodRowRules;
+pub use tax_tag_service::TaxTagRowRules;
+pub use tax_repartition_line_service::TaxRepartitionLineRowRules;
+pub use tax_template_service::TaxTemplateRowRules;
+pub use tax_template_row_service::TaxTemplateRowRowRules;
+pub use withholding_category_service::WithholdingCategoryRowRules;
 
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");

@@ -32,3 +32,65 @@ pub type EFakturDocumentService = GenericCrudService<
     EFakturDocumentRepository,
 >;
 
+/// The rules the schema declares for EFakturDocument, checked against the row a create or update
+/// would store. The generated build attaches it to [`EFakturDocumentService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
+pub struct EFakturDocumentRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<EFakturDocument> for EFakturDocumentRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, EFakturDocument>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
+        // `tax_transaction_id_required` (@required on EFakturDocument.tax_transaction_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["tax_transaction_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "tax_transaction_id")), r::not(r::is_empty(r::trim(r::field(row, "tax_transaction_id")))))) {
+            refuse.push(Violation::new("tax_transaction_id", "required", "tax_transaction_id is required"));
+        }
+        // `number_required` (@required on EFakturDocument.number)
+        if (create || (update && r::changed(old.as_ref(), row, &["number"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "number")), r::not(r::is_empty(r::trim(r::field(row, "number")))))) {
+            refuse.push(Violation::new("number", "required", "number is required"));
+        }
+        // `number_max_length` (@max(20) on EFakturDocument.number)
+        if (create || (update && r::changed(old.as_ref(), row, &["number"]))) && !r::holds(&r::le(r::length(r::field(row, "number")), r::Val::Num(20.0_f64))) {
+            shadow.push(Violation::new("number", "max_length", "number must be at most 20 characters").with_param("max", 20_i64));
+        }
+        // `transaction_code_required` (@required on EFakturDocument.transaction_code)
+        if (create || (update && r::changed(old.as_ref(), row, &["transaction_code"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "transaction_code")), r::not(r::is_empty(r::trim(r::field(row, "transaction_code")))))) {
+            refuse.push(Violation::new("transaction_code", "required", "transaction_code is required"));
+        }
+        // `transaction_code_max_length` (@max(3) on EFakturDocument.transaction_code)
+        if (create || (update && r::changed(old.as_ref(), row, &["transaction_code"]))) && !r::holds(&r::le(r::length(r::field(row, "transaction_code")), r::Val::Num(3.0_f64))) {
+            shadow.push(Violation::new("transaction_code", "max_length", "transaction_code must be at most 3 characters").with_param("max", 3_i64));
+        }
+        // `taxpayer_segment_required` (@required on EFakturDocument.taxpayer_segment)
+        if (create || (update && r::changed(old.as_ref(), row, &["taxpayer_segment"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "taxpayer_segment")), r::not(r::is_empty(r::trim(r::field(row, "taxpayer_segment")))))) {
+            refuse.push(Violation::new("taxpayer_segment", "required", "taxpayer_segment is required"));
+        }
+        // `taxpayer_segment_max_length` (@max(3) on EFakturDocument.taxpayer_segment)
+        if (create || (update && r::changed(old.as_ref(), row, &["taxpayer_segment"]))) && !r::holds(&r::le(r::length(r::field(row, "taxpayer_segment")), r::Val::Num(3.0_f64))) {
+            shadow.push(Violation::new("taxpayer_segment", "max_length", "taxpayer_segment must be at most 3 characters").with_param("max", 3_i64));
+        }
+        // `sequence_non_negative` (@non_negative on EFakturDocument.sequence)
+        if (create || (update && r::changed(old.as_ref(), row, &["sequence"]))) && !r::holds(&r::ge(r::field(row, "sequence"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("sequence", "non_negative", "sequence must not be negative"));
+        }
+        GuardOutcome { refuse, shadow }
+    }
+}
+

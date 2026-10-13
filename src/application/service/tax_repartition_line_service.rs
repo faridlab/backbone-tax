@@ -32,3 +32,45 @@ pub type TaxRepartitionLineService = GenericCrudService<
     TaxRepartitionLineRepository,
 >;
 
+/// The rules the schema declares for TaxRepartitionLine, checked against the row a create or update
+/// would store. The generated build attaches it to [`TaxRepartitionLineService`]. A refusing rule's
+/// break answers 422; a rule in shadow is logged under `backbone::write_guard` and the
+/// write goes ahead.
+pub struct TaxRepartitionLineRowRules;
+
+#[async_trait::async_trait]
+impl backbone_core::write_guard::WriteGuard<TaxRepartitionLine> for TaxRepartitionLineRowRules {
+    async fn check(
+        &self,
+        ctx: &backbone_core::write_guard::WriteCtx<'_, TaxRepartitionLine>,
+    ) -> backbone_core::write_guard::GuardOutcome {
+        use backbone_core::row_rule as r;
+        use backbone_core::violation::Violation;
+        use backbone_core::write_guard::{GuardOutcome, WriteKind};
+        let (create, update) = (ctx.kind == WriteKind::Create, ctx.kind == WriteKind::Update);
+        let Some(after) = ctx.after.filter(|_| create || update) else {
+            return GuardOutcome::allow();
+        };
+        let Ok(row) = serde_json::to_value(after) else {
+            return GuardOutcome::allow();
+        };
+        let row = &row;
+        let old = ctx.before.and_then(|b| serde_json::to_value(b).ok());
+        let mut shadow = Vec::new();
+        let mut refuse = Vec::new();
+        // `template_id_required` (@required on TaxRepartitionLine.template_id)
+        if (create || (update && r::changed(old.as_ref(), row, &["template_id"]))) && !r::holds(&r::and(r::is_not_null(r::field(row, "template_id")), r::not(r::is_empty(r::trim(r::field(row, "template_id")))))) {
+            refuse.push(Violation::new("template_id", "required", "template_id is required"));
+        }
+        // `factor_percent_non_negative` (@non_negative on TaxRepartitionLine.factor_percent)
+        if (create || (update && r::changed(old.as_ref(), row, &["factor_percent"]))) && !r::holds(&r::ge(r::field(row, "factor_percent"), r::Val::Num(0.0_f64))) {
+            shadow.push(Violation::new("factor_percent", "non_negative", "factor_percent must not be negative"));
+        }
+        // `description_max_length` (@max(150) on TaxRepartitionLine.description)
+        if (create || (update && r::changed(old.as_ref(), row, &["description"]))) && !r::holds(&r::le(r::length(r::field(row, "description")), r::Val::Num(150.0_f64))) {
+            shadow.push(Violation::new("description", "max_length", "description must be at most 150 characters").with_param("max", 150_i64));
+        }
+        GuardOutcome { refuse, shadow }
+    }
+}
+
