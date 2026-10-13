@@ -253,6 +253,9 @@ impl backbone_orm::EntityRepoMeta for TaxTemplate {
     fn search_fields() -> &'static [&'static str] {
         &["code", "name"]
     }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("taxCategory", "tax_categories", "taxCategoryId")]
+    }
 }
 
 /// Builder for TaxTemplate entity

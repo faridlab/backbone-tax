@@ -250,6 +250,9 @@ impl backbone_orm::EntityRepoMeta for EFakturDocument {
     fn search_fields() -> &'static [&'static str] {
         &["number", "transaction_code", "taxpayer_segment"]
     }
+    fn relations() -> &'static [(&'static str, &'static str, &'static str)] {
+        &[("taxTransaction", "tax_transactions", "taxTransactionId")]
+    }
 }
 
 /// Builder for EFakturDocument entity
