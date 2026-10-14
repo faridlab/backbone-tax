@@ -248,43 +248,43 @@ impl TaxModuleBuilder {
 
         // CompanyTaxSettings service
         let company_tax_settings_repository = Arc::new(CompanyTaxSettingsRepository::new(db_pool.clone()));
-        let company_tax_settings_service = Arc::new(CompanyTaxSettingsService::with_repository(company_tax_settings_repository.clone()));
+        let company_tax_settings_service = Arc::new(crate::application::service::build_company_tax_settings_service(company_tax_settings_repository.clone()));
 
         // TaxCategory service
         let tax_category_repository = Arc::new(TaxCategoryRepository::new(db_pool.clone()));
-        let tax_category_service = Arc::new(TaxCategoryService::with_repository(tax_category_repository.clone()).with_guard(Arc::new(crate::application::service::TaxCategoryRowRules)));
+        let tax_category_service = Arc::new(crate::application::service::build_tax_category_service(tax_category_repository.clone()));
 
         // TaxTransaction service
         let tax_transaction_repository = Arc::new(TaxTransactionRepository::new(db_pool.clone()));
-        let tax_transaction_service = Arc::new(TaxTransactionService::with_repository(tax_transaction_repository.clone()).with_guard(Arc::new(crate::application::service::TaxTransactionRowRules)));
+        let tax_transaction_service = Arc::new(crate::application::service::build_tax_transaction_service(tax_transaction_repository.clone()));
 
         // EFakturDocument service
         let e_faktur_document_repository = Arc::new(EFakturDocumentRepository::new(db_pool.clone()));
-        let e_faktur_document_service = Arc::new(EFakturDocumentService::with_repository(e_faktur_document_repository.clone()).with_guard(Arc::new(crate::application::service::EFakturDocumentRowRules)));
+        let e_faktur_document_service = Arc::new(crate::application::service::build_e_faktur_document_service(e_faktur_document_repository.clone()));
 
         // TaxFilingPeriod service
         let tax_filing_period_repository = Arc::new(TaxFilingPeriodRepository::new(db_pool.clone()));
-        let tax_filing_period_service = Arc::new(TaxFilingPeriodService::with_repository(tax_filing_period_repository.clone()).with_guard(Arc::new(crate::application::service::TaxFilingPeriodRowRules)));
+        let tax_filing_period_service = Arc::new(crate::application::service::build_tax_filing_period_service(tax_filing_period_repository.clone()));
 
         // TaxTag service
         let tax_tag_repository = Arc::new(TaxTagRepository::new(db_pool.clone()));
-        let tax_tag_service = Arc::new(TaxTagService::with_repository(tax_tag_repository.clone()).with_guard(Arc::new(crate::application::service::TaxTagRowRules)));
+        let tax_tag_service = Arc::new(crate::application::service::build_tax_tag_service(tax_tag_repository.clone()));
 
         // TaxRepartitionLine service
         let tax_repartition_line_repository = Arc::new(TaxRepartitionLineRepository::new(db_pool.clone()));
-        let tax_repartition_line_service = Arc::new(TaxRepartitionLineService::with_repository(tax_repartition_line_repository.clone()).with_guard(Arc::new(crate::application::service::TaxRepartitionLineRowRules)));
+        let tax_repartition_line_service = Arc::new(crate::application::service::build_tax_repartition_line_service(tax_repartition_line_repository.clone()));
 
         // TaxTemplate service
         let tax_template_repository = Arc::new(TaxTemplateRepository::new(db_pool.clone()));
-        let tax_template_service = Arc::new(TaxTemplateService::with_repository(tax_template_repository.clone()).with_guard(Arc::new(crate::application::service::TaxTemplateRowRules)));
+        let tax_template_service = Arc::new(crate::application::service::build_tax_template_service(tax_template_repository.clone()));
 
         // TaxTemplateRow service
         let tax_template_row_repository = Arc::new(TaxTemplateRowRepository::new(db_pool.clone()));
-        let tax_template_row_service = Arc::new(TaxTemplateRowService::with_repository(tax_template_row_repository.clone()).with_guard(Arc::new(crate::application::service::TaxTemplateRowRowRules)));
+        let tax_template_row_service = Arc::new(crate::application::service::build_tax_template_row_service(tax_template_row_repository.clone()));
 
         // WithholdingCategory service
         let withholding_category_repository = Arc::new(WithholdingCategoryRepository::new(db_pool.clone()));
-        let withholding_category_service = Arc::new(WithholdingCategoryService::with_repository(withholding_category_repository.clone()).with_guard(Arc::new(crate::application::service::WithholdingCategoryRowRules)));
+        let withholding_category_service = Arc::new(crate::application::service::build_withholding_category_service(withholding_category_repository.clone()));
 
 
         // The extension builds its own state from what the generated build made.

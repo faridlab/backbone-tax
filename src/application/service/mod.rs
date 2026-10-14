@@ -39,5 +39,85 @@ pub use tax_template_service::TaxTemplateRowRules;
 pub use tax_template_row_service::TaxTemplateRowRowRules;
 pub use withholding_category_service::WithholdingCategoryRowRules;
 
+/// A `CompanyTaxSettingsService` over `repository`: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_company_tax_settings_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::CompanyTaxSettingsRepository>,
+) -> CompanyTaxSettingsService {
+    CompanyTaxSettingsService::with_repository(repository)
+}
+
+/// A `TaxCategoryService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_tax_category_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::TaxCategoryRepository>,
+) -> TaxCategoryService {
+    TaxCategoryService::with_repository(repository).with_guard(std::sync::Arc::new(TaxCategoryRowRules))
+}
+
+/// A `TaxTransactionService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_tax_transaction_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::TaxTransactionRepository>,
+) -> TaxTransactionService {
+    TaxTransactionService::with_repository(repository).with_guard(std::sync::Arc::new(TaxTransactionRowRules))
+}
+
+/// A `EFakturDocumentService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_e_faktur_document_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::EFakturDocumentRepository>,
+) -> EFakturDocumentService {
+    EFakturDocumentService::with_repository(repository).with_guard(std::sync::Arc::new(EFakturDocumentRowRules))
+}
+
+/// A `TaxFilingPeriodService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_tax_filing_period_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::TaxFilingPeriodRepository>,
+) -> TaxFilingPeriodService {
+    TaxFilingPeriodService::with_repository(repository).with_guard(std::sync::Arc::new(TaxFilingPeriodRowRules))
+}
+
+/// A `TaxTagService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_tax_tag_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::TaxTagRepository>,
+) -> TaxTagService {
+    TaxTagService::with_repository(repository).with_guard(std::sync::Arc::new(TaxTagRowRules))
+}
+
+/// A `TaxRepartitionLineService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_tax_repartition_line_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::TaxRepartitionLineRepository>,
+) -> TaxRepartitionLineService {
+    TaxRepartitionLineService::with_repository(repository).with_guard(std::sync::Arc::new(TaxRepartitionLineRowRules))
+}
+
+/// A `TaxTemplateService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_tax_template_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::TaxTemplateRepository>,
+) -> TaxTemplateService {
+    TaxTemplateService::with_repository(repository).with_guard(std::sync::Arc::new(TaxTemplateRowRules))
+}
+
+/// A `TaxTemplateRowService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_tax_template_row_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::TaxTemplateRowRepository>,
+) -> TaxTemplateRowService {
+    TaxTemplateRowService::with_repository(repository).with_guard(std::sync::Arc::new(TaxTemplateRowRowRules))
+}
+
+/// A `WithholdingCategoryService` over `repository` with its write guard attached: the way to build it, so its writes are
+/// served only with the rules the schema declares.
+pub fn build_withholding_category_service(
+    repository: std::sync::Arc<crate::infrastructure::persistence::WithholdingCategoryRepository>,
+) -> WithholdingCategoryService {
+    WithholdingCategoryService::with_repository(repository).with_guard(std::sync::Arc::new(WithholdingCategoryRowRules))
+}
+
 // This directory's extension (hand-written; ADR-0031).
 include!("mod.ext.rs");
