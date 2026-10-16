@@ -104,22 +104,8 @@ rules:
   # Document-grade engine (rounding policy, repartition, cash-basis exigibility).
   # ADR-0015 enforcement posture: db = a DB object (index/trigger/constraint) enforces it;
   # service = compute-time or write-path only, because no raw write path can reach it.
-  - id: R12
-    name: rounding_policy
-    entity: CompanyTaxSettings
-    when: calculate_document
-    assert: "round_per_line: round raw_base per line, round each tax amount per line; round_globally: keep raw amounts, aggregate per tax across all base lines, round per document, redistribute the deltas. Read the VALUE — the default round_globally rounds the aggregate, despite the reference UI labelling it 'Round per Tax'"
-    error_code: none
-    enforcement: service
-    justification: "PARTLY: round_per_line computes each tax from the unrounded base and rounds only the result, and round_globally aggregates per template and component rather than per tax across the document, so a tax shared by two templates is rounded twice. This is a computation, not an invariant over stored rows: it decides what the amounts ARE before anything is written, from the document as a whole."
-  - id: R13
-    name: smooth_delta_only
-    entity: CompanyTaxSettings
-    when: calculate_document
-    assert: "distribute_delta_smoothly is the ONLY delta primitive — tax totals, base totals and repartition splits all redistribute through it (integer cents at currency precision, apportioned by weight, biggest-first, residual cents on the largest factors); Σ redistributed == original + delta EXACTLY"
-    error_code: none
-    enforcement: service
-    justification: "PARTLY: distribute_delta_smoothly floors a sub-cent delta, so the redistributed sum misses the original plus the delta whenever the delta carries a sub-cent part; precision is fixed at two places, and the tests in tests/tax_rounding_unit.rs are example cases. A single-primitive rule is about which code path runs, and a database cannot see code paths."
+  # The rounding policy and the single delta primitive are computations, not invariants:
+  # described in docs/fsd.md (Document rounding), with their known gaps.
   - id: R14
     name: repartition_family_valid
     entity: TaxRepartitionLine

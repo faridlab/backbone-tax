@@ -1,11 +1,10 @@
 # The rule ratchet (schema doctor): these counts may only go down. Regenerate with
 # `metaphor schema rules . --update-baseline` after enforcing a rule.
-unenforced: 4
+unenforced: 2
 warnings: 0
 machines_without_verbs: 0
-untested_rule_ids: 16
+untested_rule_ids: 14
 unenforced_rules:
-- 'tax.hook.yaml: rounding_policy'
-- 'tax.hook.yaml: smooth_delta_only'
 - 'tax.hook.yaml: template_name_unique'
 - 'tax.hook.yaml: unique_config_code'
+bypassable_rules: []

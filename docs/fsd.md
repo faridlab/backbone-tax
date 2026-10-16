@@ -30,6 +30,25 @@ Tables live in the **`tax` Postgres schema**. Account references are **logical F
 charge computation, inclusive extraction, effective-rate selection, withholding threshold,
 non-negative base. Money is exact IDR (2dp, round-half-up).
 
+## Document rounding
+
+How a document's amounts are computed, before anything is written. These are computations over
+the document as a whole, not rules over stored rows, so they live here rather than among the
+declared rules.
+
+- **Rounding policy** (`CompanyTaxSettings`). `round_per_line`: round each line's base, then each
+  tax amount per line. `round_globally`: keep raw amounts, aggregate per tax across all base lines,
+  round once per document, and redistribute the deltas. Read the value, not the label: the default
+  `round_globally` rounds the aggregate, though the reference UI calls it "Round per Tax".
+- **One delta primitive.** Tax totals, base totals and repartition splits all redistribute their
+  rounding delta through `distribute_delta_smoothly`: integer cents at the currency precision,
+  apportioned by weight, biggest first, residual cents on the largest factors, so the redistributed
+  sum equals the original plus the delta exactly.
+
+Known gaps against the above: rounding happens per template and component rather than per tax, and
+per-line rounding taxes the unrounded base (#906); the delta primitive floors a sub-cent delta and
+works at two decimal places only (#907).
+
 ## The seam (tax contributes lines, not a posting)
 A producing module (billing/selling/buying) calls the engine and attaches the returned lines to its
 `AccountingPost` (the Financials-pillar contract owned by accounting). Tax never posts to the GL and
